@@ -1,0 +1,14 @@
+{
+  "name": ".",
+  "importSorting": {
+    "groups": [
+      ["^node:", "^fs$", "^path$", "^os$", "^util$", "^events$", "^http", "^https"],
+      ["^[a-zA-Z0-9]", "^@", "^uuid"],
+      ["^[@][^/]+/", "^(@lib)", "^(@server)", "^(@components)"],
+      ["^[A-Z][^/]+/", "^[a-z][^@][^/]+/"],
+      ["^\\.", "^\\.\\."]
+    ],
+    "separation": "newline",
+    "order": "alphabetical"
+  }
+}
