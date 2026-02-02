@@ -32,3 +32,19 @@ export const users = sqliteTable(
 
 export type UserPrs = typeof users.$inferSelect;
 export type NewUserPrs = typeof users.$inferInsert;
+
+export const assets = sqliteTable(
+	'assets',
+	{
+		id: integer('id').primaryKey(),
+		name: text('name').notNull(),
+		ticker: text('ticker').notNull().unique(),
+		...timestamps,
+	},
+	(table) => [
+		index('assets_ticker_idx').on(table.ticker),
+	],
+);
+
+export type AssetPrs = typeof assets.$inferSelect;
+export type NewAssetPrs = typeof assets.$inferInsert;
