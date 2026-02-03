@@ -43,6 +43,8 @@ export const userReadRepo: UserReadRepoDomain<Db> = {
 
 						if ('id' in o) query = eq(users.id, o.id);
 						else if ('email' in o) query = eq(users.email, o.email);
+						else if ('displayName' in o)
+							query = eq(users.displayName, o.displayName);
 						else query = eq(users.publicId, o.publicId);
 
 						return db.select().from(users).where(query).limit(1);
@@ -85,10 +87,7 @@ export const userWriteRepo: UserWriteRepoDomain<Db> = {
 				}),
 			),
 			E.flatMap((rows) =>
-				Fn.pipe(
-					A.head(rows),
-					E.mapError(errMapper(InfraError)),
-				),
+				Fn.pipe(A.head(rows), E.mapError(errMapper(InfraError))),
 			),
 			E.map(
 				(u): User => ({

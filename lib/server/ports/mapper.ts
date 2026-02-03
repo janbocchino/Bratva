@@ -4,7 +4,12 @@ import type { PriceSeries } from '@/domain/aggregates/price-series';
 import type { User } from '@/domain/aggregates/user';
 import { A } from '@/lib/shared/imports';
 import type { Mapper as MapperPort } from '@/domain/ports/mapper';
-import { AssetId, AssetName, AssetPublicId, AssetTicker } from '@/domain/values/asset';
+import {
+	AssetId,
+	AssetName,
+	AssetPublicId,
+	AssetTicker,
+} from '@/domain/values/asset';
 import { Cent, Units } from '@/domain/values/currencies';
 import {
 	PriceSeriesId,
@@ -79,7 +84,10 @@ export const priceSeriesMapper: MapperPort<PriceSeries, PriceSeriesPrs> = {
 	}),
 };
 
-export const ledgerEntryMapper: MapperPort<UserLedger, LedgerEntryWithBalancePrs[]> = {
+export const ledgerEntryMapper: MapperPort<
+	UserLedger,
+	LedgerEntryWithBalancePrs[]
+> = {
 	toDomain: (p: LedgerEntryWithBalancePrs[]) => ({
 		userId: UserId(p[0].userId),
 		summary: p.map(({ assetId, balance, units }) => ({
@@ -98,5 +106,5 @@ export const ledgerEntryMapper: MapperPort<UserLedger, LedgerEntryWithBalancePrs
 	// @ts-ignore
 	toPersistence: (tx: LedgerEntryWithBalancePrs) => {
 		throw new Error('Not implemented');
-	}
+	},
 };

@@ -1,9 +1,18 @@
 import { sql } from 'drizzle-orm';
-import { blob, index, integer, sqliteTable, text, sqliteView } from 'drizzle-orm/sqlite-core';
+import {
+	blob,
+	index,
+	integer,
+	sqliteTable,
+	text,
+	sqliteView,
+} from 'drizzle-orm/sqlite-core';
 import { v4 as uuidv4 } from 'uuid';
 
 export const timestamps = {
-	createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`CURRENT_TIMESTAMP`),
+	createdAt: integer('created_at', { mode: 'timestamp' })
+		.notNull()
+		.default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: integer('updated_at', { mode: 'timestamp' })
 		.notNull()
 		.default(sql`CURRENT_TIMESTAMP`)
@@ -92,9 +101,7 @@ export const ledgerEntries = sqliteTable(
 		drCr: text('dr_cr', { enum: ['dr', 'cr'] }).notNull(),
 		amount: blob('amount', { mode: 'bigint' }).notNull(),
 		units: text('unit', { enum: ['cent', 'unit'] }).notNull(),
-		createdAt: integer('created_at')
-			.notNull()
-			.default(sql`CURRENT_TIMESTAMP`),
+		createdAt: integer('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
 	},
 	(table) => [
 		index('ledger_entries_user_id_idx').on(table.userId),
@@ -125,20 +132,23 @@ export const ledgerSummaryEntries = sqliteView('ledger_summary_entries', {
 
 export type LedgerSummaryEntryPrs = typeof ledgerSummaryEntries.$inferSelect;
 
-export const ledgerEntriesWithBalance = sqliteView('ledger_entries_with_balance', {
-	id: integer('id').notNull(),
-	userId: integer('user_id')
-		.notNull()
-		.references(() => users.id),
-	assetId: integer('asset_id')
-		.notNull()
-		.references(() => assets.id),
-	drCr: text('dr_cr', { enum: ['dr', 'cr'] }).notNull(),
-	amount: blob('amount', { mode: 'bigint' }).notNull(),
-	units: text('unit', { enum: ['cent', 'unit'] }).notNull(),
-	createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
-	balance: blob('balance', { mode: 'bigint' }).notNull(),
-}).as(sql`
+export const ledgerEntriesWithBalance = sqliteView(
+	'ledger_entries_with_balance',
+	{
+		id: integer('id').notNull(),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id),
+		assetId: integer('asset_id')
+			.notNull()
+			.references(() => assets.id),
+		drCr: text('dr_cr', { enum: ['dr', 'cr'] }).notNull(),
+		amount: blob('amount', { mode: 'bigint' }).notNull(),
+		units: text('unit', { enum: ['cent', 'unit'] }).notNull(),
+		createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+		balance: blob('balance', { mode: 'bigint' }).notNull(),
+	},
+).as(sql`
 	SELECT
 		ledger_entries.id,
 		ledger_entries.user_id,
@@ -154,4 +164,5 @@ export const ledgerEntriesWithBalance = sqliteView('ledger_entries_with_balance'
 		AND ledger_entries.asset_id = ledger_summary_entries.asset_id
 `);
 
-export type LedgerEntryWithBalancePrs = typeof ledgerEntriesWithBalance.$inferSelect;
+export type LedgerEntryWithBalancePrs =
+	typeof ledgerEntriesWithBalance.$inferSelect;

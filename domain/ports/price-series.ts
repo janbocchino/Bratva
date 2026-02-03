@@ -14,5 +14,7 @@ export type GetPriceSeriesParams = typeof GetPriceSeriesParams.infer;
 
 export interface PriceSeriesReadRepo<D> {
 	getPriceSeries(o: GetPriceSeriesParams): E.Effect<PriceSeries, PortError, D>;
-	getPriceSeriesByAssetId(assetId: AssetId): E.Effect<PriceSeries[], PortError, D>;
+	getPriceSeriesByAssetId(
+		assetId: AssetId,
+	): E.Effect<PriceSeries[], PortError, D>;
 }

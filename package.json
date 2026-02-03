@@ -11,7 +11,7 @@
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio",
 		"db:push": "drizzle-kit push",
-		"fmt": "biome format --write ."
+		"fmt": "biome format --write app domain lib"
 	},
 	"dependencies": {
 		"@libsql/client": "^0.17.0",

@@ -38,8 +38,7 @@ export const assetReadRepo: AssetReadRepoDomain<Db> = {
 						let query;
 
 						if ('id' in o) query = eq(assets.id, o.id);
-						else if ('publicId' in o)
-							query = eq(assets.publicId, o.publicId);
+						else if ('publicId' in o) query = eq(assets.publicId, o.publicId);
 						else query = eq(assets.ticker, o.ticker);
 
 						return db.select().from(assets).where(query).limit(1);

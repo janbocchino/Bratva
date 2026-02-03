@@ -4,8 +4,8 @@ import type { Asset } from '../aggregates/asset';
 import type { PortError } from './errors';
 
 export const GetAssetParams = type({
-    id: 'number',
-  })
+	id: 'number',
+})
 	.or({
 		publicId: 'string',
 	})

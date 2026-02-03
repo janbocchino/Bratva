@@ -33,20 +33,13 @@ export const priceSeriesReadRepo: PriceSeriesReadRepoDomain<Db> = {
 							'id' in o
 								? eq(priceSeries.id, o.id)
 								: eq(priceSeries.publicId, o.publicId);
-						return db
-							.select()
-							.from(priceSeries)
-							.where(query)
-							.limit(1);
+						return db.select().from(priceSeries).where(query).limit(1);
 					},
 					catch: errMapper(InfraError),
 				}),
 			),
 			E.flatMap((rows) =>
-				Fn.pipe(
-					A.head(rows),
-					E.mapError(errMapper(PriceSeriesNotFoundError)),
-				),
+				Fn.pipe(A.head(rows), E.mapError(errMapper(PriceSeriesNotFoundError))),
 			),
 			E.map(priceSeriesMapper.toDomain),
 		),

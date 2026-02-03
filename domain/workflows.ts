@@ -1,26 +1,19 @@
-import { Data } from 'effect';
 import { E, Fn } from '@/lib/shared/imports';
 import type { User } from './aggregates/user';
+import {
+	CreateUserAccountValidationError,
+	EmailAlreadyInUseError,
+} from './errors';
 import type { PortError } from './ports/errors';
 import { UserNotFoundError } from './ports/errors';
 import type { UserReadRepo, UserWriteRepo } from './ports/user';
 
-export class EmailAlreadyInUseError extends Data.TaggedError(
-	'EmailAlreadyInUseError',
-)<{
-	email: string;
-}> {}
-
-export class CreateUserAccountValidationError extends Data.TaggedError(
-	'CreateUserAccountValidationError',
-)<{
-	cause: string;
-}> {}
-
-export type CreateUserAccountParams = {
-	displayName: string;
-	email: string;
-};
+// NOTE: Do not create a separate type for the params. Note that this is actually
+// a subtype of your domain model User.
+// export type CreateUserAccountParams = {
+// 	displayName: string;
+// 	email: string;
+// };
 
 export type CreateUserAccountDeps<D> = {
 	userReadRepo: UserReadRepo<D>;
@@ -30,7 +23,7 @@ export type CreateUserAccountDeps<D> = {
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
 const validateCreateUserAccount = (
-	p: CreateUserAccountParams,
+	p: Pick<User, 'displayName' | 'email'>,
 ): E.Effect<
 	{
 		displayName: string;
@@ -43,7 +36,9 @@ const validateCreateUserAccount = (
 
 	if (displayName.length === 0) {
 		return E.fail(
-			new CreateUserAccountValidationError({ cause: 'displayName is required' }),
+			new CreateUserAccountValidationError({
+				cause: 'displayName is required',
+			}),
 		);
 	}
 
@@ -74,7 +69,9 @@ const isUserNotFoundPortError = (err: PortError) =>
  */
 export const createUserAccount =
 	<D>({ userReadRepo, userWriteRepo }: CreateUserAccountDeps<D>) =>
-	(params: CreateUserAccountParams): E.Effect<
+	(
+		params: CreateUserAccountParams,
+	): E.Effect<
 		User,
 		EmailAlreadyInUseError | CreateUserAccountValidationError | PortError,
 		D
@@ -86,9 +83,7 @@ export const createUserAccount =
 					userReadRepo.getUser({ email }),
 					E.matchEffect({
 						onFailure: (err) =>
-							isUserNotFoundPortError(err)
-								? E.void
-								: E.fail(err),
+							isUserNotFoundPortError(err) ? E.void : E.fail(err),
 						onSuccess: () => E.fail(new EmailAlreadyInUseError({ email })),
 					}),
 					E.flatMap(() => userWriteRepo.createUser({ displayName, email })),

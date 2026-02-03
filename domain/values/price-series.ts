@@ -1,4 +1,4 @@
-import { Brand } from "effect";
+import { Brand } from 'effect';
 
 export type PriceSeriesId = Brand.Branded<number, 'PriceSeriesId'>;
 export const PriceSeriesId = Brand.nominal<PriceSeriesId>();

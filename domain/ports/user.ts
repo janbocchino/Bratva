@@ -7,6 +7,9 @@ export const GetUserParams = type({
 	id: 'number',
 })
 	.or({
+		displayName: 'string.lower |> string.trim',
+	})
+	.or({
 		email: 'string',
 	})
 	.or({
@@ -19,9 +22,10 @@ export interface UserReadRepo<D> {
 }
 
 export const CreateUserParams = type({
-	displayName: 'string',
-	email: 'string',
+	displayName: 'string.lower |> string.trim',
+	email: 'string.trim |> string.lower |> string.email',
 });
+
 export type CreateUserParams = typeof CreateUserParams.infer;
 
 export interface UserWriteRepo<D> {
