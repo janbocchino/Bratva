@@ -5,12 +5,16 @@ import type { PortError } from './errors';
 
 export const GetAssetParams = type({
     id: 'number',
-})
-    .or({
-        ticker: 'string',
-});
+  })
+	.or({
+		publicId: 'string',
+	})
+	.or({
+		ticker: 'string',
+	});
+
 export type GetAssetParams = typeof GetAssetParams.infer;
 
 export interface AssetReadRepo<D> {
-    getAsset(o: GetAssetParams): E.Effect<Asset, PortError, D>;
+	getAsset(o: GetAssetParams): E.Effect<Asset, PortError, D>;
 }
