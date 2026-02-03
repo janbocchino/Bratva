@@ -6,7 +6,11 @@ import {
 	PortError,
 	UserNotFoundError,
 } from '@/domain/ports/errors';
-import type { UserReadRepo as UserReadRepoDomain } from '@/domain/ports/user';
+import type {
+	CreateUserParams,
+	UserReadRepo as UserReadRepoDomain,
+	UserWriteRepo as UserWriteRepoDomain,
+} from '@/domain/ports/user';
 import {
 	UserDisplayName,
 	UserEmail,
@@ -48,6 +52,43 @@ export const userReadRepo: UserReadRepoDomain<Db> = {
 			),
 			E.flatMap((us) =>
 				Fn.pipe(A.head(us), E.mapError(errMapper(UserNotFoundError))),
+			),
+			E.map(
+				(u): User => ({
+					id: UserId(u.id),
+					publicId: UserPublicId(u.publicId),
+					displayName: UserDisplayName(u.displayName),
+					email: UserEmail(u.email),
+					createdAt: new Date(u.createdAt),
+					updatedAt: new Date(u.updatedAt),
+				}),
+			),
+		),
+};
+
+export const userWriteRepo: UserWriteRepoDomain<Db> = {
+	createUser: (o: CreateUserParams) =>
+		Fn.pipe(
+			E.serviceOptional(Db),
+			E.mapError(errMapper(InfraNotFoundError)),
+			E.flatMap((db) =>
+				E.tryPromise({
+					try: () =>
+						db
+							.insert(users)
+							.values({
+								displayName: o.displayName,
+								email: o.email,
+							})
+							.returning(),
+					catch: errMapper(InfraError),
+				}),
+			),
+			E.flatMap((rows) =>
+				Fn.pipe(
+					A.head(rows),
+					E.mapError(errMapper(InfraError)),
+				),
 			),
 			E.map(
 				(u): User => ({
