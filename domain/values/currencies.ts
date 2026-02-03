@@ -13,3 +13,6 @@ export const Dollar = {
   toCent: (v: Dollar): Cent => Cent.new(v * 100n),
   fromCent: (v: Cent): Dollar => Dollar.new(v / 100n),
 }
+
+export type Units = Brand.Branded<bigint, 'Units'>;
+export const Units = Brand.nominal<Units>();

@@ -1,9 +1,11 @@
 import type { Asset } from '@/domain/aggregates/asset';
+import { UserLedger } from '@/domain/aggregates/ledger';
 import type { PriceSeries } from '@/domain/aggregates/price-series';
 import type { User } from '@/domain/aggregates/user';
+import { A } from '@/lib/shared/imports';
 import type { Mapper as MapperPort } from '@/domain/ports/mapper';
 import { AssetId, AssetName, AssetPublicId, AssetTicker } from '@/domain/values/asset';
-import { Cent } from '@/domain/values/currencies';
+import { Cent, Units } from '@/domain/values/currencies';
 import {
 	PriceSeriesId,
 	PriceSeriesPublicId,
@@ -14,7 +16,13 @@ import {
 	UserId,
 	UserPublicId,
 } from '@/domain/values/user';
-import type { AssetPrs, PriceSeriesPrs, UserPrs } from '../schema';
+import type {
+	AssetPrs,
+	LedgerEntryPrs,
+	LedgerEntryWithBalancePrs,
+	PriceSeriesPrs,
+	UserPrs,
+} from '../schema';
 
 export const userMapper: MapperPort<User, UserPrs> = {
 	toDomain: (p) => ({
@@ -30,8 +38,8 @@ export const userMapper: MapperPort<User, UserPrs> = {
 		publicId: d.publicId,
 		displayName: d.displayName,
 		email: d.email,
-		createdAt: d.createdAt.getTime(),
-		updatedAt: d.updatedAt.getTime(),
+		createdAt: d.createdAt,
+		updatedAt: d.updatedAt,
 	}),
 };
 
@@ -49,8 +57,8 @@ export const assetMapper: MapperPort<Asset, AssetPrs> = {
 		publicId: d.publicId,
 		name: d.name,
 		ticker: d.ticker,
-		createdAt: d.createdAt.getTime(),
-		updatedAt: d.updatedAt.getTime(),
+		createdAt: d.createdAt,
+		updatedAt: d.updatedAt,
 	}),
 };
 
@@ -67,6 +75,28 @@ export const priceSeriesMapper: MapperPort<PriceSeries, PriceSeriesPrs> = {
 		publicId: d.publicId,
 		assetId: d.assetId,
 		price: d.price,
-		createdAt: d.createdAt.getTime(),
+		createdAt: d.createdAt,
 	}),
+};
+
+export const ledgerEntryMapper: MapperPort<UserLedger, LedgerEntryWithBalancePrs[]> = {
+	toDomain: (p: LedgerEntryWithBalancePrs[]) => ({
+		userId: UserId(p[0].userId),
+		summary: p.map(({ assetId, balance, units }) => ({
+			assetId: AssetId(assetId),
+			balance: units === 'cent' ? Cent.new(balance) : Units(balance),
+			units: units,
+		})),
+		transactions: p.map(({ assetId, drCr, amount, units, createdAt }) => ({
+			assetId: AssetId(assetId),
+			drCr: drCr,
+			amount: units == 'cent' ? Cent.new(amount) : Units(amount),
+			units: units,
+			createdAt,
+		})),
+	}),
+	// @ts-ignore
+	toPersistence: (tx: LedgerEntryWithBalancePrs) => {
+		throw new Error('Not implemented');
+	}
 };
