@@ -1,5 +1,5 @@
 import type { Asset } from '@/domain/aggregates/asset';
-import { UserLedger } from '@/domain/aggregates/ledger';
+import type { UserLedger } from '@/domain/aggregates/ledger';
 import type { PriceSeries } from '@/domain/aggregates/price-series';
 import type { User } from '@/domain/aggregates/user';
 import { A } from '@/lib/shared/imports';

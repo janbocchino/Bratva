@@ -6,7 +6,11 @@ import {
 	InfraNotFoundError,
 	PortError,
 } from '@/domain/ports/errors';
-import type { AssetReadRepo as AssetReadRepoDomain } from '@/domain/ports/asset';
+import type {
+	AssetReadRepo as AssetReadRepoDomain,
+	AssetWriteRepo as AssetWriteRepoDomain,
+	CreateAssetParams,
+} from '@/domain/ports/asset';
 import {
 	AssetId,
 	AssetName,
@@ -49,6 +53,38 @@ export const assetReadRepo: AssetReadRepoDomain<Db> = {
 			E.flatMap((rows) =>
 				Fn.pipe(A.head(rows), E.mapError(errMapper(AssetNotFoundError))),
 			),
+			E.map(
+				(row): Asset => ({
+					id: AssetId(row.id),
+					publicId: AssetPublicId(row.publicId),
+					name: AssetName(row.name),
+					ticker: AssetTicker(row.ticker),
+					createdAt: new Date(row.createdAt),
+					updatedAt: new Date(row.updatedAt),
+				}),
+			),
+		),
+};
+
+export const assetWriteRepo: AssetWriteRepoDomain<Db> = {
+	createAsset: (o: CreateAssetParams) =>
+		Fn.pipe(
+			E.serviceOptional(Db),
+			E.mapError(errMapper(InfraNotFoundError)),
+			E.flatMap((db) =>
+				E.tryPromise({
+					try: () =>
+						db
+							.insert(assets)
+							.values({
+								name: o.name,
+								ticker: o.ticker,
+							})
+							.returning(),
+					catch: errMapper(InfraError),
+				}),
+			),
+			E.flatMap((rows) => Fn.pipe(A.head(rows), E.mapError(errMapper(InfraError)))),
 			E.map(
 				(row): Asset => ({
 					id: AssetId(row.id),

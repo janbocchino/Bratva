@@ -1,5 +1,6 @@
 export {
 	AssetNotFoundError,
+	AddBalanceValidationError,
 	CreateUserAccountValidationError,
 	DisplayNameAlreadyInUseError,
 	EmailAlreadyInUseError,

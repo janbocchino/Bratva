@@ -47,3 +47,9 @@ export class CreateUserAccountValidationError extends Data.TaggedError(
 )<{
 	cause: string;
 }> {}
+
+export class AddBalanceValidationError extends Data.TaggedError(
+	'AddBalanceValidationError',
+)<{
+	cause: string;
+}> {}

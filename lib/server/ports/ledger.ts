@@ -4,10 +4,13 @@ import {
 	InfraNotFoundError,
 	PortError,
 } from '@/domain/ports/errors';
-import type { LedgerReadRepo as LedgerReadRepoDomain } from '@/domain/ports/ledger';
+import type {
+	LedgerReadRepo as LedgerReadRepoDomain,
+	LedgerWriteRepo as LedgerWriteRepoDomain,
+} from '@/domain/ports/ledger';
 import { E, Fn } from '@/lib/shared/imports';
 import { Db } from '../db';
-import { ledgerEntriesWithBalance } from '../schema';
+import { ledgerEntries, ledgerEntriesWithBalance } from '../schema';
 import { ledgerEntryMapper } from './mapper';
 
 const errMapper =
@@ -32,5 +35,27 @@ export const ledgerReadRepo: LedgerReadRepoDomain<Db> = {
 				}),
 			),
 			E.map((rows) => ledgerEntryMapper.toDomain(rows)),
+		),
+};
+
+export const ledgerWriteRepo: LedgerWriteRepoDomain<Db> = {
+	createEntry: (o) =>
+		Fn.pipe(
+			E.serviceOptional(Db),
+			E.mapError(errMapper(InfraNotFoundError)),
+			E.flatMap((db) =>
+				E.tryPromise({
+					try: () =>
+						db.insert(ledgerEntries).values({
+							userId: o.userId,
+							assetId: o.assetId,
+							drCr: o.drCr,
+							amount: o.amount,
+							units: o.units,
+						}),
+					catch: errMapper(InfraError),
+				}),
+			),
+			E.asVoid,
 		),
 };

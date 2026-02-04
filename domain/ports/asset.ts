@@ -18,3 +18,14 @@ export type GetAssetParams = typeof GetAssetParams.infer;
 export interface AssetReadRepo<D> {
 	getAsset(o: GetAssetParams): E.Effect<Asset, PortError, D>;
 }
+
+export const CreateAssetParams = type({
+	name: 'string.trim',
+	ticker: 'string.trim |> string.lower',
+});
+
+export type CreateAssetParams = typeof CreateAssetParams.infer;
+
+export interface AssetWriteRepo<D> {
+	createAsset(o: CreateAssetParams): E.Effect<Asset, PortError, D>;
+}
