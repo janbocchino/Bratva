@@ -108,3 +108,44 @@ export const ledgerEntryMapper: MapperPort<
 		throw new Error('Not implemented');
 	},
 };
+
+export function ledgerEntriesToDomain(o: {
+	userId: UserId;
+	rows: LedgerEntryPrs[];
+}): UserLedger {
+	if (o.rows.length === 0) {
+		return { userId: o.userId, summary: [], transactions: [] };
+	}
+
+	const transactions: UserLedger['transactions'] = o.rows.map((r) => ({
+		assetId: AssetId(r.assetId),
+		drCr: r.drCr,
+		amount: r.units === 'cent' ? Cent.new(r.amount) : Units(r.amount),
+		units: r.units,
+		createdAt: new Date(r.createdAt as unknown as string | number),
+	}));
+
+	// Compute balances grouped by (assetId, units)
+	const balances = new Map<string, { assetId: number; units: 'cent' | 'unit'; balance: bigint }>();
+	for (const tx of transactions) {
+		const assetId = tx.assetId as unknown as number;
+		const key = `${assetId}|${tx.units}`;
+		const prev = balances.get(key);
+		const signed =
+			tx.drCr === 'cr'
+				? (tx.amount as unknown as bigint)
+				: -(tx.amount as unknown as bigint);
+		if (!prev) balances.set(key, { assetId, units: tx.units, balance: signed });
+		else balances.set(key, { ...prev, balance: prev.balance + signed });
+	}
+
+	const summary: UserLedger['summary'] = Array.from(balances.values()).map(
+		({ assetId, units, balance }) => ({
+			assetId: AssetId(assetId),
+			balance: units === 'cent' ? Cent.new(balance) : Units(balance),
+			units,
+		}),
+	);
+
+	return { userId: o.userId, summary, transactions };
+}

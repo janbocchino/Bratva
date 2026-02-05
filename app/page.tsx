@@ -7,6 +7,14 @@ import { createUser } from '@/lib/server/actions/create-user';
 import { addBalance } from '@/lib/server/actions/add-balance';
 import { useState } from 'react';
 
+function jsonWithBigInt(value: unknown): string {
+	return JSON.stringify(
+		value,
+		(_, v) => (typeof v === 'bigint' ? v.toString() : v),
+		2,
+	);
+}
+
 export default function Home() {
 	const [user, setUser] = useState<User | null>(null);
 	const [ledger, setLedger] = useState<UserLedger | null>(null);
@@ -80,8 +88,8 @@ export default function Home() {
 				</form>
 			) : null}
 			<div className='flex flex-col font-mono'>
-				<pre>{JSON.stringify(user, null, 2)}</pre>
-				<pre>{JSON.stringify(ledger, null, 2)}</pre>
+				<pre>{jsonWithBigInt(user)}</pre>
+				<pre>{jsonWithBigInt(ledger)}</pre>
 			</div>
 		</div>
 	);

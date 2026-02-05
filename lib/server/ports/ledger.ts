@@ -10,8 +10,8 @@ import type {
 } from '@/domain/ports/ledger';
 import { E, Fn } from '@/lib/shared/imports';
 import { Db } from '../db';
-import { ledgerEntries, ledgerEntriesWithBalance } from '../schema';
-import { ledgerEntryMapper } from './mapper';
+import { ledgerEntries } from '../schema';
+import { ledgerEntriesToDomain } from './mapper';
 
 const errMapper =
 	(WrappedError: typeof InfraNotFoundError | typeof InfraError) =>
@@ -28,13 +28,13 @@ export const ledgerReadRepo: LedgerReadRepoDomain<Db> = {
 					try: () =>
 						db
 							.select()
-							.from(ledgerEntriesWithBalance)
-							.where(eq(ledgerEntriesWithBalance.userId, userId))
-							.orderBy(asc(ledgerEntriesWithBalance.createdAt)),
+							.from(ledgerEntries)
+							.where(eq(ledgerEntries.userId, userId))
+							.orderBy(asc(ledgerEntries.createdAt)),
 					catch: errMapper(InfraError),
 				}),
 			),
-			E.map((rows) => ledgerEntryMapper.toDomain(rows)),
+			E.map((rows) => ledgerEntriesToDomain({ userId, rows })),
 		),
 };
 

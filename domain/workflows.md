@@ -115,3 +115,52 @@ sequenceDiagram
     - `domain/ports/asset.ts` + `lib/server/ports/asset.ts` (to resolve the funding asset)
     - `domain/ports/user.ts` + `lib/server/ports/user.ts` (if resolving userId from a user reference)
 
+### Exchange: user exchanges asset (token ⇄ USD)
+
+Source: `domain/workflows/exchange.ts` (`userExchangeAsset`)
+
+Domain constraint:
+
+- Tokens can be exchanged with USD.
+- Tokens **cannot** be exchanged with other tokens.
+
+Exchange semantics:
+
+- **Token → USD** is effectively a *sell* (debit token units, credit USD cents).
+- **USD → Token** is effectively a *buy* (debit USD cents, credit token units).
+- For USD → token, we treat the input as **max spend** and only debit the exact `spent` amount that converts at the given price; any `leftover` stays as USD balance.
+
+```mermaid
+sequenceDiagram
+	autonumber
+	participant client
+	participant frontend
+	participant backend
+
+	client->>frontend: Choose fromAsset + toAsset
+	client->>frontend: Enter amountIn (USD cents OR token units)
+	client->>frontend: Submit "Exchange"
+
+	frontend->>backend: exchangeAsset({ userRef, fromAssetRef, toAssetRef, amountIn, unitsIn })
+	backend->>backend: Resolve userId (session OR userReadRepo.getUser)
+	backend->>backend: Resolve fromAsset/toAsset (assetReadRepo.getAsset)
+	backend->>backend: Read current balances (ledgerReadRepo.getLedgerByUserId)
+
+	alt token-token OR usd-usd OR invalid units
+		backend-->>frontend: reject(UserExchangeAssetValidationError)
+		frontend-->>client: Show error
+	else ok
+		backend->>backend: Fetch latest token price (priceSeriesReadRepo.getPriceSeriesByAssetId)
+		backend->>backend: userExchangeAsset({ ... , priceCentPerTokenUnit })
+		alt insufficient balance OR amount too small
+			backend-->>frontend: reject(UserExchangeAssetValidationError)
+			frontend-->>client: Show error
+		else ok
+			backend->>backend: Persist 2 ledger entries (ledgerWriteRepo.createEntry x2)
+			backend->>backend: Read updated ledger (ledgerReadRepo.getLedgerByUserId)
+			backend-->>frontend: UserLedger (updated)
+			frontend-->>client: Render new balances
+		end
+	end
+```
+
