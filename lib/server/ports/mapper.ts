@@ -28,6 +28,7 @@ import type {
 	PriceSeriesPrs,
 	UserPrs,
 } from '../schema';
+import { type } from 'arktype';
 
 export const userMapper: MapperPort<User, UserPrs> = {
 	toDomain: (p) => ({
@@ -84,6 +85,10 @@ export const priceSeriesMapper: MapperPort<PriceSeries, PriceSeriesPrs> = {
 	}),
 };
 
+const balanceToBigInt = type('string.numeric.parse')
+	.pipe(Math.trunc)
+	.pipe(BigInt);
+
 export const ledgerEntryMapper: MapperPort<
 	UserLedger,
 	LedgerEntryWithBalancePrs[]
@@ -92,7 +97,10 @@ export const ledgerEntryMapper: MapperPort<
 		userId: UserId(p[0].userId),
 		summary: p.map(({ assetId, balance, units }) => ({
 			assetId: AssetId(assetId),
-			balance: units === 'cent' ? Cent.new(balance) : Units(balance),
+			balance:
+				units === 'cent'
+					? Cent.new(balanceToBigInt.assert(balance))
+					: Units(balanceToBigInt.assert(balance)),
 			units: units,
 		})),
 		transactions: p.map(({ assetId, drCr, amount, units, createdAt }) => ({

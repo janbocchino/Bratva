@@ -10,13 +10,15 @@ import type {
 } from '@/domain/ports/ledger';
 import { E, Fn } from '@/lib/shared/imports';
 import { Db } from '../db';
-import { ledgerEntries } from '../schema';
-import { ledgerEntriesToDomain } from './mapper';
+import { ledgerEntries, ledgerEntriesWithBalance } from '../schema';
+import { ledgerEntriesToDomain, ledgerEntryMapper } from './mapper';
 
 const errMapper =
 	(WrappedError: typeof InfraNotFoundError | typeof InfraError) =>
-	(cause: unknown) =>
-		new PortError({ cause: new WrappedError({ cause }) });
+		(cause: unknown) => {
+			console.log(cause);
+			return new PortError({ cause: new WrappedError({ cause }) });
+		};
 
 export const ledgerReadRepo: LedgerReadRepoDomain<Db> = {
 	getLedgerByUserId: (userId) =>
@@ -28,13 +30,13 @@ export const ledgerReadRepo: LedgerReadRepoDomain<Db> = {
 					try: () =>
 						db
 							.select()
-							.from(ledgerEntries)
-							.where(eq(ledgerEntries.userId, userId))
-							.orderBy(asc(ledgerEntries.createdAt)),
+							.from(ledgerEntriesWithBalance)
+							.where(eq(ledgerEntriesWithBalance.userId, userId))
+							.orderBy(asc(ledgerEntriesWithBalance.createdAt)),
 					catch: errMapper(InfraError),
 				}),
 			),
-			E.map((rows) => ledgerEntriesToDomain({ userId, rows })),
+			E.map(ledgerEntryMapper.toDomain),
 		),
 };
 

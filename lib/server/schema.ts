@@ -120,12 +120,12 @@ export const ledgerSummaryEntries = sqliteView('ledger_summary_entries', {
 	assetId: integer('asset_id')
 		.notNull()
 		.references(() => assets.id),
-	balance: blob('balance', { mode: 'bigint' }).notNull(),
+	balance: text('balance').notNull(),
 }).as(sql`
 	SELECT
 		user_id,
 		asset_id,
-		SUM(CASE WHEN dr_cr = 'cr' THEN amount ELSE -amount END) AS balance
+		CAST(SUM(CASE WHEN dr_cr = 'cr' THEN amount ELSE -amount END) AS TEXT) AS balance
 	FROM ledger_entries
 	GROUP BY user_id, asset_id
 `);
@@ -146,7 +146,7 @@ export const ledgerEntriesWithBalance = sqliteView(
 		amount: blob('amount', { mode: 'bigint' }).notNull(),
 		units: text('unit', { enum: ['cent', 'unit'] }).notNull(),
 		createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
-		balance: blob('balance', { mode: 'bigint' }).notNull(),
+		balance: text('balance').notNull(),
 	},
 ).as(sql`
 	SELECT

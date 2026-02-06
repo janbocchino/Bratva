@@ -6,6 +6,7 @@ import { creditUserBalance } from '@/domain/workflows/ledger';
 import { Cent } from '@/domain/values/currencies';
 import { Db, db } from '../db';
 import { assetReadRepo, assetWriteRepo } from '../ports/asset';
+import { type } from 'arktype';
 import { ledgerReadRepo, ledgerWriteRepo } from '../ports/ledger';
 import { userReadRepo } from '../ports/user';
 
@@ -23,12 +24,16 @@ function parseAmountDollarsToCents(amountDollars: string): bigint {
 	return total;
 }
 
+
 export async function addBalance(p: {
 	userId: number;
 	amountDollars: string;
 }): Promise<UserLedger> {
 	const cents = E.try({
-		try: () => parseAmountDollarsToCents(p.amountDollars),
+		try: () => type('string.numeric.parse |> number > 0')
+			.pipe(n => n * 100)
+			.pipe(BigInt)
+			.assert(p.amountDollars),
 		catch: () => new Error('Invalid amountDollars'),
 	});
 
