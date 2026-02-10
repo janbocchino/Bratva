@@ -10,19 +10,6 @@ import { type } from 'arktype';
 import { ledgerReadRepo, ledgerWriteRepo } from '../ports/ledger';
 import { userReadRepo } from '../ports/user';
 
-function parseAmountDollarsToCents(amountDollars: string): bigint {
-	const s = amountDollars.trim();
-	// Supports: "10", "10.0", "10.00"
-	const m = /^(\d+)(?:\.(\d{1,2}))?$/.exec(s);
-	if (!m) throw new Error('Invalid amountDollars');
-
-	const dollars = BigInt(m[1]);
-	const centsPart = (m[2] ?? '').padEnd(2, '0');
-	const cents = BigInt(centsPart === '' ? '0' : centsPart);
-	const total = dollars * 100n + cents;
-	if (total <= 0n) throw new Error('Invalid amountDollars');
-	return total;
-}
 
 
 export async function addBalance(p: {

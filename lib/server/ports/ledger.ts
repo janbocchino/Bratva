@@ -11,7 +11,7 @@ import type {
 import { E, Fn } from '@/lib/shared/imports';
 import { Db } from '../db';
 import { ledgerEntries, ledgerEntriesWithBalance } from '../schema';
-import { ledgerEntriesToDomain, ledgerEntryMapper } from './mapper';
+import { ledgerEntryMapper } from './mapper';
 
 const errMapper =
 	(WrappedError: typeof InfraNotFoundError | typeof InfraError) =>
