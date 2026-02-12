@@ -20,10 +20,10 @@ import {
 	UserEmail,
 	UserId,
 	UserPublicId,
+	Nonce,
 } from '@/domain/values/user';
 import type {
 	AssetPrs,
-	LedgerEntryPrs,
 	LedgerEntryWithBalancePrs,
 	PriceSeriesPrs,
 	UserPrs,
@@ -38,6 +38,7 @@ export const userMapper: MapperPort<User, UserPrs> = {
 		email: UserEmail(p.email),
 		createdAt: new Date(p.createdAt),
 		updatedAt: new Date(p.updatedAt),
+		nonce: Nonce(p.nonce),
 	}),
 	toPersistence: (d) => ({
 		id: d.id,
@@ -46,6 +47,7 @@ export const userMapper: MapperPort<User, UserPrs> = {
 		email: d.email,
 		createdAt: d.createdAt,
 		updatedAt: d.updatedAt,
+		nonce: d.nonce,
 	}),
 };
 

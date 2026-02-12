@@ -5,6 +5,7 @@ import type { UserLedger } from '@/domain/aggregates/ledger';
 import { UserDisplayName, UserEmail } from '@/domain/values/user';
 import { createUser } from '@/lib/server/actions/create-user';
 import { addBalance } from '@/lib/server/actions/add-balance';
+import Image from 'next/image';
 import { useState } from 'react';
 
 function jsonWithBigInt(value: unknown): string {
@@ -44,6 +45,13 @@ export default function Home() {
 
 	return (
 		<div className='flex flex-col grow flex-1 items-center justify-center gap-2'>
+			<Image
+				src='/meme.jpg'
+				alt='Meme'
+				width={480}
+				height={360}
+				className='rounded-lg'
+			/>
 			<h1>Create Account</h1>
 			<form
 				onSubmit={(e) => {

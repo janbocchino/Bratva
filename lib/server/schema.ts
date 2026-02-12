@@ -30,6 +30,7 @@ export const users = sqliteTable(
 
 		displayName: text('display_name').notNull(),
 		email: text('email').notNull().unique(),
+		nonce: integer('nonce').notNull().default(0),
 
 		...timestamps,
 	},

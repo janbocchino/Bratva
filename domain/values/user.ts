@@ -11,3 +11,6 @@ export const UserEmail = Brand.nominal<UserEmail>();
 
 export type UserDisplayName = Brand.Branded<string, 'UserDisplayName'>;
 export const UserDisplayName = Brand.nominal<UserDisplayName>();
+
+export type Nonce = Brand.Branded<number, 'Nonce'>;
+export const Nonce = Brand.nominal<Nonce>();
