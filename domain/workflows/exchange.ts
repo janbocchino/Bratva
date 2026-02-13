@@ -6,7 +6,7 @@ import type {
 	OrderBook,
 } from '../aggregates/exchange';
 import { AmmPool } from '../aggregates/exchange';
-import { InvalidOrderError } from '../errors';
+import { InvalidOrderError, OrderNotFoundError } from '../errors';
 import type { UserId } from '../values/user';
 import type { LedgerUnits } from '../ports/ledger';
 import { Cent, Units } from '../values/currencies';
@@ -175,4 +175,25 @@ export function processOrder(
 		orderBook: newOrderBook,
 		ammPool: amm.pool,
 	} satisfies MarketState);
+}
+
+
+export function cancelOrder(
+	order: Order,
+	marketState: MarketState,
+): E.Effect<MarketState, OrderNotFoundError> {
+	const { orderBook } = marketState;
+	const inBids = orderBook.bids.some((o) => o.id === order.id);
+	const inAsks = orderBook.asks.some((o) => o.id === order.id);
+	if (!inBids && !inAsks) {
+		return E.fail(
+			new OrderNotFoundError({ cause: 'Order not found on book' }),
+		);
+	}
+	const bids = orderBook.bids.filter((o) => o.id !== order.id);
+	const asks = orderBook.asks.filter((o) => o.id !== order.id);
+	return E.succeed({
+		...marketState,
+		orderBook: { bids, asks },
+	});
 }

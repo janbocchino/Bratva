@@ -167,3 +167,109 @@ export const ledgerEntriesWithBalance = sqliteView(
 
 export type LedgerEntryWithBalancePrs =
 	typeof ledgerEntriesWithBalance.$inferSelect;
+
+// ── Exchange ─────────────────────────────────────────────────────────────
+
+export const markets = sqliteTable(
+	'markets',
+	{
+		id: integer('id').primaryKey(),
+		publicId: text('public_id')
+			.notNull()
+			.unique()
+			.$defaultFn(() => uuidv4()),
+		baseAssetId: integer('base_asset_id')
+			.notNull()
+			.references(() => assets.id),
+		quoteAssetId: integer('quote_asset_id')
+			.notNull()
+			.references(() => assets.id),
+		sequenceNumber: integer('sequence_number').notNull().default(0),
+		ammReserveBase: blob('amm_reserve_base', { mode: 'bigint' }).notNull(),
+		ammReserveQuote: blob('amm_reserve_quote', { mode: 'bigint' }).notNull(),
+		status: text('status', {
+			enum: ['active', 'halted', 'closed'],
+		})
+			.notNull()
+			.default('active'),
+		...timestamps,
+	},
+	(table) => [
+		index('markets_public_id_idx').on(table.publicId),
+		index('markets_base_quote_idx').on(table.baseAssetId, table.quoteAssetId),
+	],
+);
+
+export type MarketPrs = typeof markets.$inferSelect;
+export type NewMarketPrs = typeof markets.$inferInsert;
+
+export const orders = sqliteTable(
+	'orders',
+	{
+		id: integer('id').primaryKey(),
+		publicId: text('public_id')
+			.notNull()
+			.unique()
+			.$defaultFn(() => uuidv4()),
+		marketId: integer('market_id')
+			.notNull()
+			.references(() => markets.id),
+		userId: integer('user_id')
+			.notNull()
+			.references(() => users.id),
+		side: text('side', { enum: ['bid', 'ask'] }).notNull(),
+		price: blob('price', { mode: 'bigint' }).notNull(),
+		quantity: integer('quantity').notNull(),
+		stopLoss: blob('stop_loss', { mode: 'bigint' }).notNull(),
+		marketSequenceNumber: integer('market_sequence_number').notNull(),
+		nonce: integer('nonce').notNull().default(0),
+		status: text('status', {
+			enum: ['open', 'filled', 'partially_filled', 'cancelled', 'expired'],
+		})
+			.notNull()
+			.default('open'),
+		...timestamps,
+		expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+	},
+	(table) => [
+		index('orders_market_id_idx').on(table.marketId),
+		index('orders_user_id_idx').on(table.userId),
+		index('orders_status_idx').on(table.status),
+	],
+);
+
+export type OrderPrs = typeof orders.$inferSelect;
+export type NewOrderPrs = typeof orders.$inferInsert;
+
+export const fills = sqliteTable(
+	'fills',
+	{
+		id: integer('id').primaryKey(),
+		marketId: integer('market_id')
+			.notNull()
+			.references(() => markets.id),
+		makerOrderId: integer('maker_order_id').references(() => orders.id),
+		takerOrderId: integer('taker_order_id')
+			.notNull()
+			.references(() => orders.id),
+		makerUserId: integer('maker_user_id').references(() => users.id),
+		takerUserId: integer('taker_user_id')
+			.notNull()
+			.references(() => users.id),
+		price: blob('price', { mode: 'bigint' }).notNull(),
+		quantity: integer('quantity').notNull(),
+		side: text('side', { enum: ['bid', 'ask'] }).notNull(),
+		source: text('source', { enum: ['book', 'amm'] }).notNull(),
+		createdAt: integer('created_at', { mode: 'timestamp' })
+			.notNull()
+			.default(sql`CURRENT_TIMESTAMP`),
+	},
+	(table) => [
+		index('fills_market_id_idx').on(table.marketId),
+		index('fills_taker_user_id_idx').on(table.takerUserId),
+		index('fills_created_at_idx').on(table.createdAt),
+	],
+);
+
+export type FillPrs = typeof fills.$inferSelect;
+export type NewFillPrs = typeof fills.$inferInsert;
