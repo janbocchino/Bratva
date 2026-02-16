@@ -5,16 +5,14 @@ import type { AssetId } from '../values/asset';
 import type { PortError } from './errors';
 
 export const GetPriceSeriesParams = type({
-	id: 'number',
+  id: 'number',
 }).or({
-	publicId: 'string',
+  publicId: 'string',
 });
 
 export type GetPriceSeriesParams = typeof GetPriceSeriesParams.infer;
 
 export interface PriceSeriesReadRepo<D> {
-	getPriceSeries(o: GetPriceSeriesParams): E.Effect<PriceSeries, PortError, D>;
-	getPriceSeriesByAssetId(
-		assetId: AssetId,
-	): E.Effect<PriceSeries[], PortError, D>;
+  getPriceSeries(o: GetPriceSeriesParams): E.Effect<PriceSeries, PortError, D>;
+  getPriceSeriesByAssetId(assetId: AssetId): E.Effect<PriceSeries[], PortError, D>;
 }

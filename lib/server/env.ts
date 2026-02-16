@@ -3,9 +3,9 @@ import { PublicEnv } from '@/lib/client/env';
 
 /** Schema for server-side environment variables. Cannot be exposed to client.. */
 export const ServerEnv = PublicEnv.and(
-	type({
-		DATABASE_URL: 'string',
-	}),
+  type({
+    DATABASE_URL: 'string',
+  }),
 );
 
 /** Type of the server environment variables. */

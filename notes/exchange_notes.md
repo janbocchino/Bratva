@@ -54,7 +54,7 @@ Persists every resting order on the book:
 - `stop_loss` (blob/bigint)
 - `market_sequence_number` (integer)
 - `nonce` (integer)
-- `status` (text, enum: `'open' | 'filled' | 'partially_filled' | 'cancelled' | 'expired'`)
+- `status` (text, enum: `'open' | 'filled' | 'cancelled' | 'expired'`)
 - `created_at`, `updated_at`, `expires_at`
 
 #### `fills` / `trades` table
@@ -155,7 +155,7 @@ The matching engine is solid, but it's missing the **pre-trade** and **post-trad
 - Diff the old vs new order book to extract fills
 - For each fill: create **2 ledger entries** (debit buyer's USD, credit buyer's tokens; debit seller's tokens, credit seller's USD)
 - Record each fill in the `fills` table
-- Update the `orders` table (mark filled orders, update partial quantities)
+- Update the `orders` table (mark filled orders)
 - Persist the new `MarketState` (new AMM reserves, new sequence number)
 - Insert a new price-series entry (last traded price)
 
@@ -237,7 +237,7 @@ Your `state_machine.md` already describes the exchange as a deterministic state 
 
 ### Order lifecycle (statechart sketch)
 
-States align with the `orders.status` enum: `open | filled | partially_filled | cancelled | expired`. Events: user/system actions that move the order.
+States align with the `orders.status` enum: `open | filled | cancelled | expired`. Events: user/system actions that move the order.
 
 ```mermaid
 stateDiagram-v2
@@ -246,15 +246,9 @@ stateDiagram-v2
   validating --> open : accepted
   validating --> rejected : invalid
 
-  open --> partially_filled : fill (partial)
-  open --> filled : fill (full)
+  open --> filled : fill
   open --> cancelled : cancel
   open --> expired : expire (Cancel Fairy)
-
-  partially_filled --> partially_filled : fill (partial)
-  partially_filled --> filled : fill (remaining)
-  partially_filled --> cancelled : cancel
-  partially_filled --> expired : expire
 
   filled --> [*]
   cancelled --> [*]
@@ -269,9 +263,9 @@ stateDiagram-v2
 | `place_order` | (none)         | `validating`      | User submits order            |
 | `accepted`    | `validating`   | `open`            | Pre-trade checks pass, on book |
 | `invalid`     | `validating`   | `rejected`        | Balance / tick / self-trade   |
-| `fill`        | `open` / `partially_filled` | same or `filled` | Matching engine / AMM        |
-| `cancel`      | `open` / `partially_filled` | `cancelled` | User or API                   |
-| `expire`      | `open` / `partially_filled` | `expired`  | Cancel Fairy (background)     |
+| `fill`        | `open`         | `filled`          | Matching engine / AMM         |
+| `cancel`      | `open`         | `cancelled`       | User or API                   |
+| `expire`      | `open`         | `expired`         | Cancel Fairy (background)     |
 
 You can drop this into [state.new](https://state.new), redraw it as an XState statechart, add guards (e.g. “only cancel if order is mine”), and optionally generate TypeScript from it. The Mermaid above is the sketch; Stately is where you refine and (if you want) implement it.
 
@@ -284,9 +278,9 @@ You can drop this into [state.new](https://state.new), redraw it as an XState st
 | **place_order → validating** | Transient: we're "in" the place-order action. |
 | **validating → accepted** | Workflow: validate (balance, self-trade, tick) + `processOrder`; returns `{ newState, fills }`. Action: persist order with status `open`, persist fills + ledger entries. |
 | **validating → rejected** | Workflow fails with `InvalidOrderError` / `InsufficientBalanceError`; action returns error (no order row, or persist `rejected` for audit if you want). |
-| **fill** (open → partially_filled / filled) | Inside `processOrder`: matching engine + AMM update quantities. Workflow returns fills; action updates `order.status` and writes ledger entries. |
-| **cancel** (open / partially_filled → cancelled) | Workflow: `cancelOrder(order, marketState)` → new `MarketState` (order removed) + escrow to release. Action: persist state, create credit entry for user. |
-| **expire** (→ expired) | Same `cancelOrder` workflow, invoked by Cancel Fairy (background) for orders past `expiresAt`. Action (or background job): persist. |
+| **fill** (open → filled) | Inside `processOrder`: matching engine + AMM update quantities. Workflow returns fills; action updates `order.status` and writes ledger entries. |
+| **cancel** (open → cancelled) | Workflow: `cancelOrder(order, marketState)` → new `MarketState` (order removed) + escrow to release. Action: persist state, create credit entry for user. |
+| **expire** (open → expired) | Same `cancelOrder` workflow, invoked by Cancel Fairy (background) for orders past `expiresAt`. Action (or background job): persist. |
 
 So you'll have workflows like:
 

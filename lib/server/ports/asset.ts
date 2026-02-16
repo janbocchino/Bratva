@@ -1,99 +1,87 @@
 import { eq } from 'drizzle-orm';
 import type { Asset } from '@/domain/aggregates/asset';
 import {
-	AssetNotFoundError,
-	InfraError,
-	InfraNotFoundError,
-	PortError,
+  AssetNotFoundError,
+  InfraError,
+  InfraNotFoundError,
+  PortError,
 } from '@/domain/ports/errors';
 import type {
-	AssetReadRepo as AssetReadRepoDomain,
-	AssetWriteRepo as AssetWriteRepoDomain,
-	CreateAssetParams,
+  AssetReadRepo as AssetReadRepoDomain,
+  AssetWriteRepo as AssetWriteRepoDomain,
+  CreateAssetParams,
 } from '@/domain/ports/asset';
-import {
-	AssetId,
-	AssetName,
-	AssetPublicId,
-	AssetTicker,
-} from '@/domain/values/asset';
+import { AssetId, AssetName, AssetPublicId, AssetTicker } from '@/domain/values/asset';
 import { A, E, Fn } from '@/lib/shared/imports';
 import { Db } from '../db';
 import { assets } from '../schema';
 
 const errMapper =
-	(
-		WrappedError:
-			| typeof InfraNotFoundError
-			| typeof InfraError
-			| typeof AssetNotFoundError,
-	) =>
-	(cause: unknown) =>
-		new PortError({ cause: new WrappedError({ cause }) });
+  (WrappedError: typeof InfraNotFoundError | typeof InfraError | typeof AssetNotFoundError) =>
+  (cause: unknown) =>
+    new PortError({ cause: new WrappedError({ cause }) });
 
 export const assetReadRepo: AssetReadRepoDomain<Db> = {
-	getAsset: (o) =>
-		Fn.pipe(
-			E.serviceOptional(Db),
-			E.mapError(errMapper(InfraNotFoundError)),
-			E.flatMap((db) =>
-				E.tryPromise({
-					try: () => {
-						let query;
+  getAsset: (o) =>
+    Fn.pipe(
+      E.serviceOptional(Db),
+      E.mapError(errMapper(InfraNotFoundError)),
+      E.flatMap((db) =>
+        E.tryPromise({
+          try: () => {
+            let query;
 
-						if ('id' in o) query = eq(assets.id, o.id);
-						else if ('publicId' in o) query = eq(assets.publicId, o.publicId);
-						else query = eq(assets.ticker, o.ticker);
+            if ('id' in o) query = eq(assets.id, o.id);
+            else if ('publicId' in o) query = eq(assets.publicId, o.publicId);
+            else query = eq(assets.ticker, o.ticker);
 
-						return db.select().from(assets).where(query).limit(1);
-					},
-					catch: errMapper(InfraError),
-				}),
-			),
-			E.flatMap((rows) =>
-				Fn.pipe(A.head(rows), E.mapError(errMapper(AssetNotFoundError))),
-			),
-			E.map(
-				(row): Asset => ({
-					id: AssetId(row.id),
-					publicId: AssetPublicId(row.publicId),
-					name: AssetName(row.name),
-					ticker: AssetTicker(row.ticker),
-					createdAt: new Date(row.createdAt),
-					updatedAt: new Date(row.updatedAt),
-				}),
-			),
-		),
+            return db.select().from(assets).where(query).limit(1);
+          },
+          catch: errMapper(InfraError),
+        }),
+      ),
+      E.flatMap((rows) => Fn.pipe(A.head(rows), E.mapError(errMapper(AssetNotFoundError)))),
+      E.map(
+        (row): Asset => ({
+          id: AssetId(row.id),
+          publicId: AssetPublicId(row.publicId),
+          name: AssetName(row.name),
+          ticker: AssetTicker(row.ticker),
+          createdAt: new Date(row.createdAt),
+          updatedAt: new Date(row.updatedAt),
+        }),
+      ),
+    ),
 };
 
 export const assetWriteRepo: AssetWriteRepoDomain<Db> = {
-	createAsset: (o: CreateAssetParams) =>
-		Fn.pipe(
-			E.serviceOptional(Db),
-			E.mapError(errMapper(InfraNotFoundError)),
-			E.flatMap((db) =>
-				E.tryPromise({
-					try: () =>
-						db
-							.insert(assets)
-							.values({
-								name: o.name,
-								ticker: o.ticker,
-							})
-							.returning(),
-					catch: errMapper(InfraError),
-				}),
-			),
-			E.flatMap((rows) => Fn.pipe(A.head(rows), E.mapError(errMapper(InfraError)))),
-			E.map(
-				(row): Asset => ({
-					id: AssetId(row.id),
-					publicId: AssetPublicId(row.publicId),
-					name: AssetName(row.name),
-					ticker: AssetTicker(row.ticker),
-					createdAt: new Date(row.createdAt),
-					updatedAt: new Date(row.updatedAt),
-				}),
-			),
-		),
+  createAsset: (o: CreateAssetParams) =>
+    Fn.pipe(
+      E.serviceOptional(Db),
+      E.mapError(errMapper(InfraNotFoundError)),
+      E.flatMap((db) =>
+        E.tryPromise({
+          try: () =>
+            db
+              .insert(assets)
+              .values({
+                name: o.name,
+                ticker: o.ticker,
+              })
+              .returning(),
+          catch: errMapper(InfraError),
+        }),
+      ),
+      E.flatMap((rows) => Fn.pipe(A.head(rows), E.mapError(errMapper(InfraError)))),
+      E.map(
+        (row): Asset => ({
+          id: AssetId(row.id),
+          publicId: AssetPublicId(row.publicId),
+          name: AssetName(row.name),
+          ticker: AssetTicker(row.ticker),
+          createdAt: new Date(row.createdAt),
+          updatedAt: new Date(row.updatedAt),
+        }),
+      ),
+    ),
 };
