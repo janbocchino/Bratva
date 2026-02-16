@@ -1,50 +1,27 @@
-import { A, Fn, S, E, Clock } from '@/lib/shared/imports';
+import { A, Fn, S } from '@/lib/shared/imports';
 import * as OrderEffect from 'effect/Order';
+import { Order } from '../aggregates/exchange';
+import type { OrderBook, Side } from '../aggregates/exchange';
 
+const priceOrder = (kind: Side) =>
+  kind === 'bid' ? OrderEffect.reverse(OrderEffect.bigint) : OrderEffect.bigint;
 
-type Order = {
-  id: number;
-  kind: 'bid' | 'ask';
-  quantity: number;
-  filled: number;
-  price: number;
-  canceled: boolean;
-  createdAt: Date;
-  canceledAt: Date;
-};
-
-const Order = {
-  cancel: (o: Order): E.Effect<Order> =>
-    Fn.pipe(
-      Clock.currentTimeMillis,
-      E.map((ms) => ({
-        ...o,
-        canceled: true,
-        canceledAt: new Date(ms),
-      })),
-    ),
-};
-
-const priceOrder = (kind: 'bid' | 'ask') =>
-  kind === 'bid' ? OrderEffect.reverse(OrderEffect.number) : OrderEffect.number;
-
-const orderOrdered = (kind: 'bid' | 'ask') =>
+const orderOrdered = (kind: Side) =>
   OrderEffect.struct({
     price: priceOrder(kind),
     createdAt: OrderEffect.Date,
     quantity: OrderEffect.reverse(OrderEffect.number),
   });
 
-type OrderBook = {
-  bid: Order[];
-  ask: Order[];
-};
-
 /* 
 Testing strategy:
   1. Use Jest
 */
-function f(o: { order: Order; orderBook: OrderBook; ammOrder: Order }): OrderBook {
+export function processOrder(o: {
+  order: Order;
+  orderBook: OrderBook;
+  ammOrder: Order;
+}): OrderBook {
   /* Assumptions:
     1. User has the privilege to call this function.
     2. Market has liquidity.

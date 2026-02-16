@@ -4,7 +4,6 @@ import type { Cent, Units } from '../values/currencies';
 import type { OrderId, MarketSequenceNumber } from '../values/exchange';
 import type { Nonce } from '../values/user';
 
-
 export type Side = 'bid' | 'ask';
 
 // Order Book
@@ -15,12 +14,12 @@ export type Order = {
   price: Cent | Units;
   quantity: number;
   filled: number;
-  stopLoss: Cent | number | Units;
-  marketSequenceNumber: MarketSequenceNumber;
-  nonce: Nonce;
+  // stopLoss: Cent | number | Units; not implemented yet
+  // marketSequenceNumber: MarketSequenceNumber; not implemented yet
+  // nonce: Nonce; not implemented yet
   createdAt: Date;
-  updatedAt: Date;
-  expiresAt: Date;
+  // updatedAt: Date; not implemented yet
+  // expiresAt: Date; not implemented yet
   canceled: boolean;
   canceledAt: Date;
 };
@@ -38,27 +37,27 @@ const Order = {
 };
 
 export type OrderBook = {
-  bids: Order[];
-  asks: Order[];
+  bid: Order[];
+  ask: Order[];
 };
 
 // AMM Pool
 
-export type AmmPool = {
-  reserveBase: Units;
-  reserveQuote: Cent;
-};
+// export type AmmPool = {
+//   reserveBase: Units;
+//   reserveQuote: Cent;
+// };
 
-export const AmmPool = {
-  k: (p: AmmPool) => BigInt(p.reserveBase) * BigInt(p.reserveQuote),
-};
+// export const AmmPool = {
+//   k: (p: AmmPool) => BigInt(p.reserveBase) * BigInt(p.reserveQuote),
+// };
 
-// Exchange State
+// // Exchange State
 
-export type MarketState = {
-  marketSequenceNumber: MarketSequenceNumber;
-  baseAssetId: AssetId;
-  quoteAssetId: AssetId;
-  orderBook: OrderBook;
-  ammPool: AmmPool;
-};
+// export type MarketState = {
+//   marketSequenceNumber: MarketSequenceNumber;
+//   baseAssetId: AssetId;
+//   quoteAssetId: AssetId;
+//   orderBook: OrderBook;
+//   ammPool: AmmPool;
+// };
