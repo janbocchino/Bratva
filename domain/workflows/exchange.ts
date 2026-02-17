@@ -61,8 +61,9 @@ export function processOrder(o: {
       if (!oA) {
         return [[currentOrder], oB];
       }
-      // Or else, keep adding
-      const fulfilledSoFar = oA.map((o) => o.quantity - o.filled).reduce((a, b) => a + b);
+      // Or else, keep adding (oA may be empty on first iteration)
+      const fulfilledSoFar =
+        oA.length === 0 ? 0 : oA.map((o) => o.quantity - o.filled).reduce((a, b) => a + b);
       const remaining = order.quantity - fulfilledSoFar;
 
       const currentOrderSatisfies = Math.min(
