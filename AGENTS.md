@@ -7,3 +7,4 @@
 - don't write duplicate code
 - use best possible implementations, if there is a library (e.g. effect) 
 to enhance code and make it shorter ask for permission to use
+- use "bun test" for testing in JEST 

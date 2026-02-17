@@ -35,3 +35,7 @@ export class DisplayNameAlreadyInUseError extends Data.TaggedError('DisplayNameA
 export class AddBalanceValidationError extends Data.TaggedError('AddBalanceValidationError')<{
   cause: string;
 }> {}
+
+export class InsufficientBalanceError extends Data.TaggedError('InsufficientBalanceError')<{
+  cause: string;
+}> {}
