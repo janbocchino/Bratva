@@ -5,7 +5,7 @@ import {
   InfraError,
   InfraNotFoundError,
   PortError,
-} from '@/domain/ports/errors';
+} from '@/domain/errors';
 import type {
   AssetReadRepo as AssetReadRepoDomain,
   AssetWriteRepo as AssetWriteRepoDomain,

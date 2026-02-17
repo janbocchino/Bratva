@@ -53,7 +53,7 @@ sequenceDiagram
   - `lib/server/actions/create-user.ts` (server action; validates input, builds snapshot, runs workflow, persists user)
   - `domain/workflows/user.ts` (workflow logic: `createUserAccount`)
   - `domain/errors.ts` (domain errors: `EmailAlreadyInUseError`, `DisplayNameAlreadyInUseError`)
-  - `domain/ports/user.ts` + `domain/ports/errors.ts` (repo interfaces + port error types)
+  - `domain/ports/user.ts` (repo interfaces; port error types from `domain/errors.ts`)
   - `lib/server/ports/user.ts` (Drizzle-backed `userReadRepo` / `userWriteRepo`)
   - `lib/server/db.ts` + `lib/server/env.ts` (Db service + DATABASE_URL)
   - `lib/server/schema.ts` (Drizzle schema: `users` table)

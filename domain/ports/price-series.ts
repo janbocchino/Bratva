@@ -2,7 +2,7 @@ import { type } from 'arktype';
 import type { E } from '@/lib/shared/imports';
 import type { PriceSeries } from '../aggregates/price-series';
 import type { AssetId } from '../values/asset';
-import type { PortError } from './errors';
+import type { PortError } from '../errors';
 
 export const GetPriceSeriesParams = type({
   id: 'number',

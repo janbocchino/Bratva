@@ -1,7 +1,7 @@
 import { type } from 'arktype';
 import type { E } from '@/lib/shared/imports';
 import type { User } from '../aggregates/user';
-import type { PortError } from './errors';
+import type { PortError } from '../errors';
 
 export const GetUserParams = type({
   id: 'number',

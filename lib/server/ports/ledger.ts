@@ -1,5 +1,5 @@
 import { asc, eq } from 'drizzle-orm';
-import { InfraError, InfraNotFoundError, PortError } from '@/domain/ports/errors';
+import { InfraError, InfraNotFoundError, PortError } from '@/domain/errors';
 import type {
   LedgerReadRepo as LedgerReadRepoDomain,
   LedgerWriteRepo as LedgerWriteRepoDomain,

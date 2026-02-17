@@ -3,7 +3,7 @@ import type { UserLedger } from '../aggregates/ledger';
 import type { AssetId } from '../values/asset';
 import type { Cent, Units } from '../values/currencies';
 import type { UserId } from '../values/user';
-import type { PortError } from './errors';
+import type { PortError } from '../errors';
 
 export interface LedgerReadRepo<D> {
   getLedgerByUserId(userId: UserId): E.Effect<UserLedger, PortError, D>;

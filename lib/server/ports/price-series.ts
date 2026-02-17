@@ -4,7 +4,7 @@ import {
   InfraNotFoundError,
   PortError,
   PriceSeriesNotFoundError,
-} from '@/domain/ports/errors';
+} from '@/domain/errors';
 import type { PriceSeriesReadRepo as PriceSeriesReadRepoDomain } from '@/domain/ports/price-series';
 import { A, E, Fn } from '@/lib/shared/imports';
 import { Db } from '../db';

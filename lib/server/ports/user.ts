@@ -5,7 +5,7 @@ import {
   InfraNotFoundError,
   PortError,
   UserNotFoundError,
-} from '@/domain/ports/errors';
+} from '@/domain/errors';
 import type {
   CreateUserParams,
   UserReadRepo as UserReadRepoDomain,
