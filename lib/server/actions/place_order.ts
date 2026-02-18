@@ -6,12 +6,12 @@ import { AmmPool } from '@/domain/aggregates/exchange';
 import type { Order, OrderStatus } from '@/domain/aggregates/exchange';
 import type { UserLedger } from '@/domain/aggregates/ledger';
 import { debitUserBalance, creditUserBalance } from '@/domain/workflows/ledger';
-import { processOrder, validateOrderParams, buildAmmOrder } from '@/domain/workflows/exchange';
+import { processOrder, validateOrderParams, buildAmmOrder, filterNonceEligible } from '@/domain/workflows/exchange';
 import { Cent, Units } from '@/domain/values/currencies';
 import { type } from 'arktype';
 import { Db, db } from '../db';
 import { ledgerReadRepo, ledgerWriteRepo } from '../ports/ledger';
-import { userReadRepo } from '../ports/user';
+import { userReadRepo, userWriteRepo } from '../ports/user';
 import {
   marketReadRepo,
   marketWriteRepo,
@@ -84,44 +84,14 @@ export async function placeOrder(p: {
       return Fn.pipe(
         validateOrderParams({ market, price, quantity, side: p.side }),
 
-        // Escrow: debit user balance
-        E.flatMap(() => {
-          const isBid = p.side === 'bid';
-          const escrowAssetId = isBid ? market.quoteAssetId : market.baseAssetId;
-          const escrowAmount = isBid
-            ? Cent.new(BigInt(price) * BigInt(quantity))
-            : Units(BigInt(quantity));
-          const escrowUnits = isBid ? 'cent' as const : 'unit' as const;
-
-          const assetSummary = currentLedger.summary.find(
-            (s) => s.assetId === escrowAssetId,
-          );
-          const currentBalance = assetSummary
-            ? assetSummary.balance
-            : (0n as Cent);
-
-          return debitUserBalance({
-            userId: user.id,
-            assetId: escrowAssetId,
-            amount: escrowAmount,
-            units: escrowUnits,
-            currentBalance,
-          });
-        }),
-        E.flatMap(ledgerWriteRepo.createEntry),
-
         // Load order book and run matching
         E.flatMap(() => orderReadRepo.getOpenOrdersByMarketId(market.id)),
         E.flatMap((openOrders) => {
-          const orderBook = {
-            bid: openOrders.filter((o) => o.kind === 'bid'),
-            ask: openOrders.filter((o) => o.kind === 'ask'),
-          };
-
           const counterSide = p.side === 'bid' ? 'ask' : 'bid';
           const ammOrder = buildAmmOrder(market.ammPool, market, counterSide);
 
           return Fn.pipe(
+            // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
             orderWriteRepo.createOrder({
               marketId: market.id,
               userId: user.id,
@@ -130,9 +100,25 @@ export async function placeOrder(p: {
               quantity,
               stopLoss,
               marketSequenceNumber: market.sequenceNumber,
+              nonce: user.nonce,
               expiresAt,
             }),
+            E.tap(() => userWriteRepo.incrementNonce(user.id)),
             E.flatMap((createdOrder) => {
+              const incomingNonceBlocked = openOrders.some(
+                (o) => o.userId === user.id && o.nonce < user.nonce,
+              );
+              if (incomingNonceBlocked) {
+                return E.succeed(createdOrder);
+              }
+
+              const eligibleOrders = filterNonceEligible(openOrders);
+              const orderBook = {
+                bid: eligibleOrders.filter((o) => o.kind === 'bid'),
+                ask: eligibleOrders.filter((o) => o.kind === 'ask'),
+              };
+              // end of LLM written Code
+
               const incomingDomainOrder: Order = {
                 ...createdOrder,
                 kind: p.side,
@@ -235,6 +221,40 @@ export async function placeOrder(p: {
                   source: 'amm',
                 });
               }
+
+              // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
+              if (incomingDomainOrder.filled > 0) {
+                const isBid = p.side === 'bid';
+                const takerDebitAssetId = isBid ? market.quoteAssetId : market.baseAssetId;
+
+                let takerDebitTotal = 0n;
+                for (const txn of txnParams) {
+                  takerDebitTotal += isBid
+                    ? BigInt(txn.price) * BigInt(txn.quantity)
+                    : BigInt(txn.quantity);
+                }
+
+                const assetSummary = currentLedger.summary.find(
+                  (s) => s.assetId === takerDebitAssetId,
+                );
+                const currentBalance = assetSummary
+                  ? assetSummary.balance
+                  : (0n as Cent);
+
+                settlementEffects.push(
+                  Fn.pipe(
+                    debitUserBalance({
+                      userId: user.id,
+                      assetId: takerDebitAssetId,
+                      amount: isBid ? Cent.new(takerDebitTotal) : Units(takerDebitTotal),
+                      units: isBid ? 'cent' as const : 'unit' as const,
+                      currentBalance,
+                    }),
+                    E.flatMap(ledgerWriteRepo.createEntry),
+                  ),
+                );
+              }
+              // end of LLM written Code
 
               // Update order status for incoming order
               const incomingStatus: OrderStatus =

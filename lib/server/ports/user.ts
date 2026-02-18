@@ -1,4 +1,4 @@
-import { eq, or } from 'drizzle-orm';
+import { eq, or, sql } from 'drizzle-orm';
 import type { User } from '@/domain/aggregates/user';
 import {
   InfraError,
@@ -87,4 +87,23 @@ export const userWriteRepo: UserWriteRepoDomain<Db> = {
         }),
       ),
     ),
+
+  // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
+  incrementNonce: (userId) =>
+    Fn.pipe(
+      E.serviceOptional(Db),
+      E.mapError(errMapper(InfraNotFoundError)),
+      E.flatMap((db) =>
+        E.tryPromise({
+          try: () =>
+            db
+              .update(users)
+              .set({ nonce: sql`${users.nonce} + 1` })
+              .where(eq(users.id, userId)),
+          catch: errMapper(InfraError),
+        }),
+      ),
+      E.asVoid,
+    ),
+  // end of LLM written Code
 };

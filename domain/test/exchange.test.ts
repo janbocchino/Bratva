@@ -1,6 +1,6 @@
 // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 /// <reference types="jest" />
-import { processOrder, buildAmmOrder } from '../workflows/exchange';
+import { processOrder, buildAmmOrder, filterNonceEligible } from '../workflows/exchange';
 import { AmmPool } from '../aggregates/exchange';
 import { OrderId, OrderPublicId, MarketId, MarketPublicId, MarketSequenceNumber } from '../values/exchange';
 import { Cent, Units } from '../values/currencies';
@@ -628,6 +628,85 @@ describe('buildAmmOrder', () => {
     const newRB = pool.reserveBase + BigInt(order.quantity);
     const newRQ = k / newRB;
     expect(newRQ).toBeGreaterThanOrEqual(1n);
+  });
+});
+
+// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
+/* ------------------------------------------------------------------ */
+/*  Group 12 — filterNonceEligible                                     */
+/* ------------------------------------------------------------------ */
+describe('filterNonceEligible', () => {
+  beforeEach(() => { counter = 0; });
+
+  it('12a: single user, single order — keeps it', () => {
+    const o1 = mkOrder({ publicId: OrderPublicId('o1'), kind: 'bid', price: Cent.new(100n), quantity: 5, nonce: Nonce(0) });
+    const result = filterNonceEligible([o1]);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toBe(o1);
+  });
+
+  it('12b: single user, two orders — keeps only the lowest nonce', () => {
+    const o1 = mkOrder({ publicId: OrderPublicId('o1'), kind: 'bid', price: Cent.new(100n), quantity: 5, nonce: Nonce(0) });
+    const o2 = mkOrder({ publicId: OrderPublicId('o2'), kind: 'ask', price: Cent.new(90n), quantity: 3, nonce: Nonce(1) });
+    const result = filterNonceEligible([o1, o2]);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toBe(o1);
+  });
+
+  it('12c: single user, three orders — keeps only the lowest nonce', () => {
+    const o1 = mkOrder({ publicId: OrderPublicId('o1'), kind: 'bid', price: Cent.new(100n), quantity: 5, nonce: Nonce(3) });
+    const o2 = mkOrder({ publicId: OrderPublicId('o2'), kind: 'ask', price: Cent.new(90n), quantity: 3, nonce: Nonce(5) });
+    const o3 = mkOrder({ publicId: OrderPublicId('o3'), kind: 'bid', price: Cent.new(80n), quantity: 2, nonce: Nonce(4) });
+    const result = filterNonceEligible([o1, o2, o3]);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toBe(o1);
+  });
+
+  it('12d: two users — keeps the lowest nonce per user independently', () => {
+    const u1o1 = mkOrder({ publicId: OrderPublicId('u1o1'), kind: 'bid', price: Cent.new(100n), quantity: 5, userId: UserId(1), nonce: Nonce(0) });
+    const u1o2 = mkOrder({ publicId: OrderPublicId('u1o2'), kind: 'bid', price: Cent.new(90n), quantity: 3, userId: UserId(1), nonce: Nonce(1) });
+    const u2o1 = mkOrder({ publicId: OrderPublicId('u2o1'), kind: 'ask', price: Cent.new(80n), quantity: 4, userId: UserId(2), nonce: Nonce(5) });
+    const u2o2 = mkOrder({ publicId: OrderPublicId('u2o2'), kind: 'ask', price: Cent.new(70n), quantity: 2, userId: UserId(2), nonce: Nonce(6) });
+
+    const result = filterNonceEligible([u1o1, u1o2, u2o1, u2o2]);
+    expect(result).toHaveLength(2);
+    expect(result).toContain(u1o1);
+    expect(result).toContain(u2o1);
+  });
+
+  it('12e: empty array — returns empty', () => {
+    expect(filterNonceEligible([])).toHaveLength(0);
+  });
+
+  it('12f: all users have exactly one order — keeps all', () => {
+    const o1 = mkOrder({ publicId: OrderPublicId('o1'), kind: 'bid', price: Cent.new(100n), quantity: 5, userId: UserId(1), nonce: Nonce(0) });
+    const o2 = mkOrder({ publicId: OrderPublicId('o2'), kind: 'ask', price: Cent.new(90n), quantity: 3, userId: UserId(2), nonce: Nonce(0) });
+    const o3 = mkOrder({ publicId: OrderPublicId('o3'), kind: 'bid', price: Cent.new(80n), quantity: 2, userId: UserId(3), nonce: Nonce(7) });
+
+    const result = filterNonceEligible([o1, o2, o3]);
+    expect(result).toHaveLength(3);
+  });
+
+  it('12g: works correctly with processOrder — nonce-blocked orders do not match', () => {
+    const incoming = mkOrder({ publicId: OrderPublicId('incoming'), kind: 'bid', price: Cent.new(100n), quantity: 5, userId: UserId(10), nonce: Nonce(0) });
+
+    const eligibleAsk = mkOrder({ publicId: OrderPublicId('ask-eligible'), kind: 'ask', price: Cent.new(90n), quantity: 3, userId: UserId(2), nonce: Nonce(0) });
+    const blockedAsk = mkOrder({ publicId: OrderPublicId('ask-blocked'), kind: 'ask', price: Cent.new(80n), quantity: 10, userId: UserId(2), nonce: Nonce(1) });
+
+    const ammOrder = mkOrder({ publicId: OrderPublicId('amm'), kind: 'ask', price: Cent.new(200n), quantity: 100 });
+
+    const allOrders = [eligibleAsk, blockedAsk];
+    const eligible = filterNonceEligible(allOrders);
+    const orderBook: OrderBook = {
+      bid: eligible.filter((o) => o.kind === 'bid'),
+      ask: eligible.filter((o) => o.kind === 'ask'),
+    };
+
+    const result = processOrder({ order: incoming, orderBook, ammOrder });
+
+    expect(result.bid[0].filled).toBe(3);
+    expect(result.ask).toHaveLength(1);
+    expect(result.ask[0].publicId).toBe(eligibleAsk.publicId);
   });
 });
 // end of LLM written Code

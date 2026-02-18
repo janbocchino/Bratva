@@ -24,3 +24,4 @@
 
 escrow nonce logic
 market vs limit order
+Check order table: What is mandatory and what not?

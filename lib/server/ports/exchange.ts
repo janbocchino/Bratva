@@ -142,6 +142,7 @@ export const orderWriteRepo: OrderWriteRepoDomain<Db> = {
                 quantity: o.quantity,
                 stopLoss: o.stopLoss,
                 marketSequenceNumber: o.marketSequenceNumber,
+                nonce: o.nonce,
                 expiresAt: o.expiresAt,
               })
               .returning(),

@@ -128,6 +128,15 @@ export function buildAmmOrder(pool: AmmPool, market: Market, counterSide: Side):
   };
 }
 
+export function filterNonceEligible(orders: Order[]): Order[] {
+  const minNonceByUser = new Map<number, number>();
+  for (const o of orders) {
+    const prev = minNonceByUser.get(o.userId);
+    if (prev === undefined || o.nonce < prev) minNonceByUser.set(o.userId, o.nonce);
+  }
+  return orders.filter((o) => o.nonce === minNonceByUser.get(o.userId));
+}
+
 export function validateOrderParams(p: {
   market: Market;
   price: Cent;

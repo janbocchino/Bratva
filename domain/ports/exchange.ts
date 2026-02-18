@@ -5,7 +5,7 @@ import type { Market, Order, OrderStatus, Side } from '../aggregates/exchange';
 import type { PortError } from '../errors';
 import type { MarketId } from '../values/exchange';
 import type { Cent, Units } from '../values/currencies';
-import type { UserId } from '../values/user';
+import type { Nonce, UserId } from '../values/user';
 
 // ── Market ───────────────────────────────────────────────────────────
 
@@ -42,6 +42,9 @@ export type CreateOrderParams = {
   quantity: number;
   stopLoss: Cent | Units;
   marketSequenceNumber: number;
+  // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
+  nonce: Nonce;
+  // end of LLM written Code
   expiresAt: Date;
 };
 
