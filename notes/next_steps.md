@@ -1,12 +1,3 @@
-`actions`:
-- placeOrder — submit limit/market order to a market (wires processOrder + ledger + persistence)
-- cancelOrder — cancel an open resting order
-
-
-- take out use server/client
-
-`domain`
-- exchange ports
 
 `Chain`
 - Polygon / Solana --> probs polygon
@@ -21,7 +12,11 @@
 - everything
 
 
+`backend`
+- connect ml for asset prices
 
-escrow nonce logic
-market vs limit order
-Check order table: What is mandatory and what not?
+
+`overall`
+- Check order table: What is mandatory and what not?
+- cleanup/testing
+- take out use server/client
