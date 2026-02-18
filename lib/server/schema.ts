@@ -207,6 +207,7 @@ export const orders = sqliteTable(
     side: text('side', { enum: ['bid', 'ask'] }).notNull(),
     price: blob('price', { mode: 'bigint' }).notNull(),
     quantity: integer('quantity').notNull(),
+    filled: integer('filled').notNull().default(0),
     stopLoss: blob('stop_loss', { mode: 'bigint' }).notNull(),
     marketSequenceNumber: integer('market_sequence_number').notNull(),
     nonce: integer('nonce').notNull().default(0),

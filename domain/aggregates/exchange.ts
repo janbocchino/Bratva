@@ -1,25 +1,36 @@
 import { Clock, E, Fn } from '@/lib/shared/imports';
 import type { AssetId } from '../values/asset';
 import type { Cent, Units } from '../values/currencies';
-import type { OrderId, MarketSequenceNumber } from '../values/exchange';
-import type { Nonce } from '../values/user';
+import type {
+  OrderId,
+  OrderPublicId,
+  MarketId,
+  MarketPublicId,
+  MarketSequenceNumber,
+  TransactionId,
+} from '../values/exchange';
+import type { Nonce, UserId } from '../values/user';
 
 export type Side = 'bid' | 'ask';
 
-// Order Book
+export type OrderStatus = 'open' | 'filled' | 'partially_filled' | 'cancelled' | 'expired';
 
 export type Order = {
   id: OrderId;
+  publicId: OrderPublicId;
+  marketId: MarketId;
+  userId: UserId;
   kind: Side;
   price: Cent | Units;
   quantity: number;
   filled: number;
-  // stopLoss: Cent | number | Units; not implemented yet
-  // marketSequenceNumber: MarketSequenceNumber; not implemented yet
-  // nonce: Nonce; not implemented yet
+  stopLoss: Cent | Units;
+  marketSequenceNumber: MarketSequenceNumber;
+  nonce: Nonce;
+  status: OrderStatus;
   createdAt: Date;
-  // updatedAt: Date; not implemented yet
-  // expiresAt: Date; not implemented yet
+  updatedAt: Date;
+  expiresAt: Date;
   canceled: boolean;
   canceledAt: Date;
 };
@@ -32,6 +43,7 @@ const Order = {
         ...o,
         canceled: true,
         canceledAt: new Date(ms),
+        status: 'cancelled' as OrderStatus,
       })),
     ),
 };
@@ -41,23 +53,37 @@ export type OrderBook = {
   ask: Order[];
 };
 
-// AMM Pool
+export type AmmPool = {
+  reserveBase: Units;
+  reserveQuote: Cent;
+};
 
-// export type AmmPool = {
-//   reserveBase: Units;
-//   reserveQuote: Cent;
-// };
+export const AmmPool = {
+  k: (p: AmmPool) => BigInt(p.reserveBase) * BigInt(p.reserveQuote),
+};
 
-// export const AmmPool = {
-//   k: (p: AmmPool) => BigInt(p.reserveBase) * BigInt(p.reserveQuote),
-// };
+export type Market = {
+  id: MarketId;
+  publicId: MarketPublicId;
+  baseAssetId: AssetId;
+  quoteAssetId: AssetId;
+  sequenceNumber: MarketSequenceNumber;
+  ammPool: AmmPool;
+  status: 'active' | 'halted' | 'closed';
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-// // Exchange State
-
-// export type MarketState = {
-//   marketSequenceNumber: MarketSequenceNumber;
-//   baseAssetId: AssetId;
-//   quoteAssetId: AssetId;
-//   orderBook: OrderBook;
-//   ammPool: AmmPool;
-// };
+export type Transaction = {
+  id: TransactionId;
+  marketId: MarketId;
+  makerOrderId: OrderId | null;
+  takerOrderId: OrderId;
+  makerUserId: UserId | null;
+  takerUserId: UserId;
+  price: Cent;
+  quantity: number;
+  side: Side;
+  source: 'book' | 'amm';
+  createdAt: Date;
+};

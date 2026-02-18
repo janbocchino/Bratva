@@ -39,3 +39,19 @@ export class AddBalanceValidationError extends Data.TaggedError('AddBalanceValid
 export class InsufficientBalanceError extends Data.TaggedError('InsufficientBalanceError')<{
   cause: string;
 }> {}
+
+export class MarketNotFoundError extends Data.TaggedError('MarketNotFoundError')<{
+  cause: unknown;
+}> {}
+
+export class MarketNotActiveError extends Data.TaggedError('MarketNotActiveError')<{
+  marketId: number;
+}> {}
+
+export class OrderValidationError extends Data.TaggedError('OrderValidationError')<{
+  cause: string;
+}> {}
+
+export class OrderNotFoundError extends Data.TaggedError('OrderNotFoundError')<{
+  cause: unknown;
+}> {}

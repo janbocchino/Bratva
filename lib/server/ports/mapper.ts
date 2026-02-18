@@ -1,4 +1,5 @@
 import type { Asset } from '@/domain/aggregates/asset';
+import type { Market, Order, OrderStatus } from '@/domain/aggregates/exchange';
 import type { UserLedger } from '@/domain/aggregates/ledger';
 import type { PriceSeries } from '@/domain/aggregates/price-series';
 import type { User } from '@/domain/aggregates/user';
@@ -6,9 +7,23 @@ import { A } from '@/lib/shared/imports';
 import type { Mapper as MapperPort } from '@/domain/ports/mapper';
 import { AssetId, AssetName, AssetPublicId, AssetTicker } from '@/domain/values/asset';
 import { Cent, Units } from '@/domain/values/currencies';
+import {
+  MarketId,
+  MarketPublicId,
+  MarketSequenceNumber,
+  OrderId,
+  OrderPublicId,
+} from '@/domain/values/exchange';
 import { PriceSeriesId, PriceSeriesPublicId } from '@/domain/values/price-series';
 import { UserDisplayName, UserEmail, UserId, UserPublicId, Nonce } from '@/domain/values/user';
-import type { AssetPrs, LedgerEntryWithBalancePrs, PriceSeriesPrs, UserPrs } from '../schema';
+import type {
+  AssetPrs,
+  LedgerEntryWithBalancePrs,
+  MarketPrs,
+  OrderPrs,
+  PriceSeriesPrs,
+  UserPrs,
+} from '../schema';
 import { type } from 'arktype';
 
 export const userMapper: MapperPort<User, UserPrs> = {
@@ -94,3 +109,73 @@ export const ledgerEntryMapper: MapperPort<UserLedger, LedgerEntryWithBalancePrs
     throw new Error('Not implemented');
   },
 };
+
+// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
+export const marketMapper: MapperPort<Market, MarketPrs> = {
+  toDomain: (p) => ({
+    id: MarketId(p.id),
+    publicId: MarketPublicId(p.publicId),
+    baseAssetId: AssetId(p.baseAssetId),
+    quoteAssetId: AssetId(p.quoteAssetId),
+    sequenceNumber: MarketSequenceNumber(p.sequenceNumber),
+    ammPool: {
+      reserveBase: Units(p.ammReserveBase),
+      reserveQuote: Cent.new(p.ammReserveQuote),
+    },
+    status: p.status,
+    createdAt: new Date(p.createdAt),
+    updatedAt: new Date(p.updatedAt),
+  }),
+  toPersistence: (d) => ({
+    id: d.id,
+    publicId: d.publicId,
+    baseAssetId: d.baseAssetId,
+    quoteAssetId: d.quoteAssetId,
+    sequenceNumber: d.sequenceNumber,
+    ammReserveBase: d.ammPool.reserveBase,
+    ammReserveQuote: d.ammPool.reserveQuote,
+    status: d.status,
+    createdAt: d.createdAt,
+    updatedAt: d.updatedAt,
+  }),
+};
+
+export const orderMapper: MapperPort<Order, OrderPrs> = {
+  toDomain: (p) => ({
+    id: OrderId(p.id),
+    publicId: OrderPublicId(p.publicId),
+    marketId: MarketId(p.marketId),
+    userId: UserId(p.userId),
+    kind: p.side,
+    price: Cent.new(p.price),
+    quantity: p.quantity,
+    filled: p.filled,
+    stopLoss: Cent.new(p.stopLoss),
+    marketSequenceNumber: MarketSequenceNumber(p.marketSequenceNumber),
+    nonce: Nonce(p.nonce),
+    status: p.status as OrderStatus,
+    createdAt: new Date(p.createdAt),
+    updatedAt: new Date(p.updatedAt),
+    expiresAt: new Date(p.expiresAt),
+    canceled: p.status === 'cancelled',
+    canceledAt: p.status === 'cancelled' ? new Date(p.updatedAt) : new Date(0),
+  }),
+  toPersistence: (d) => ({
+    id: d.id,
+    publicId: d.publicId,
+    marketId: d.marketId,
+    userId: d.userId,
+    side: d.kind,
+    price: d.price,
+    quantity: d.quantity,
+    filled: d.filled,
+    stopLoss: d.stopLoss,
+    marketSequenceNumber: d.marketSequenceNumber,
+    nonce: d.nonce,
+    status: d.status,
+    createdAt: d.createdAt,
+    updatedAt: d.updatedAt,
+    expiresAt: d.expiresAt,
+  }),
+};
+// end of LLM written Code
