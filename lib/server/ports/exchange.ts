@@ -103,6 +103,25 @@ export const orderReadRepo: OrderReadRepoDomain<Db> = {
       ),
       E.map((rows) => rows.map(orderMapper.toDomain)),
     ),
+
+  // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
+  getOrderById: (orderId) =>
+    Fn.pipe(
+      E.serviceOptional(Db),
+      E.mapError(errMapper(InfraNotFoundError)),
+      E.flatMap((db) =>
+        E.tryPromise({
+          try: () =>
+            db.select().from(orders).where(eq(orders.id, orderId)).limit(1),
+          catch: errMapper(InfraError),
+        }),
+      ),
+      E.flatMap((rows) =>
+        Fn.pipe(A.head(rows), E.mapError(errMapper(OrderNotFoundError))),
+      ),
+      E.map(orderMapper.toDomain),
+    ),
+  // end of LLM written Code
 };
 
 export const orderWriteRepo: OrderWriteRepoDomain<Db> = {

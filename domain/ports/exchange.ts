@@ -53,6 +53,7 @@ export type UpdateOrderFillsParams = {
 
 export interface OrderReadRepo<D> {
   getOpenOrdersByMarketId(marketId: MarketId): E.Effect<Order[], PortError, D>;
+  getOrderById(orderId: number): E.Effect<Order, PortError, D>;
 }
 
 export interface OrderWriteRepo<D> {

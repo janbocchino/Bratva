@@ -35,7 +35,7 @@ export type Order = {
   canceledAt: Date;
 };
 
-const Order = {
+export const Order = {
   cancel: (o: Order): E.Effect<Order> =>
     Fn.pipe(
       Clock.currentTimeMillis,
