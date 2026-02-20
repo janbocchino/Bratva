@@ -15,7 +15,7 @@ export type Side = 'bid' | 'ask';
 
 export type OrderStatus = 'open' | 'filled' | 'cancelled' | 'expired';
 
-export type MarketStatus = 'open' | 'closed';
+export type MarketStatus = 'pending' | 'active' | 'closed';
 
 export type Order = {
   id: OrderId;
@@ -71,6 +71,8 @@ export type Market = {
   quoteAssetId: AssetId;
   sequenceNumber: MarketSequenceNumber;
   ammPool: AmmPool;
+  modelPrice: Cent;
+  totalLpTokens: bigint;
   status: MarketStatus;
   createdAt: Date;
   updatedAt: Date;

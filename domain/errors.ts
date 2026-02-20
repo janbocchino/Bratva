@@ -55,3 +55,11 @@ export class OrderValidationError extends Data.TaggedError('OrderValidationError
 export class OrderNotFoundError extends Data.TaggedError('OrderNotFoundError')<{
   cause: unknown;
 }> {}
+
+export class LiquidityValidationError extends Data.TaggedError('LiquidityValidationError')<{
+  cause: string;
+}> {}
+
+export class MarketClosedError extends Data.TaggedError('MarketClosedError')<{
+  marketId: number;
+}> {}

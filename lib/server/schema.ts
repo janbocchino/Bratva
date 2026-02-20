@@ -174,11 +174,13 @@ export const markets = sqliteTable(
     sequenceNumber: integer('sequence_number').notNull().default(0),
     ammReserveBase: blob('amm_reserve_base', { mode: 'bigint' }).notNull(),
     ammReserveQuote: blob('amm_reserve_quote', { mode: 'bigint' }).notNull(),
+    modelPrice: blob('model_price', { mode: 'bigint' }).notNull(),
+    totalLpTokens: blob('total_lp_tokens', { mode: 'bigint' }).notNull().default(0n),
     status: text('status', {
-      enum: ['active', 'halted', 'closed'],
+      enum: ['pending', 'active', 'closed'],
     })
       .notNull()
-      .default('active'),
+      .default('pending'),
     ...timestamps,
   },
   (table) => [
@@ -189,6 +191,38 @@ export const markets = sqliteTable(
 
 export type MarketPrs = typeof markets.$inferSelect;
 export type NewMarketPrs = typeof markets.$inferInsert;
+
+export const liquidityPositions = sqliteTable(
+  'liquidity_positions',
+  {
+    id: integer('id').primaryKey(),
+    publicId: text('public_id')
+      .notNull()
+      .unique()
+      .$defaultFn(() => uuidv4()),
+    marketId: integer('market_id')
+      .notNull()
+      .references(() => markets.id),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id),
+    lpTokens: blob('lp_tokens', { mode: 'bigint' }).notNull(),
+    depositBase: blob('deposit_base', { mode: 'bigint' }).notNull(),
+    depositQuote: blob('deposit_quote', { mode: 'bigint' }).notNull(),
+    lockedUntil: integer('locked_until', { mode: 'timestamp' }),
+    status: text('status', { enum: ['active', 'withdrawn'] })
+      .notNull()
+      .default('active'),
+    ...timestamps,
+  },
+  (table) => [
+    index('lp_market_id_idx').on(table.marketId),
+    index('lp_user_id_idx').on(table.userId),
+  ],
+);
+
+export type LiquidityPositionPrs = typeof liquidityPositions.$inferSelect;
+export type NewLiquidityPositionPrs = typeof liquidityPositions.$inferInsert;
 
 export const orders = sqliteTable(
   'orders',
