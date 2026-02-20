@@ -32,8 +32,8 @@ const errMapper =
       | typeof MarketNotFoundError
       | typeof OrderNotFoundError,
   ) =>
-    (cause: unknown) =>
-      new PortError({ cause: new WrappedError({ cause }) });
+  (cause: unknown) =>
+    new PortError({ cause: new WrappedError({ cause }) });
 
 // ── Market ───────────────────────────────────────────────────────────
 

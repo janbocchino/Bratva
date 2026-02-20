@@ -12,9 +12,8 @@ import { Db } from '../db';
 import { markets, liquidityPositions } from '../schema';
 
 const errMapper =
-  (WrappedError: typeof InfraNotFoundError | typeof InfraError) =>
-    (cause: unknown) =>
-      new PortError({ cause: new WrappedError({ cause }) });
+  (WrappedError: typeof InfraNotFoundError | typeof InfraError) => (cause: unknown) =>
+    new PortError({ cause: new WrappedError({ cause }) });
 
 // ── Liquidity Market ─────────────────────────────────────────────────
 

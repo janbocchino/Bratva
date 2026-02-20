@@ -71,7 +71,11 @@ export async function provideLiquidityAction(p: {
 
       return Fn.pipe(
         // Validate
-        validateLiquidityParams({ market, amountBase: Units(baseAmount), amountQuote: Cent.new(quoteAmount) }),
+        validateLiquidityParams({
+          market,
+          amountBase: Units(baseAmount),
+          amountQuote: Cent.new(quoteAmount),
+        }),
         E.flatMap(() => validateDepositRatio(baseAmount, quoteAmount, reserveBase, reserveQuote)),
         // Debit USD
         E.flatMap(() => {
@@ -107,7 +111,7 @@ export async function provideLiquidityAction(p: {
               lockedUntil: lpResult.lockedUntil,
             }),
             E.flatMap(() => {
-              const newStatus = lpResult.shouldActivateMarket ? 'active' as const : market.status;
+              const newStatus = lpResult.shouldActivateMarket ? ('active' as const) : market.status;
               return liquidityMarketWriteRepo.updateMarketLiquidity({
                 marketId: market.id,
                 ammReserveBase: lpResult.newReserveBase,

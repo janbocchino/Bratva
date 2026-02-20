@@ -31,8 +31,7 @@ export function validateLiquidityParams(p: {
   amountBase: Units;
   amountQuote: Cent;
 }): E.Effect<void, LiquidityValidationError | MarketClosedError> {
-  if (p.market.status === 'closed')
-    return E.fail(new MarketClosedError({ marketId: p.market.id }));
+  if (p.market.status === 'closed') return E.fail(new MarketClosedError({ marketId: p.market.id }));
   if (p.amountBase <= 0n)
     return E.fail(new LiquidityValidationError({ cause: 'Base amount must be > 0' }));
   if (p.amountQuote <= 0n)
@@ -53,7 +52,9 @@ export function validateDepositRatio(
   const tolerance = bigMax(lhs, rhs) / 100n;
 
   if (bigAbs(lhs - rhs) > tolerance)
-    return E.fail(new LiquidityValidationError({ cause: 'Deposit ratio must match current pool price' }));
+    return E.fail(
+      new LiquidityValidationError({ cause: 'Deposit ratio must match current pool price' }),
+    );
   return E.void;
 }
 
@@ -71,9 +72,9 @@ export function calcLpTokens(p: {
   return isEmptyPool
     ? sqrt(p.amountBase * p.amountQuote)
     : bigMin(
-      (p.amountBase * p.totalLpSupply) / p.reserveBase,
-      (p.amountQuote * p.totalLpSupply) / p.reserveQuote,
-    );
+        (p.amountBase * p.totalLpSupply) / p.reserveBase,
+        (p.amountQuote * p.totalLpSupply) / p.reserveQuote,
+      );
 }
 
 export type ProvideLiquidityInput = {
@@ -117,7 +118,6 @@ export function provideLiquidity(input: ProvideLiquidityInput): ProvideLiquidity
       input.market.status === 'active'
         ? new Date(input.currentTimestamp.getTime() + LOCK_DURATION_MS)
         : null,
-    shouldActivateMarket:
-      input.market.status === 'pending' && newReserveBase >= MIN_LIQUIDITY,
+    shouldActivateMarket: input.market.status === 'pending' && newReserveBase >= MIN_LIQUIDITY,
   };
 }

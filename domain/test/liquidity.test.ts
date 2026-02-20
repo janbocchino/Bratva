@@ -123,7 +123,10 @@ describe('provideLiquidity', () => {
     const result = provideLiquidity({
       market: mkMarket({
         status: 'active',
-        ammPool: { reserveBase: Units(MIN_LIQUIDITY), reserveQuote: Cent.new(MIN_LIQUIDITY * 1000n) },
+        ammPool: {
+          reserveBase: Units(MIN_LIQUIDITY),
+          reserveQuote: Cent.new(MIN_LIQUIDITY * 1000n),
+        },
         totalLpTokens: 316n,
       }),
       amountBase: Units(50n),
@@ -195,16 +198,26 @@ describe('validateDepositRatio', () => {
 /* ------------------------------------------------------------------ */
 describe('calcLpTokens', () => {
   it('first deposit: sqrt(base * quote)', () => {
-    expect(calcLpTokens({
-      amountBase: 5n, amountQuote: 5000n,
-      reserveBase: 0n, reserveQuote: 0n, totalLpSupply: 0n,
-    })).toBe(158n);
+    expect(
+      calcLpTokens({
+        amountBase: 5n,
+        amountQuote: 5000n,
+        reserveBase: 0n,
+        reserveQuote: 0n,
+        totalLpSupply: 0n,
+      }),
+    ).toBe(158n);
   });
 
   it('subsequent deposit: proportional', () => {
-    expect(calcLpTokens({
-      amountBase: 5n, amountQuote: 5000n,
-      reserveBase: 10n, reserveQuote: 10000n, totalLpSupply: 316n,
-    })).toBe(158n);
+    expect(
+      calcLpTokens({
+        amountBase: 5n,
+        amountQuote: 5000n,
+        reserveBase: 10n,
+        reserveQuote: 10000n,
+        totalLpSupply: 316n,
+      }),
+    ).toBe(158n);
   });
 });
