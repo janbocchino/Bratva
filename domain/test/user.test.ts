@@ -19,9 +19,7 @@ describe('createUserAccount', () => {
     it('returns displayName and email when neither exists in snapshot', async () => {
       const snapshot = mkSnapshot();
 
-      const result = await E.runPromise(
-        createUserAccount({ displayName, email }, snapshot),
-      );
+      const result = await E.runPromise(createUserAccount({ displayName, email }, snapshot));
 
       expect(result).toEqual({ displayName, email });
     });
@@ -34,9 +32,7 @@ describe('createUserAccount', () => {
         displayNameToUserId: new Map([[otherDisplayName, UserId(2)]]),
       });
 
-      const result = await E.runPromise(
-        createUserAccount({ displayName, email }, snapshot),
-      );
+      const result = await E.runPromise(createUserAccount({ displayName, email }, snapshot));
 
       expect(result).toEqual({ displayName, email });
     });

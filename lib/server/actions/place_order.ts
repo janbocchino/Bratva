@@ -6,7 +6,12 @@ import { AmmPool } from '@/domain/aggregates/exchange';
 import type { Order, OrderStatus } from '@/domain/aggregates/exchange';
 import type { UserLedger } from '@/domain/aggregates/ledger';
 import { debitUserBalance, creditUserBalance } from '@/domain/workflows/ledger';
-import { processOrder, validateOrderParams, buildAmmOrder, filterNonceEligible } from '@/domain/workflows/exchange';
+import {
+  processOrder,
+  validateOrderParams,
+  buildAmmOrder,
+  filterNonceEligible,
+} from '@/domain/workflows/exchange';
 import { Cent, Units } from '@/domain/values/currencies';
 import { type } from 'arktype';
 import { Db, db } from '../db';
@@ -138,19 +143,15 @@ export async function placeOrder(p: {
               const ammFilled = ammOrder.filled;
 
               // Determine fills on counter orders by comparing before/after
-              const counterBefore =
-                p.side === 'bid' ? orderBook.ask : orderBook.bid;
-              const counterAfter =
-                p.side === 'bid' ? newBook.ask : newBook.bid;
+              const counterBefore = p.side === 'bid' ? orderBook.ask : orderBook.bid;
+              const counterAfter = p.side === 'bid' ? newBook.ask : newBook.bid;
 
               const orderFillUpdates: UpdateOrderFillsParams[] = [];
               const txnParams: CreateTransactionParams[] = [];
               const settlementEffects: E.Effect<void, any, Db>[] = [];
 
               for (const after of counterAfter) {
-                const before = counterBefore.find(
-                  (b) => b.publicId === after.publicId,
-                );
+                const before = counterBefore.find((b) => b.publicId === after.publicId);
                 if (!before) continue;
 
                 const filledDelta = before.filled - after.filled;
@@ -162,7 +163,7 @@ export async function placeOrder(p: {
                   totalFilled >= before.quantity
                     ? 'filled'
                     : totalFilled > 0
-                      ? 'partially_filled'
+                      ? 'open'
                       : before.status;
 
                 orderFillUpdates.push({
@@ -184,15 +185,13 @@ export async function placeOrder(p: {
                 });
 
                 // Credit maker with proceeds
-                const makerCreditAssetId = p.side === 'bid'
-                  ? market.quoteAssetId
-                  : market.baseAssetId;
-                const makerCreditAmount = p.side === 'bid'
-                  ? Cent.new(BigInt(after.price) * BigInt(filledDelta))
-                  : Units(BigInt(filledDelta));
-                const makerCreditUnits = p.side === 'bid'
-                  ? 'cent' as const
-                  : 'unit' as const;
+                const makerCreditAssetId =
+                  p.side === 'bid' ? market.quoteAssetId : market.baseAssetId;
+                const makerCreditAmount =
+                  p.side === 'bid'
+                    ? Cent.new(BigInt(after.price) * BigInt(filledDelta))
+                    : Units(BigInt(filledDelta));
+                const makerCreditUnits = p.side === 'bid' ? ('cent' as const) : ('unit' as const);
 
                 settlementEffects.push(
                   Fn.pipe(
@@ -237,9 +236,7 @@ export async function placeOrder(p: {
                 const assetSummary = currentLedger.summary.find(
                   (s) => s.assetId === takerDebitAssetId,
                 );
-                const currentBalance = assetSummary
-                  ? assetSummary.balance
-                  : (0n as Cent);
+                const currentBalance = assetSummary ? assetSummary.balance : (0n as Cent);
 
                 settlementEffects.push(
                   Fn.pipe(
@@ -247,7 +244,7 @@ export async function placeOrder(p: {
                       userId: user.id,
                       assetId: takerDebitAssetId,
                       amount: isBid ? Cent.new(takerDebitTotal) : Units(takerDebitTotal),
-                      units: isBid ? 'cent' as const : 'unit' as const,
+                      units: isBid ? ('cent' as const) : ('unit' as const),
                       currentBalance,
                     }),
                     E.flatMap(ledgerWriteRepo.createEntry),
@@ -258,11 +255,7 @@ export async function placeOrder(p: {
 
               // Update order status for incoming order
               const incomingStatus: OrderStatus =
-                incomingDomainOrder.filled >= quantity
-                  ? 'filled'
-                  : incomingDomainOrder.filled > 0
-                    ? 'partially_filled'
-                    : 'open';
+                incomingDomainOrder.filled >= quantity ? 'filled' : 'open';
 
               const incomingFillUpdate: UpdateOrderFillsParams = {
                 orderId: createdOrder.id,
@@ -272,10 +265,7 @@ export async function placeOrder(p: {
 
               return Fn.pipe(
                 E.all([
-                  orderWriteRepo.updateOrderFills([
-                    incomingFillUpdate,
-                    ...orderFillUpdates,
-                  ]),
+                  orderWriteRepo.updateOrderFills([incomingFillUpdate, ...orderFillUpdates]),
                   txnParams.length > 0
                     ? transactionWriteRepo.createTransactions(txnParams)
                     : E.void,

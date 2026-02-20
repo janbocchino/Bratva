@@ -16,9 +16,7 @@ describe('creditUserBalance', () => {
     it('returns CreateLedgerEntryParams with drCr "cr" when amount > 0 (Cent)', async () => {
       const amount = Cent.new(100n);
 
-      const result = await E.runPromise(
-        creditUserBalance({ userId, assetId, amount, units }),
-      );
+      const result = await E.runPromise(creditUserBalance({ userId, assetId, amount, units }));
 
       expect(result).toEqual({
         userId,

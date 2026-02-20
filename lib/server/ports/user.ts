@@ -1,11 +1,6 @@
 import { eq, or, sql } from 'drizzle-orm';
 import type { User } from '@/domain/aggregates/user';
-import {
-  InfraError,
-  InfraNotFoundError,
-  PortError,
-  UserNotFoundError,
-} from '@/domain/errors';
+import { InfraError, InfraNotFoundError, PortError, UserNotFoundError } from '@/domain/errors';
 import type {
   CreateUserParams,
   UserReadRepo as UserReadRepoDomain,

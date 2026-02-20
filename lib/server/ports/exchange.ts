@@ -45,16 +45,13 @@ export const marketReadRepo: MarketReadRepoDomain<Db> = {
       E.flatMap((db) =>
         E.tryPromise({
           try: () => {
-            const query =
-              'id' in o ? eq(markets.id, o.id) : eq(markets.publicId, o.publicId);
+            const query = 'id' in o ? eq(markets.id, o.id) : eq(markets.publicId, o.publicId);
             return db.select().from(markets).where(query).limit(1);
           },
           catch: errMapper(InfraError),
         }),
       ),
-      E.flatMap((rows) =>
-        Fn.pipe(A.head(rows), E.mapError(errMapper(MarketNotFoundError))),
-      ),
+      E.flatMap((rows) => Fn.pipe(A.head(rows), E.mapError(errMapper(MarketNotFoundError)))),
       E.map(marketMapper.toDomain),
     ),
 };
@@ -95,9 +92,7 @@ export const orderReadRepo: OrderReadRepoDomain<Db> = {
             db
               .select()
               .from(orders)
-              .where(
-                sql`${orders.marketId} = ${marketId} AND ${orders.status} IN ('open', 'partially_filled')`,
-              ),
+              .where(sql`${orders.marketId} = ${marketId} AND ${orders.status} = 'open'`),
           catch: errMapper(InfraError),
         }),
       ),
@@ -111,14 +106,11 @@ export const orderReadRepo: OrderReadRepoDomain<Db> = {
       E.mapError(errMapper(InfraNotFoundError)),
       E.flatMap((db) =>
         E.tryPromise({
-          try: () =>
-            db.select().from(orders).where(eq(orders.id, orderId)).limit(1),
+          try: () => db.select().from(orders).where(eq(orders.id, orderId)).limit(1),
           catch: errMapper(InfraError),
         }),
       ),
-      E.flatMap((rows) =>
-        Fn.pipe(A.head(rows), E.mapError(errMapper(OrderNotFoundError))),
-      ),
+      E.flatMap((rows) => Fn.pipe(A.head(rows), E.mapError(errMapper(OrderNotFoundError)))),
       E.map(orderMapper.toDomain),
     ),
   // end of LLM written Code
@@ -149,9 +141,7 @@ export const orderWriteRepo: OrderWriteRepoDomain<Db> = {
           catch: errMapper(InfraError),
         }),
       ),
-      E.flatMap((rows) =>
-        Fn.pipe(A.head(rows), E.mapError(errMapper(InfraError))),
-      ),
+      E.flatMap((rows) => Fn.pipe(A.head(rows), E.mapError(errMapper(InfraError)))),
       E.map(orderMapper.toDomain),
     ),
 

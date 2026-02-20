@@ -145,10 +145,8 @@ export function validateOrderParams(p: {
 }): E.Effect<void, MarketNotActiveError | OrderValidationError> {
   if (p.market.status !== 'active')
     return E.fail(new MarketNotActiveError({ marketId: p.market.id }));
-  if (p.price <= 0n)
-    return E.fail(new OrderValidationError({ cause: 'Price must be > 0' }));
-  if (p.quantity <= 0)
-    return E.fail(new OrderValidationError({ cause: 'Quantity must be > 0' }));
+  if (p.price <= 0n) return E.fail(new OrderValidationError({ cause: 'Price must be > 0' }));
+  if (p.quantity <= 0) return E.fail(new OrderValidationError({ cause: 'Quantity must be > 0' }));
   return E.void;
 }
 // end of LLM written Code

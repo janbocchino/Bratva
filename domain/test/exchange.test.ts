@@ -2,7 +2,13 @@
 /// <reference types="jest" />
 import { processOrder, buildAmmOrder, filterNonceEligible } from '../workflows/exchange';
 import { AmmPool } from '../aggregates/exchange';
-import { OrderId, OrderPublicId, MarketId, MarketPublicId, MarketSequenceNumber } from '../values/exchange';
+import {
+  OrderId,
+  OrderPublicId,
+  MarketId,
+  MarketPublicId,
+  MarketSequenceNumber,
+} from '../values/exchange';
 import { Cent, Units } from '../values/currencies';
 import { UserId, Nonce } from '../values/user';
 import type { Order, OrderBook, Market, AmmPool as AmmPoolType } from '../aggregates/exchange';
@@ -33,15 +39,27 @@ const mkOrder = (
 const emptyBook: OrderBook = { bid: [], ask: [] };
 
 describe('processOrder', () => {
-  beforeEach(() => { counter = 0; });
+  beforeEach(() => {
+    counter = 0;
+  });
 
   /* ------------------------------------------------------------------ */
   /*  Group 1 — No-match cases (order rests on the book)                */
   /* ------------------------------------------------------------------ */
   describe('no-match cases', () => {
     it('1a: bid on empty book with ammOrder ask price too high', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 10 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(200n), quantity: 5 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 10,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(200n),
+        quantity: 5,
+      });
 
       const result = processOrder({ order: bid, orderBook: emptyBook, ammOrder });
 
@@ -52,8 +70,18 @@ describe('processOrder', () => {
     });
 
     it('1b: ask on empty book with ammOrder bid price too low', () => {
-      const ask = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(100n), quantity: 10 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'bid', price: Cent.new(50n), quantity: 5 });
+      const ask = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(100n),
+        quantity: 10,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'bid',
+        price: Cent.new(50n),
+        quantity: 5,
+      });
 
       const result = processOrder({ order: ask, orderBook: emptyBook, ammOrder });
 
@@ -64,9 +92,24 @@ describe('processOrder', () => {
     });
 
     it('1c: bid when all book asks are priced above bid price', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 10 });
-      const highAsk = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(150n), quantity: 5 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(200n), quantity: 5 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 10,
+      });
+      const highAsk = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(150n),
+        quantity: 5,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(200n),
+        quantity: 5,
+      });
       const orderBook: OrderBook = { bid: [], ask: [highAsk] };
 
       const result = processOrder({ order: bid, orderBook, ammOrder });
@@ -79,9 +122,24 @@ describe('processOrder', () => {
     });
 
     it('1d: ask when all book bids are priced below ask price', () => {
-      const ask = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(100n), quantity: 10 });
-      const lowBid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(50n), quantity: 5 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'bid', price: Cent.new(25n), quantity: 5 });
+      const ask = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(100n),
+        quantity: 10,
+      });
+      const lowBid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(50n),
+        quantity: 5,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'bid',
+        price: Cent.new(25n),
+        quantity: 5,
+      });
       const orderBook: OrderBook = { bid: [lowBid], ask: [] };
 
       const result = processOrder({ order: ask, orderBook, ammOrder });
@@ -94,9 +152,26 @@ describe('processOrder', () => {
     });
 
     it('1e: bid when counter asks and ammOrder are fully filled', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 10 });
-      const filledAsk = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(80n), quantity: 5, filled: 5 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(80n), quantity: 5, filled: 5 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 10,
+      });
+      const filledAsk = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(80n),
+        quantity: 5,
+        filled: 5,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(80n),
+        quantity: 5,
+        filled: 5,
+      });
       const orderBook: OrderBook = { bid: [], ask: [filledAsk] };
 
       const result = processOrder({ order: bid, orderBook, ammOrder });
@@ -114,9 +189,24 @@ describe('processOrder', () => {
   /* ------------------------------------------------------------------ */
   describe('single exact match', () => {
     it('2a: bid(qty=5) fully matches ask(qty=5)', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 5 });
-      const ask = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(80n), quantity: 5 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(200n), quantity: 100 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 5,
+      });
+      const ask = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(80n),
+        quantity: 5,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(200n),
+        quantity: 100,
+      });
       const orderBook: OrderBook = { bid: [], ask: [ask] };
 
       const result = processOrder({ order: bid, orderBook, ammOrder });
@@ -128,9 +218,24 @@ describe('processOrder', () => {
     });
 
     it('2b: ask(qty=5) fully matches bid(qty=5)', () => {
-      const ask = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(100n), quantity: 5 });
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(120n), quantity: 5 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'bid', price: Cent.new(50n), quantity: 100 });
+      const ask = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(100n),
+        quantity: 5,
+      });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(120n),
+        quantity: 5,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'bid',
+        price: Cent.new(50n),
+        quantity: 100,
+      });
       const orderBook: OrderBook = { bid: [bid], ask: [] };
 
       const result = processOrder({ order: ask, orderBook, ammOrder });
@@ -147,9 +252,24 @@ describe('processOrder', () => {
   /* ------------------------------------------------------------------ */
   describe('partial fill — incoming larger than counter', () => {
     it('3a: bid(qty=10) vs ask(qty=5) — bid partially filled', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 10 });
-      const ask = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(80n), quantity: 5 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(200n), quantity: 100 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 10,
+      });
+      const ask = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(80n),
+        quantity: 5,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(200n),
+        quantity: 100,
+      });
       const orderBook: OrderBook = { bid: [], ask: [ask] };
 
       const result = processOrder({ order: bid, orderBook, ammOrder });
@@ -159,9 +279,24 @@ describe('processOrder', () => {
     });
 
     it('3b: ask(qty=10) vs bid(qty=5) — ask partially filled', () => {
-      const ask = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(100n), quantity: 10 });
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(120n), quantity: 5 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'bid', price: Cent.new(50n), quantity: 100 });
+      const ask = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(100n),
+        quantity: 10,
+      });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(120n),
+        quantity: 5,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'bid',
+        price: Cent.new(50n),
+        quantity: 100,
+      });
       const orderBook: OrderBook = { bid: [bid], ask: [] };
 
       const result = processOrder({ order: ask, orderBook, ammOrder });
@@ -176,9 +311,24 @@ describe('processOrder', () => {
   /* ------------------------------------------------------------------ */
   describe('partial fill — incoming smaller than counter', () => {
     it('4a: bid(qty=3) vs ask(qty=10) — bid fully satisfied, ask partially consumed', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 3 });
-      const ask = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(80n), quantity: 10 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(200n), quantity: 100 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 3,
+      });
+      const ask = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(80n),
+        quantity: 10,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(200n),
+        quantity: 100,
+      });
       const orderBook: OrderBook = { bid: [], ask: [ask] };
 
       const result = processOrder({ order: bid, orderBook, ammOrder });
@@ -188,9 +338,24 @@ describe('processOrder', () => {
     });
 
     it('4b: ask(qty=3) vs bid(qty=10) — ask fully satisfied, bid partially consumed', () => {
-      const ask = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(100n), quantity: 3 });
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(120n), quantity: 10 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'bid', price: Cent.new(50n), quantity: 100 });
+      const ask = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(100n),
+        quantity: 3,
+      });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(120n),
+        quantity: 10,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'bid',
+        price: Cent.new(50n),
+        quantity: 100,
+      });
       const orderBook: OrderBook = { bid: [bid], ask: [] };
 
       const result = processOrder({ order: ask, orderBook, ammOrder });
@@ -205,8 +370,18 @@ describe('processOrder', () => {
   /* ------------------------------------------------------------------ */
   describe('AMM order matching', () => {
     it('5a: bid matches only the ammOrder — ammOrder absent from returned book', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 10 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(90n), quantity: 6 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 10,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(90n),
+        quantity: 6,
+      });
 
       const result = processOrder({ order: bid, orderBook: emptyBook, ammOrder });
 
@@ -216,8 +391,18 @@ describe('processOrder', () => {
     });
 
     it('5b: ask matches only the ammOrder — ammOrder absent from returned book', () => {
-      const ask = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(100n), quantity: 10 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'bid', price: Cent.new(110n), quantity: 6 });
+      const ask = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(100n),
+        quantity: 10,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'bid',
+        price: Cent.new(110n),
+        quantity: 6,
+      });
 
       const result = processOrder({ order: ask, orderBook: emptyBook, ammOrder });
 
@@ -227,9 +412,24 @@ describe('processOrder', () => {
     });
 
     it('5c: bid matches book ask + ammOrder (mixed fill)', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 10 });
-      const ask = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(70n), quantity: 3 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(90n), quantity: 5 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 10,
+      });
+      const ask = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(70n),
+        quantity: 3,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(90n),
+        quantity: 5,
+      });
       const orderBook: OrderBook = { bid: [], ask: [ask] };
 
       const result = processOrder({ order: bid, orderBook, ammOrder });
@@ -240,8 +440,19 @@ describe('processOrder', () => {
     });
 
     it('5d: ammOrder fully filled — excluded from candidates, no match', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 10 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(90n), quantity: 5, filled: 5 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 10,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(90n),
+        quantity: 5,
+        filled: 5,
+      });
 
       const result = processOrder({ order: bid, orderBook: emptyBook, ammOrder });
 
@@ -256,10 +467,30 @@ describe('processOrder', () => {
   /* ------------------------------------------------------------------ */
   describe('multi-order cascading fill', () => {
     it('6a: bid(qty=10) fully filled by ask1(qty=3) + ask2(qty=7)', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 10 });
-      const ask1 = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(70n), quantity: 3 });
-      const ask2 = mkOrder({ publicId: OrderPublicId('ask-2'), kind: 'ask', price: Cent.new(80n), quantity: 7 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(200n), quantity: 100 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 10,
+      });
+      const ask1 = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(70n),
+        quantity: 3,
+      });
+      const ask2 = mkOrder({
+        publicId: OrderPublicId('ask-2'),
+        kind: 'ask',
+        price: Cent.new(80n),
+        quantity: 7,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(200n),
+        quantity: 100,
+      });
       const orderBook: OrderBook = { bid: [], ask: [ask1, ask2] };
 
       const result = processOrder({ order: bid, orderBook, ammOrder });
@@ -271,10 +502,30 @@ describe('processOrder', () => {
     });
 
     it('6b: bid(qty=15) partially filled by ask1(qty=3) + ask2(qty=7) — 5 unfilled', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 15 });
-      const ask1 = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(70n), quantity: 3 });
-      const ask2 = mkOrder({ publicId: OrderPublicId('ask-2'), kind: 'ask', price: Cent.new(80n), quantity: 7 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(200n), quantity: 100 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 15,
+      });
+      const ask1 = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(70n),
+        quantity: 3,
+      });
+      const ask2 = mkOrder({
+        publicId: OrderPublicId('ask-2'),
+        kind: 'ask',
+        price: Cent.new(80n),
+        quantity: 7,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(200n),
+        quantity: 100,
+      });
       const orderBook: OrderBook = { bid: [], ask: [ask1, ask2] };
 
       const result = processOrder({ order: bid, orderBook, ammOrder });
@@ -284,10 +535,30 @@ describe('processOrder', () => {
     });
 
     it('6c: ask(qty=10) fully filled by bid1(qty=4) + bid2(qty=6)', () => {
-      const ask = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(100n), quantity: 10 });
-      const bid1 = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(120n), quantity: 4 });
-      const bid2 = mkOrder({ publicId: OrderPublicId('bid-2'), kind: 'bid', price: Cent.new(110n), quantity: 6 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'bid', price: Cent.new(50n), quantity: 100 });
+      const ask = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(100n),
+        quantity: 10,
+      });
+      const bid1 = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(120n),
+        quantity: 4,
+      });
+      const bid2 = mkOrder({
+        publicId: OrderPublicId('bid-2'),
+        kind: 'bid',
+        price: Cent.new(110n),
+        quantity: 6,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'bid',
+        price: Cent.new(50n),
+        quantity: 100,
+      });
       const orderBook: OrderBook = { bid: [bid1, bid2], ask: [] };
 
       const result = processOrder({ order: ask, orderBook, ammOrder });
@@ -298,11 +569,36 @@ describe('processOrder', () => {
     });
 
     it('6d: three counter orders but only two needed to fill', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 8 });
-      const ask1 = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(70n), quantity: 3 });
-      const ask2 = mkOrder({ publicId: OrderPublicId('ask-2'), kind: 'ask', price: Cent.new(80n), quantity: 5 });
-      const ask3 = mkOrder({ publicId: OrderPublicId('ask-3'), kind: 'ask', price: Cent.new(90n), quantity: 10 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(200n), quantity: 100 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 8,
+      });
+      const ask1 = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(70n),
+        quantity: 3,
+      });
+      const ask2 = mkOrder({
+        publicId: OrderPublicId('ask-2'),
+        kind: 'ask',
+        price: Cent.new(80n),
+        quantity: 5,
+      });
+      const ask3 = mkOrder({
+        publicId: OrderPublicId('ask-3'),
+        kind: 'ask',
+        price: Cent.new(90n),
+        quantity: 10,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(200n),
+        quantity: 100,
+      });
       const orderBook: OrderBook = { bid: [], ask: [ask1, ask2, ask3] };
 
       const result = processOrder({ order: bid, orderBook, ammOrder });
@@ -319,10 +615,30 @@ describe('processOrder', () => {
   /* ------------------------------------------------------------------ */
   describe('sort priority', () => {
     it('7a: asks sorted by price ascending — cheapest ask matched first', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 3 });
-      const askCheap = mkOrder({ publicId: OrderPublicId('ask-cheap'), kind: 'ask', price: Cent.new(80n), quantity: 10 });
-      const askExpensive = mkOrder({ publicId: OrderPublicId('ask-exp'), kind: 'ask', price: Cent.new(90n), quantity: 10 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(200n), quantity: 100 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 3,
+      });
+      const askCheap = mkOrder({
+        publicId: OrderPublicId('ask-cheap'),
+        kind: 'ask',
+        price: Cent.new(80n),
+        quantity: 10,
+      });
+      const askExpensive = mkOrder({
+        publicId: OrderPublicId('ask-exp'),
+        kind: 'ask',
+        price: Cent.new(90n),
+        quantity: 10,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(200n),
+        quantity: 100,
+      });
       const orderBook: OrderBook = { bid: [], ask: [askExpensive, askCheap] };
 
       const result = processOrder({ order: bid, orderBook, ammOrder });
@@ -333,10 +649,30 @@ describe('processOrder', () => {
     });
 
     it('7b: bids sorted by price descending — highest bid matched first', () => {
-      const ask = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(100n), quantity: 3 });
-      const bidHigh = mkOrder({ publicId: OrderPublicId('bid-high'), kind: 'bid', price: Cent.new(120n), quantity: 10 });
-      const bidLow = mkOrder({ publicId: OrderPublicId('bid-low'), kind: 'bid', price: Cent.new(110n), quantity: 10 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'bid', price: Cent.new(50n), quantity: 100 });
+      const ask = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(100n),
+        quantity: 3,
+      });
+      const bidHigh = mkOrder({
+        publicId: OrderPublicId('bid-high'),
+        kind: 'bid',
+        price: Cent.new(120n),
+        quantity: 10,
+      });
+      const bidLow = mkOrder({
+        publicId: OrderPublicId('bid-low'),
+        kind: 'bid',
+        price: Cent.new(110n),
+        quantity: 10,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'bid',
+        price: Cent.new(50n),
+        quantity: 100,
+      });
       const orderBook: OrderBook = { bid: [bidLow, bidHigh], ask: [] };
 
       const result = processOrder({ order: ask, orderBook, ammOrder });
@@ -347,7 +683,12 @@ describe('processOrder', () => {
     });
 
     it('7c: same price — earlier createdAt matched first', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 3 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 3,
+      });
       const askEarly = mkOrder({
         publicId: OrderPublicId('ask-early'),
         kind: 'ask',
@@ -362,7 +703,12 @@ describe('processOrder', () => {
         quantity: 10,
         createdAt: new Date(now.getTime() + 1000),
       });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(200n), quantity: 100 });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(200n),
+        quantity: 100,
+      });
       const orderBook: OrderBook = { bid: [], ask: [askLate, askEarly] };
 
       const result = processOrder({ order: bid, orderBook, ammOrder });
@@ -373,7 +719,12 @@ describe('processOrder', () => {
     });
 
     it('7d: same price, same time — larger quantity matched first', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 3 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 3,
+      });
       const askLarge = mkOrder({
         publicId: OrderPublicId('ask-large'),
         kind: 'ask',
@@ -388,7 +739,12 @@ describe('processOrder', () => {
         quantity: 5,
         createdAt: now,
       });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(200n), quantity: 100 });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(200n),
+        quantity: 100,
+      });
       const orderBook: OrderBook = { bid: [], ask: [askSmall, askLarge] };
 
       const result = processOrder({ order: bid, orderBook, ammOrder });
@@ -404,9 +760,25 @@ describe('processOrder', () => {
   /* ------------------------------------------------------------------ */
   describe('partially-filled counter orders', () => {
     it('8a: counter ask with prior partial fill — only remaining capacity available', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 10 });
-      const ask = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(80n), quantity: 5, filled: 2 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(200n), quantity: 100 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 10,
+      });
+      const ask = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(80n),
+        quantity: 5,
+        filled: 2,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(200n),
+        quantity: 100,
+      });
       const orderBook: OrderBook = { bid: [], ask: [ask] };
 
       const result = processOrder({ order: bid, orderBook, ammOrder });
@@ -416,9 +788,25 @@ describe('processOrder', () => {
     });
 
     it('8b: counter ask fully filled (qty === filled) — excluded from matching', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 10 });
-      const filledAsk = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(80n), quantity: 5, filled: 5 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(200n), quantity: 100 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 10,
+      });
+      const filledAsk = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(80n),
+        quantity: 5,
+        filled: 5,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(200n),
+        quantity: 100,
+      });
       const orderBook: OrderBook = { bid: [], ask: [filledAsk] };
 
       const result = processOrder({ order: bid, orderBook, ammOrder });
@@ -434,9 +822,24 @@ describe('processOrder', () => {
   /* ------------------------------------------------------------------ */
   describe('order book structure integrity', () => {
     it('9a: existing same-side orders are preserved alongside new order', () => {
-      const bid1 = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(90n), quantity: 5 });
-      const bid2 = mkOrder({ publicId: OrderPublicId('bid-2'), kind: 'bid', price: Cent.new(100n), quantity: 10 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(200n), quantity: 100 });
+      const bid1 = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(90n),
+        quantity: 5,
+      });
+      const bid2 = mkOrder({
+        publicId: OrderPublicId('bid-2'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 10,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(200n),
+        quantity: 100,
+      });
       const orderBook: OrderBook = { bid: [bid1], ask: [] };
 
       const result = processOrder({ order: bid2, orderBook, ammOrder });
@@ -447,10 +850,30 @@ describe('processOrder', () => {
     });
 
     it('9b: unmatched counter orders remain unchanged in the returned book', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 3 });
-      const ask1 = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(80n), quantity: 10 });
-      const ask2 = mkOrder({ publicId: OrderPublicId('ask-2'), kind: 'ask', price: Cent.new(150n), quantity: 5 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(200n), quantity: 100 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 3,
+      });
+      const ask1 = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(80n),
+        quantity: 10,
+      });
+      const ask2 = mkOrder({
+        publicId: OrderPublicId('ask-2'),
+        kind: 'ask',
+        price: Cent.new(150n),
+        quantity: 5,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(200n),
+        quantity: 100,
+      });
       const orderBook: OrderBook = { bid: [], ask: [ask1, ask2] };
 
       const result = processOrder({ order: bid, orderBook, ammOrder });
@@ -462,8 +885,18 @@ describe('processOrder', () => {
     });
 
     it('9c: ammOrder never appears in the returned order book', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 10 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(90n), quantity: 6 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 10,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(90n),
+        quantity: 6,
+      });
 
       const result = processOrder({ order: bid, orderBook: emptyBook, ammOrder });
 
@@ -472,16 +905,36 @@ describe('processOrder', () => {
     });
 
     it('9d: returned book always has both bid and ask keys as arrays', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 10 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(200n), quantity: 100 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 10,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(200n),
+        quantity: 100,
+      });
 
       const noMatch = processOrder({ order: bid, orderBook: emptyBook, ammOrder });
       expect(Array.isArray(noMatch.bid)).toBe(true);
       expect(Array.isArray(noMatch.ask)).toBe(true);
 
-      const ask = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(80n), quantity: 5 });
+      const ask = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(80n),
+        quantity: 5,
+      });
       const withMatch = processOrder({
-        order: mkOrder({ publicId: OrderPublicId('bid-2'), kind: 'bid', price: Cent.new(100n), quantity: 3 }),
+        order: mkOrder({
+          publicId: OrderPublicId('bid-2'),
+          kind: 'bid',
+          price: Cent.new(100n),
+          quantity: 3,
+        }),
         orderBook: { bid: [], ask: [ask] },
         ammOrder,
       });
@@ -495,9 +948,24 @@ describe('processOrder', () => {
   /* ------------------------------------------------------------------ */
   describe('edge cases', () => {
     it('10a: minimum quantity (qty=1) against a large counter order', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 1 });
-      const ask = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(80n), quantity: 1000 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(200n), quantity: 100 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 1,
+      });
+      const ask = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(80n),
+        quantity: 1000,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(200n),
+        quantity: 100,
+      });
       const orderBook: OrderBook = { bid: [], ask: [ask] };
 
       const result = processOrder({ order: bid, orderBook, ammOrder });
@@ -507,9 +975,24 @@ describe('processOrder', () => {
     });
 
     it('10b: price equality boundary — ask price === bid price should match', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 5 });
-      const ask = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(100n), quantity: 5 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(200n), quantity: 100 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 5,
+      });
+      const ask = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(100n),
+        quantity: 5,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(200n),
+        quantity: 100,
+      });
       const orderBook: OrderBook = { bid: [], ask: [ask] };
 
       const result = processOrder({ order: bid, orderBook, ammOrder });
@@ -518,8 +1001,19 @@ describe('processOrder', () => {
     });
 
     it('10c: ammOrder partially filled — only remaining capacity available', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 10 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(90n), quantity: 8, filled: 3 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 10,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(90n),
+        quantity: 8,
+        filled: 3,
+      });
 
       const result = processOrder({ order: bid, orderBook: emptyBook, ammOrder });
 
@@ -527,10 +1021,30 @@ describe('processOrder', () => {
     });
 
     it('10d: all counter orders match but incoming order still not fully filled', () => {
-      const bid = mkOrder({ publicId: OrderPublicId('bid-1'), kind: 'bid', price: Cent.new(100n), quantity: 20 });
-      const ask1 = mkOrder({ publicId: OrderPublicId('ask-1'), kind: 'ask', price: Cent.new(70n), quantity: 3 });
-      const ask2 = mkOrder({ publicId: OrderPublicId('ask-2'), kind: 'ask', price: Cent.new(80n), quantity: 5 });
-      const ammOrder = mkOrder({ publicId: OrderPublicId('amm-1'), kind: 'ask', price: Cent.new(200n), quantity: 100 });
+      const bid = mkOrder({
+        publicId: OrderPublicId('bid-1'),
+        kind: 'bid',
+        price: Cent.new(100n),
+        quantity: 20,
+      });
+      const ask1 = mkOrder({
+        publicId: OrderPublicId('ask-1'),
+        kind: 'ask',
+        price: Cent.new(70n),
+        quantity: 3,
+      });
+      const ask2 = mkOrder({
+        publicId: OrderPublicId('ask-2'),
+        kind: 'ask',
+        price: Cent.new(80n),
+        quantity: 5,
+      });
+      const ammOrder = mkOrder({
+        publicId: OrderPublicId('amm-1'),
+        kind: 'ask',
+        price: Cent.new(200n),
+        quantity: 100,
+      });
       const orderBook: OrderBook = { bid: [], ask: [ask1, ask2] };
 
       const result = processOrder({ order: bid, orderBook, ammOrder });
@@ -636,37 +1150,103 @@ describe('buildAmmOrder', () => {
 /*  Group 12 — filterNonceEligible                                     */
 /* ------------------------------------------------------------------ */
 describe('filterNonceEligible', () => {
-  beforeEach(() => { counter = 0; });
+  beforeEach(() => {
+    counter = 0;
+  });
 
   it('12a: single user, single order — keeps it', () => {
-    const o1 = mkOrder({ publicId: OrderPublicId('o1'), kind: 'bid', price: Cent.new(100n), quantity: 5, nonce: Nonce(0) });
+    const o1 = mkOrder({
+      publicId: OrderPublicId('o1'),
+      kind: 'bid',
+      price: Cent.new(100n),
+      quantity: 5,
+      nonce: Nonce(0),
+    });
     const result = filterNonceEligible([o1]);
     expect(result).toHaveLength(1);
     expect(result[0]).toBe(o1);
   });
 
   it('12b: single user, two orders — keeps only the lowest nonce', () => {
-    const o1 = mkOrder({ publicId: OrderPublicId('o1'), kind: 'bid', price: Cent.new(100n), quantity: 5, nonce: Nonce(0) });
-    const o2 = mkOrder({ publicId: OrderPublicId('o2'), kind: 'ask', price: Cent.new(90n), quantity: 3, nonce: Nonce(1) });
+    const o1 = mkOrder({
+      publicId: OrderPublicId('o1'),
+      kind: 'bid',
+      price: Cent.new(100n),
+      quantity: 5,
+      nonce: Nonce(0),
+    });
+    const o2 = mkOrder({
+      publicId: OrderPublicId('o2'),
+      kind: 'ask',
+      price: Cent.new(90n),
+      quantity: 3,
+      nonce: Nonce(1),
+    });
     const result = filterNonceEligible([o1, o2]);
     expect(result).toHaveLength(1);
     expect(result[0]).toBe(o1);
   });
 
   it('12c: single user, three orders — keeps only the lowest nonce', () => {
-    const o1 = mkOrder({ publicId: OrderPublicId('o1'), kind: 'bid', price: Cent.new(100n), quantity: 5, nonce: Nonce(3) });
-    const o2 = mkOrder({ publicId: OrderPublicId('o2'), kind: 'ask', price: Cent.new(90n), quantity: 3, nonce: Nonce(5) });
-    const o3 = mkOrder({ publicId: OrderPublicId('o3'), kind: 'bid', price: Cent.new(80n), quantity: 2, nonce: Nonce(4) });
+    const o1 = mkOrder({
+      publicId: OrderPublicId('o1'),
+      kind: 'bid',
+      price: Cent.new(100n),
+      quantity: 5,
+      nonce: Nonce(3),
+    });
+    const o2 = mkOrder({
+      publicId: OrderPublicId('o2'),
+      kind: 'ask',
+      price: Cent.new(90n),
+      quantity: 3,
+      nonce: Nonce(5),
+    });
+    const o3 = mkOrder({
+      publicId: OrderPublicId('o3'),
+      kind: 'bid',
+      price: Cent.new(80n),
+      quantity: 2,
+      nonce: Nonce(4),
+    });
     const result = filterNonceEligible([o1, o2, o3]);
     expect(result).toHaveLength(1);
     expect(result[0]).toBe(o1);
   });
 
   it('12d: two users — keeps the lowest nonce per user independently', () => {
-    const u1o1 = mkOrder({ publicId: OrderPublicId('u1o1'), kind: 'bid', price: Cent.new(100n), quantity: 5, userId: UserId(1), nonce: Nonce(0) });
-    const u1o2 = mkOrder({ publicId: OrderPublicId('u1o2'), kind: 'bid', price: Cent.new(90n), quantity: 3, userId: UserId(1), nonce: Nonce(1) });
-    const u2o1 = mkOrder({ publicId: OrderPublicId('u2o1'), kind: 'ask', price: Cent.new(80n), quantity: 4, userId: UserId(2), nonce: Nonce(5) });
-    const u2o2 = mkOrder({ publicId: OrderPublicId('u2o2'), kind: 'ask', price: Cent.new(70n), quantity: 2, userId: UserId(2), nonce: Nonce(6) });
+    const u1o1 = mkOrder({
+      publicId: OrderPublicId('u1o1'),
+      kind: 'bid',
+      price: Cent.new(100n),
+      quantity: 5,
+      userId: UserId(1),
+      nonce: Nonce(0),
+    });
+    const u1o2 = mkOrder({
+      publicId: OrderPublicId('u1o2'),
+      kind: 'bid',
+      price: Cent.new(90n),
+      quantity: 3,
+      userId: UserId(1),
+      nonce: Nonce(1),
+    });
+    const u2o1 = mkOrder({
+      publicId: OrderPublicId('u2o1'),
+      kind: 'ask',
+      price: Cent.new(80n),
+      quantity: 4,
+      userId: UserId(2),
+      nonce: Nonce(5),
+    });
+    const u2o2 = mkOrder({
+      publicId: OrderPublicId('u2o2'),
+      kind: 'ask',
+      price: Cent.new(70n),
+      quantity: 2,
+      userId: UserId(2),
+      nonce: Nonce(6),
+    });
 
     const result = filterNonceEligible([u1o1, u1o2, u2o1, u2o2]);
     expect(result).toHaveLength(2);
@@ -679,21 +1259,68 @@ describe('filterNonceEligible', () => {
   });
 
   it('12f: all users have exactly one order — keeps all', () => {
-    const o1 = mkOrder({ publicId: OrderPublicId('o1'), kind: 'bid', price: Cent.new(100n), quantity: 5, userId: UserId(1), nonce: Nonce(0) });
-    const o2 = mkOrder({ publicId: OrderPublicId('o2'), kind: 'ask', price: Cent.new(90n), quantity: 3, userId: UserId(2), nonce: Nonce(0) });
-    const o3 = mkOrder({ publicId: OrderPublicId('o3'), kind: 'bid', price: Cent.new(80n), quantity: 2, userId: UserId(3), nonce: Nonce(7) });
+    const o1 = mkOrder({
+      publicId: OrderPublicId('o1'),
+      kind: 'bid',
+      price: Cent.new(100n),
+      quantity: 5,
+      userId: UserId(1),
+      nonce: Nonce(0),
+    });
+    const o2 = mkOrder({
+      publicId: OrderPublicId('o2'),
+      kind: 'ask',
+      price: Cent.new(90n),
+      quantity: 3,
+      userId: UserId(2),
+      nonce: Nonce(0),
+    });
+    const o3 = mkOrder({
+      publicId: OrderPublicId('o3'),
+      kind: 'bid',
+      price: Cent.new(80n),
+      quantity: 2,
+      userId: UserId(3),
+      nonce: Nonce(7),
+    });
 
     const result = filterNonceEligible([o1, o2, o3]);
     expect(result).toHaveLength(3);
   });
 
   it('12g: works correctly with processOrder — nonce-blocked orders do not match', () => {
-    const incoming = mkOrder({ publicId: OrderPublicId('incoming'), kind: 'bid', price: Cent.new(100n), quantity: 5, userId: UserId(10), nonce: Nonce(0) });
+    const incoming = mkOrder({
+      publicId: OrderPublicId('incoming'),
+      kind: 'bid',
+      price: Cent.new(100n),
+      quantity: 5,
+      userId: UserId(10),
+      nonce: Nonce(0),
+    });
 
-    const eligibleAsk = mkOrder({ publicId: OrderPublicId('ask-eligible'), kind: 'ask', price: Cent.new(90n), quantity: 3, userId: UserId(2), nonce: Nonce(0) });
-    const blockedAsk = mkOrder({ publicId: OrderPublicId('ask-blocked'), kind: 'ask', price: Cent.new(80n), quantity: 10, userId: UserId(2), nonce: Nonce(1) });
+    const eligibleAsk = mkOrder({
+      publicId: OrderPublicId('ask-eligible'),
+      kind: 'ask',
+      price: Cent.new(90n),
+      quantity: 3,
+      userId: UserId(2),
+      nonce: Nonce(0),
+    });
+    const blockedAsk = mkOrder({
+      publicId: OrderPublicId('ask-blocked'),
+      kind: 'ask',
+      price: Cent.new(80n),
+      quantity: 10,
+      userId: UserId(2),
+      nonce: Nonce(1),
+    });
 
-    const ammOrder = mkOrder({ publicId: OrderPublicId('amm'), kind: 'ask', price: Cent.new(200n), quantity: 100 });
+    const ammOrder = mkOrder({
+      publicId: OrderPublicId('amm'),
+      kind: 'ask',
+      price: Cent.new(200n),
+      quantity: 100,
+    });
 
     const allOrders = [eligibleAsk, blockedAsk];
     const eligible = filterNonceEligible(allOrders);

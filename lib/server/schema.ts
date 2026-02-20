@@ -212,7 +212,7 @@ export const orders = sqliteTable(
     marketSequenceNumber: integer('market_sequence_number').notNull(),
     nonce: integer('nonce').notNull().default(0),
     status: text('status', {
-      enum: ['open', 'filled', 'partially_filled', 'cancelled', 'expired'],
+      enum: ['open', 'filled', 'cancelled', 'expired'],
     })
       .notNull()
       .default('open'),

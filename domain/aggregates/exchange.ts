@@ -13,7 +13,9 @@ import type { Nonce, UserId } from '../values/user';
 
 export type Side = 'bid' | 'ask';
 
-export type OrderStatus = 'open' | 'filled' | 'partially_filled' | 'cancelled' | 'expired';
+export type OrderStatus = 'open' | 'filled' | 'cancelled' | 'expired';
+
+export type MarketStatus = 'open' | 'closed';
 
 export type Order = {
   id: OrderId;
@@ -69,7 +71,7 @@ export type Market = {
   quoteAssetId: AssetId;
   sequenceNumber: MarketSequenceNumber;
   ammPool: AmmPool;
-  status: 'active' | 'halted' | 'closed';
+  status: MarketStatus;
   createdAt: Date;
   updatedAt: Date;
 };

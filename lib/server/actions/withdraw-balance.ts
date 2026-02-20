@@ -50,7 +50,7 @@ export async function withdrawBalance(p: {
     E.all({ cents, user, usdAsset, currentLedger }),
     E.flatMap(({ cents, user, usdAsset, currentLedger }) => {
       const usdSummary = currentLedger.summary.find((s) => s.assetId === usdAsset.id);
-      const balanceCents = usdSummary ? usdSummary.balance : 0n as Cent;
+      const balanceCents = usdSummary ? usdSummary.balance : (0n as Cent);
       return debitUserBalance({
         userId: user.id,
         assetId: usdAsset.id,

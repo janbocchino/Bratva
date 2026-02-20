@@ -8,10 +8,7 @@ import { Db, db } from '../db';
 import { orderReadRepo, orderWriteRepo } from '../ports/exchange';
 import { userReadRepo } from '../ports/user';
 
-export async function cancelOrder(p: {
-  userId: number;
-  orderId: number;
-}): Promise<OrderType> {
+export async function cancelOrder(p: { userId: number; orderId: number }): Promise<OrderType> {
   const user = Fn.pipe(
     E.succeed(p.userId),
     E.flatMap((id) => userReadRepo.getUser({ id })),
@@ -28,9 +25,7 @@ export async function cancelOrder(p: {
     }),
     E.flatMap(Order.cancel),
     E.tap((cancelled) =>
-      orderWriteRepo.updateOrderFills([
-        { orderId: cancelled.id, filled: 0, status: 'cancelled' },
-      ]),
+      orderWriteRepo.updateOrderFills([{ orderId: cancelled.id, filled: 0, status: 'cancelled' }]),
     ),
   );
 

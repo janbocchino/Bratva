@@ -35,9 +35,7 @@ export function debitUserBalance(p: {
     return E.fail(new AddBalanceValidationError({ cause: 'Amount must be > 0' }));
   }
   if (p.currentBalance < p.amount) {
-    return E.fail(
-      new InsufficientBalanceError({ cause: 'Insufficient balance for withdrawal' }),
-    );
+    return E.fail(new InsufficientBalanceError({ cause: 'Insufficient balance for withdrawal' }));
   }
 
   return E.succeed({
@@ -48,4 +46,3 @@ export function debitUserBalance(p: {
     units: p.units,
   } satisfies CreateLedgerEntryParams);
 }
-
