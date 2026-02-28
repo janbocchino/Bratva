@@ -74,6 +74,9 @@ export type Market = {
   modelPrice: Cent;
   totalLpTokens: bigint;
   status: MarketStatus;
+  // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
+  wasPreviouslyActive: boolean;
+  // end of LLM written Code
   createdAt: Date;
   updatedAt: Date;
 };

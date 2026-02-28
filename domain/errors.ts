@@ -63,3 +63,15 @@ export class LiquidityValidationError extends Data.TaggedError('LiquidityValidat
 export class MarketClosedError extends Data.TaggedError('MarketClosedError')<{
   marketId: number;
 }> {}
+
+// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
+export class LiquidityLockError extends Data.TaggedError('LiquidityLockError')<{
+  cause: string;
+}> {}
+
+export class LiquidityPositionNotFoundError extends Data.TaggedError(
+  'LiquidityPositionNotFoundError',
+)<{
+  cause: unknown;
+}> {}
+// end of LLM written Code

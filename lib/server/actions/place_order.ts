@@ -87,7 +87,9 @@ export async function placeOrder(p: {
       const { price, quantity, stopLoss, expiresAt, market, user, currentLedger } = ctx;
 
       return Fn.pipe(
-        validateOrderParams({ market, price, quantity, side: p.side }),
+        // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
+        validateOrderParams({ market, price, quantity, side: p.side, userLedgerSummary: currentLedger.summary }),
+        // end of LLM written Code
 
         // Load order book and run matching
         E.flatMap(() => orderReadRepo.getOpenOrdersByMarketId(market.id)),

@@ -1068,7 +1068,12 @@ const stubMarket: Market = {
   quoteAssetId: 2 as unknown as AssetId,
   sequenceNumber: MarketSequenceNumber(0),
   ammPool: mkPool(100n, 200n),
+  modelPrice: Cent.new(200n),
+  totalLpTokens: 316n,
   status: 'active',
+  // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
+  wasPreviouslyActive: true,
+  // end of LLM written Code
   createdAt: new Date(),
   updatedAt: new Date(),
 };

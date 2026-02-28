@@ -125,6 +125,9 @@ export const marketMapper: MapperPort<Market, MarketPrs> = {
     modelPrice: Cent.new(p.modelPrice),
     totalLpTokens: p.totalLpTokens,
     status: p.status,
+    // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
+    wasPreviouslyActive: p.wasPreviouslyActive,
+    // end of LLM written Code
     createdAt: new Date(p.createdAt),
     updatedAt: new Date(p.updatedAt),
   }),
@@ -139,6 +142,9 @@ export const marketMapper: MapperPort<Market, MarketPrs> = {
     modelPrice: d.modelPrice,
     totalLpTokens: d.totalLpTokens,
     status: d.status,
+    // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
+    wasPreviouslyActive: d.wasPreviouslyActive,
+    // end of LLM written Code
     createdAt: d.createdAt,
     updatedAt: d.updatedAt,
   }),

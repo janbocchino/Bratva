@@ -5,8 +5,7 @@ import type { UserLedger } from '@/domain/aggregates/ledger';
 import { debitUserBalance } from '@/domain/workflows/ledger';
 import {
   provideLiquidity,
-  validateLiquidityParams,
-  validateDepositRatio,
+  validateProvide,
   LOCK_DURATION_MS,
 } from '@/domain/workflows/liquidity';
 import { Cent, Units } from '@/domain/values/currencies';
@@ -70,13 +69,13 @@ export async function provideLiquidityAction(p: {
       const baseAmount = quoteAmount / price;
 
       return Fn.pipe(
-        // Validate
-        validateLiquidityParams({
+        // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
+        validateProvide({
           market,
           amountBase: Units(baseAmount),
           amountQuote: Cent.new(quoteAmount),
         }),
-        E.flatMap(() => validateDepositRatio(baseAmount, quoteAmount, reserveBase, reserveQuote)),
+        // end of LLM written Code
         // Debit USD
         E.flatMap(() => {
           const usdSummary = currentLedger.summary.find((s) => s.assetId === usdAsset.id);
@@ -118,6 +117,9 @@ export async function provideLiquidityAction(p: {
                 ammReserveQuote: lpResult.newReserveQuote,
                 totalLpTokens: lpResult.newTotalLpTokens,
                 status: newStatus,
+                // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
+                ...(lpResult.shouldActivateMarket && { wasPreviouslyActive: true }),
+                // end of LLM written Code
               });
             }),
             E.flatMap(() => {

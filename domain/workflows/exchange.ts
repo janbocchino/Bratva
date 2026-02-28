@@ -2,6 +2,7 @@ import { A, E, Fn, S } from '@/lib/shared/imports';
 import * as OrderEffect from 'effect/Order';
 import { Order, AmmPool } from '../aggregates/exchange';
 import type { Market, OrderBook, Side } from '../aggregates/exchange';
+import type { UserLedger } from '../aggregates/ledger';
 import { Cent } from '../values/currencies';
 import { OrderPublicId, MarketSequenceNumber } from '../values/exchange';
 import { MarketNotActiveError, OrderValidationError } from '../errors';
@@ -16,10 +17,7 @@ const orderOrdered = (kind: Side) =>
     quantity: OrderEffect.reverse(OrderEffect.number),
   });
 
-/* 
-Testing strategy:
-  1. Use Jest
-*/
+
 export function processOrder(o: {
   order: Order;
   orderBook: OrderBook;
@@ -142,9 +140,20 @@ export function validateOrderParams(p: {
   price: Cent;
   quantity: number;
   side: Side;
+  // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
+  userLedgerSummary?: UserLedger['summary'];
+  // end of LLM written Code
 }): E.Effect<void, MarketNotActiveError | OrderValidationError> {
-  if (p.market.status !== 'active')
+  // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
+  if (p.market.status === 'pending' && p.market.wasPreviouslyActive) {
+    const tokenBalance =
+      p.userLedgerSummary?.find((s) => s.assetId === p.market.baseAssetId)?.balance ?? 0n;
+    if (tokenBalance <= 0n)
+      return E.fail(new MarketNotActiveError({ marketId: p.market.id }));
+  } else if (p.market.status !== 'active') {
     return E.fail(new MarketNotActiveError({ marketId: p.market.id }));
+  }
+  // end of LLM written Code
   if (p.price <= 0n) return E.fail(new OrderValidationError({ cause: 'Price must be > 0' }));
   if (p.quantity <= 0) return E.fail(new OrderValidationError({ cause: 'Quantity must be > 0' }));
   return E.void;

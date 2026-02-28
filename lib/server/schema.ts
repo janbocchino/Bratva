@@ -181,6 +181,11 @@ export const markets = sqliteTable(
     })
       .notNull()
       .default('pending'),
+    // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
+    wasPreviouslyActive: integer('was_previously_active', { mode: 'boolean' })
+      .notNull()
+      .default(false),
+    // end of LLM written Code
     ...timestamps,
   },
   (table) => [
