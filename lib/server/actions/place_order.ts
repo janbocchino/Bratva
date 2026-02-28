@@ -88,7 +88,13 @@ export async function placeOrder(p: {
 
       return Fn.pipe(
         // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
-        validateOrderParams({ market, price, quantity, side: p.side, userLedgerSummary: currentLedger.summary }),
+        validateOrderParams({
+          market,
+          price,
+          quantity,
+          side: p.side,
+          userLedgerSummary: currentLedger.summary,
+        }),
         // end of LLM written Code
 
         // Load order book and run matching

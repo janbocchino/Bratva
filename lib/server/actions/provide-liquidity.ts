@@ -3,11 +3,7 @@
 import { E, Fn } from '@/lib/shared/imports';
 import type { UserLedger } from '@/domain/aggregates/ledger';
 import { debitUserBalance } from '@/domain/workflows/ledger';
-import {
-  provideLiquidity,
-  validateProvide,
-  LOCK_DURATION_MS,
-} from '@/domain/workflows/liquidity';
+import { provideLiquidity, validateProvide, LOCK_DURATION_MS } from '@/domain/workflows/liquidity';
 import { Cent, Units } from '@/domain/values/currencies';
 import { Db, db } from '../db';
 import { assetReadRepo } from '../ports/asset';

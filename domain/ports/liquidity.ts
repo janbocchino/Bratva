@@ -28,7 +28,9 @@ export type UpdateMarketLiquidityParams = {
 
 // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 export interface LiquidityPositionReadRepo<D> {
-  getPosition(positionId: number): E.Effect<LiquidityPosition, LiquidityPositionNotFoundError | PortError, D>;
+  getPosition(
+    positionId: number,
+  ): E.Effect<LiquidityPosition, LiquidityPositionNotFoundError | PortError, D>;
   getActivePositionsByMarketAndUser(
     marketId: MarketId,
     userId: UserId,

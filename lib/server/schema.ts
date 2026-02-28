@@ -175,7 +175,7 @@ export const markets = sqliteTable(
     ammReserveBase: blob('amm_reserve_base', { mode: 'bigint' }).notNull(),
     ammReserveQuote: blob('amm_reserve_quote', { mode: 'bigint' }).notNull(),
     modelPrice: blob('model_price', { mode: 'bigint' }).notNull(),
-    totalLpTokens: blob('total_lp_tokens', { mode: 'bigint' }).notNull().default(0n),
+    totalLpTokens: blob('total_lp_tokens', { mode: 'bigint' }).notNull().default(sql`0`),
     status: text('status', {
       enum: ['pending', 'active', 'closed'],
     })

@@ -58,7 +58,9 @@ export const liquidityPositionReadRepo: LiquidityPositionReadRepoDomain<Db> = {
       ),
       E.flatMap((rows) =>
         rows.length === 0
-          ? E.fail(new LiquidityPositionNotFoundError({ cause: `Position ${positionId} not found` }))
+          ? E.fail(
+              new LiquidityPositionNotFoundError({ cause: `Position ${positionId} not found` }),
+            )
           : E.succeed(mapPositionToDomain(rows[0])),
       ),
     ),

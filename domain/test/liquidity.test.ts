@@ -388,9 +388,7 @@ describe('validateOrderParams – token-holder gating', () => {
         price: Cent.new(100n),
         quantity: 1,
         side: 'bid',
-        userLedgerSummary: [
-          { assetId: 1 as AssetId, balance: Units(5n), units: 'unit' },
-        ],
+        userLedgerSummary: [{ assetId: 1 as AssetId, balance: Units(5n), units: 'unit' }],
       }),
     );
     expect(exit._tag).toBe('Success');
@@ -404,9 +402,7 @@ describe('validateOrderParams – token-holder gating', () => {
         price: Cent.new(100n),
         quantity: 1,
         side: 'bid',
-        userLedgerSummary: [
-          { assetId: 2 as AssetId, balance: Cent.new(5000n), units: 'cent' },
-        ],
+        userLedgerSummary: [{ assetId: 2 as AssetId, balance: Cent.new(5000n), units: 'cent' }],
       }),
     );
     expect(exit._tag).toBe('Failure');
@@ -420,9 +416,7 @@ describe('validateOrderParams – token-holder gating', () => {
         price: Cent.new(100n),
         quantity: 1,
         side: 'bid',
-        userLedgerSummary: [
-          { assetId: 1 as AssetId, balance: Units(0n), units: 'unit' },
-        ],
+        userLedgerSummary: [{ assetId: 1 as AssetId, balance: Units(0n), units: 'unit' }],
       }),
     );
     expect(exit._tag).toBe('Failure');

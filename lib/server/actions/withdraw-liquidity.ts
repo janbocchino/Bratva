@@ -16,10 +16,7 @@ import {
 } from '../ports/liquidity';
 import { assetReadRepo } from '../ports/asset';
 
-export async function withdrawLiquidityAction(p: {
-  userId: number;
-  positionId: number;
-}) {
+export async function withdrawLiquidityAction(p: { userId: number; positionId: number }) {
   const user = Fn.pipe(
     E.succeed(p.userId),
     E.flatMap((id) => userReadRepo.getUser({ id })),
@@ -42,7 +39,7 @@ export async function withdrawLiquidityAction(p: {
           return Fn.pipe(
             executeWithdraw({ market, position, currentTimestamp: now }),
             E.flatMap((result) => {
-          // end of LLM written Code
+              // end of LLM written Code
               const baseAsset = assetReadRepo.getAsset({ id: market.baseAssetId });
               const quoteAsset = assetReadRepo.getAsset({ id: market.quoteAssetId });
 

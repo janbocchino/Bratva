@@ -1,1 +1,0 @@
-ALTER TABLE `markets` ADD `was_previously_active` integer DEFAULT false NOT NULL;

@@ -5,36 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1769794782985,
-      "tag": "0000_old_mikhail_rasputin",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1770075610615,
-      "tag": "0001_polite_edwin_jarvis",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1770152900712,
-      "tag": "0002_mysterious_maggott",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1770346689515,
-      "tag": "0003_tough_vindicator",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1772150400000,
-      "tag": "0004_add_was_previously_active",
+      "when": 1772299405218,
+      "tag": "0000_misty_zaladane",
       "breakpoints": true
     }
   ]

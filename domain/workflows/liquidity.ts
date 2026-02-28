@@ -49,11 +49,7 @@ export function validateDepositRatio(
 }
 
 // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
-export const validateProvide = (p: {
-  market: Market;
-  amountBase: Units;
-  amountQuote: Cent;
-}) =>
+export const validateProvide = (p: { market: Market; amountBase: Units; amountQuote: Cent }) =>
   Fn.pipe(
     validateLiquidityParams(p),
     E.flatMap(() =>
@@ -79,14 +75,14 @@ export function calcLpTokens(p: {
   const isEmptyPool = p.reserveBase === 0n && p.reserveQuote === 0n;
 
   return isEmptyPool
-  ? Fn.pipe(
-      BigIntEffect.sqrt(p.amountBase * p.amountQuote),
-      Option.getOrElse(() => 0n) 
-    )
-  : BigIntEffect.min(
-      (p.amountBase * p.totalLpSupply) / p.reserveBase,
-      (p.amountQuote * p.totalLpSupply) / p.reserveQuote
-    );
+    ? Fn.pipe(
+        BigIntEffect.sqrt(p.amountBase * p.amountQuote),
+        Option.getOrElse(() => 0n),
+      )
+    : BigIntEffect.min(
+        (p.amountBase * p.totalLpSupply) / p.reserveBase,
+        (p.amountQuote * p.totalLpSupply) / p.reserveQuote,
+      );
 }
 
 export type ProvideLiquidityInput = {

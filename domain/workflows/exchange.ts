@@ -17,7 +17,6 @@ const orderOrdered = (kind: Side) =>
     quantity: OrderEffect.reverse(OrderEffect.number),
   });
 
-
 export function processOrder(o: {
   order: Order;
   orderBook: OrderBook;
@@ -148,8 +147,7 @@ export function validateOrderParams(p: {
   if (p.market.status === 'pending' && p.market.wasPreviouslyActive) {
     const tokenBalance =
       p.userLedgerSummary?.find((s) => s.assetId === p.market.baseAssetId)?.balance ?? 0n;
-    if (tokenBalance <= 0n)
-      return E.fail(new MarketNotActiveError({ marketId: p.market.id }));
+    if (tokenBalance <= 0n) return E.fail(new MarketNotActiveError({ marketId: p.market.id }));
   } else if (p.market.status !== 'active') {
     return E.fail(new MarketNotActiveError({ marketId: p.market.id }));
   }
