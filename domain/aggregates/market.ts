@@ -2,7 +2,9 @@ import type { AssetId } from '../values/asset';
 import type { Cent, Units } from '../values/currencies';
 import type { MarketId, MarketPublicId, MarketSequenceNumber } from '../values/market';
 
-export type MarketStatus = 'pending' | 'active' | 'closed';
+// beginning of LLM written Code, Model: gpt-5.3-codex
+export type MarketStatus = 'pending' | 'active' | 'resolved' | 'closed';
+// end of LLM written Code
 
 export type AmmPool = {
   reserveBase: Units;
@@ -25,6 +27,9 @@ export type Market = {
   status: MarketStatus;
   // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
   wasPreviouslyActive: boolean;
+  // end of LLM written Code
+  // beginning of LLM written Code, Model: gpt-5.3-codex
+  resolvedAt?: Date | null;
   // end of LLM written Code
   createdAt: Date;
   updatedAt: Date;

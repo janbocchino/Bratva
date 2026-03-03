@@ -64,6 +64,21 @@ export class MarketClosedError extends Data.TaggedError('MarketClosedError')<{
   marketId: number;
 }> {}
 
+// beginning of LLM written Code, Model: gpt-5.3-codex
+export class IllegalMarketTransitionError extends Data.TaggedError('IllegalMarketTransitionError')<{
+  status: string;
+  event: string;
+}> {}
+
+export class ModelPriceNotSetError extends Data.TaggedError('ModelPriceNotSetError')<{
+  marketId: number;
+}> {}
+
+export class MarketAlreadyClosedError extends Data.TaggedError('MarketAlreadyClosedError')<{
+  marketId: number;
+}> {}
+// end of LLM written Code
+
 // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 export class LiquidityLockError extends Data.TaggedError('LiquidityLockError')<{
   cause: string;

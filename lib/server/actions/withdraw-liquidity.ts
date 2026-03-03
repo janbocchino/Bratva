@@ -4,11 +4,12 @@
 import { E, Fn } from '@/lib/shared/imports';
 import { creditUserBalance } from '@/domain/workflows/ledger';
 import { executeWithdraw } from '@/domain/workflows/liquidity';
+import { transitionMarket } from '@/domain/workflows/market';
 import { Cent, Units } from '@/domain/values/currencies';
 import { Db, db } from '../db';
 import { ledgerWriteRepo } from '../ports/ledger';
 import { userReadRepo } from '../ports/user';
-import { marketReadRepo } from '../ports/exchange';
+import { marketReadRepo } from '../ports/market';
 import {
   liquidityMarketWriteRepo,
   liquidityPositionReadRepo,
@@ -39,13 +40,23 @@ export async function withdrawLiquidityAction(p: { userId: number; positionId: n
           return Fn.pipe(
             executeWithdraw({ market, position, currentTimestamp: now }),
             E.flatMap((result) => {
+              // beginning of LLM written Code, Model: gpt-5.3-codex
+              const marketTransition = transitionMarket(market, {
+                _tag: 'LiquidityWithdrawn',
+                result,
+                occurredAt: now,
+              });
+              // end of LLM written Code
               // end of LLM written Code
               const baseAsset = assetReadRepo.getAsset({ id: market.baseAssetId });
               const quoteAsset = assetReadRepo.getAsset({ id: market.quoteAssetId });
 
               return Fn.pipe(
                 E.all({ baseAsset, quoteAsset }),
-                E.flatMap(({ baseAsset, quoteAsset }) => {
+                E.flatMap(({ baseAsset, quoteAsset }) =>
+                  Fn.pipe(
+                    marketTransition,
+                    E.flatMap((nextMarket) => {
                   const effects: E.Effect<void, any, Db>[] = [];
 
                   if (result.shareBase > 0n) {
@@ -76,25 +87,26 @@ export async function withdrawLiquidityAction(p: { userId: number; positionId: n
                     );
                   }
 
-                  const newStatus = result.shouldDeactivateMarket
-                    ? ('pending' as const)
-                    : market.status;
-
                   return Fn.pipe(
                     E.all(effects),
                     E.flatMap(() => liquidityPositionWriteRepo.markWithdrawn(position.id)),
                     E.flatMap(() =>
                       liquidityMarketWriteRepo.updateMarketLiquidity({
                         marketId: market.id,
-                        ammReserveBase: result.newReserveBase,
-                        ammReserveQuote: result.newReserveQuote,
-                        totalLpTokens: result.newTotalLpTokens,
-                        status: newStatus,
+                        ammReserveBase: nextMarket.ammPool.reserveBase,
+                        ammReserveQuote: nextMarket.ammPool.reserveQuote,
+                        totalLpTokens: nextMarket.totalLpTokens,
+                        status: nextMarket.status,
+                        // beginning of LLM written Code, Model: gpt-5.3-codex
+                        wasPreviouslyActive: nextMarket.wasPreviouslyActive,
+                        // end of LLM written Code
                       }),
                     ),
                     E.map(() => result),
                   );
-                }),
+                    }),
+                  ),
+                ),
               );
             }),
           );

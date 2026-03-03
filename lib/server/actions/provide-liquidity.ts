@@ -4,6 +4,7 @@ import { E, Fn } from '@/lib/shared/imports';
 import type { UserLedger } from '@/domain/aggregates/ledger';
 import { debitUserBalance } from '@/domain/workflows/ledger';
 import { provideLiquidity, validateProvide, LOCK_DURATION_MS } from '@/domain/workflows/liquidity';
+import { transitionMarket } from '@/domain/workflows/market';
 import { Cent, Units } from '@/domain/values/currencies';
 import { Db, db } from '../db';
 import { assetReadRepo } from '../ports/asset';
@@ -97,35 +98,48 @@ export async function provideLiquidityAction(p: {
         // Persist
         E.flatMap((lpResult) =>
           Fn.pipe(
-            liquidityPositionWriteRepo.createPosition({
-              marketId: market.id,
-              userId: user.id,
-              lpTokens: lpResult.lpTokensMinted,
-              depositBase: baseAmount,
-              depositQuote: quoteAmount,
-              lockedUntil: lpResult.lockedUntil,
+            transitionMarket(market, {
+              // beginning of LLM written Code, Model: gpt-5.3-codex
+              _tag: 'LiquidityProvided',
+              result: lpResult,
+              occurredAt: new Date(),
+              // end of LLM written Code
             }),
-            E.flatMap(() => {
-              const newStatus = lpResult.shouldActivateMarket ? ('active' as const) : market.status;
-              return liquidityMarketWriteRepo.updateMarketLiquidity({
-                marketId: market.id,
-                ammReserveBase: lpResult.newReserveBase,
-                ammReserveQuote: lpResult.newReserveQuote,
-                totalLpTokens: lpResult.newTotalLpTokens,
-                status: newStatus,
-                // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
-                ...(lpResult.shouldActivateMarket && { wasPreviouslyActive: true }),
-                // end of LLM written Code
-              });
-            }),
-            E.flatMap(() => {
-              if (lpResult.shouldActivateMarket) {
-                const lockedUntil = new Date(Date.now() + LOCK_DURATION_MS);
-                return liquidityMarketWriteRepo.activatePendingPositions(market.id, lockedUntil);
-              }
-              return E.void;
-            }),
-            E.map(() => lpResult),
+            E.flatMap((nextMarket) =>
+              Fn.pipe(
+                liquidityPositionWriteRepo.createPosition({
+                  marketId: market.id,
+                  userId: user.id,
+                  lpTokens: lpResult.lpTokensMinted,
+                  depositBase: baseAmount,
+                  depositQuote: quoteAmount,
+                  lockedUntil: lpResult.lockedUntil,
+                }),
+                E.flatMap(() =>
+                  liquidityMarketWriteRepo.updateMarketLiquidity({
+                    marketId: market.id,
+                    ammReserveBase: nextMarket.ammPool.reserveBase,
+                    ammReserveQuote: nextMarket.ammPool.reserveQuote,
+                    totalLpTokens: nextMarket.totalLpTokens,
+                    status: nextMarket.status,
+                    // beginning of LLM written Code, Model: gpt-5.3-codex
+                    wasPreviouslyActive: nextMarket.wasPreviouslyActive,
+                    // end of LLM written Code
+                  }),
+                ),
+                E.flatMap(() => {
+                  // beginning of LLM written Code, Model: gpt-5.3-codex
+                  const didActivate = market.status !== 'active' && nextMarket.status === 'active';
+                  // end of LLM written Code
+                  if (didActivate) {
+                    const lockedUntil = new Date(Date.now() + LOCK_DURATION_MS);
+                    return liquidityMarketWriteRepo.activatePendingPositions(market.id, lockedUntil);
+                  }
+                  return E.void;
+                }),
+                E.map(() => lpResult),
+              ),
+            ),
           ),
         ),
       );

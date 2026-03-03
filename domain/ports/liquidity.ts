@@ -20,7 +20,9 @@ export type UpdateMarketLiquidityParams = {
   ammReserveBase: bigint;
   ammReserveQuote: bigint;
   totalLpTokens: bigint;
-  status: 'pending' | 'active' | 'closed';
+  // beginning of LLM written Code, Model: gpt-5.3-codex
+  status: 'pending' | 'active' | 'resolved' | 'closed';
+  // end of LLM written Code
   // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
   wasPreviouslyActive?: boolean;
   // end of LLM written Code

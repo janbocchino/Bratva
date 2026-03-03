@@ -177,7 +177,9 @@ export const markets = sqliteTable(
     modelPrice: blob('model_price', { mode: 'bigint' }).notNull(),
     totalLpTokens: blob('total_lp_tokens', { mode: 'bigint' }).notNull().default(sql`0`),
     status: text('status', {
-      enum: ['pending', 'active', 'closed'],
+      // beginning of LLM written Code, Model: gpt-5.3-codex
+      enum: ['pending', 'active', 'resolved', 'closed'],
+      // end of LLM written Code
     })
       .notNull()
       .default('pending'),
