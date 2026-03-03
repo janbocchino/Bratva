@@ -10,7 +10,7 @@ import { assetReadRepo } from '../ports/asset';
 import { type } from 'arktype';
 import { ledgerReadRepo, ledgerWriteRepo } from '../ports/ledger';
 import { userReadRepo } from '../ports/user';
-import { marketReadRepo } from '../ports/exchange';
+import { marketReadRepo } from '../ports/market';
 import { liquidityMarketWriteRepo, liquidityPositionWriteRepo } from '../ports/liquidity';
 
 export async function provideLiquidityAction(p: {

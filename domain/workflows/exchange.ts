@@ -1,7 +1,9 @@
 import { A, E, Fn, S } from '@/lib/shared/imports';
 import * as OrderEffect from 'effect/Order';
-import { Order, AmmPool } from '../aggregates/exchange';
-import type { Market, OrderBook, Side } from '../aggregates/exchange';
+import { Order } from '../aggregates/exchange';
+import type { OrderBook, Side } from '../aggregates/exchange';
+import { AmmPool } from '../aggregates/market';
+import type { Market } from '../aggregates/market';
 import type { UserLedger } from '../aggregates/ledger';
 import { Cent } from '../values/currencies';
 import { OrderPublicId, MarketSequenceNumber } from '../values/exchange';

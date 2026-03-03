@@ -14,7 +14,7 @@ import {
   validateWithdrawLiquidity,
   // end of LLM written Code
 } from '../workflows/liquidity';
-import type { Market } from '../aggregates/exchange';
+import type { Market } from '../aggregates/market';
 // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 import type { LiquidityPosition } from '../aggregates/liquidity';
 // end of LLM written Code

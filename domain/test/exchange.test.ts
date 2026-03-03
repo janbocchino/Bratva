@@ -1,7 +1,9 @@
 // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 /// <reference types="jest" />
 import { processOrder, buildAmmOrder, filterNonceEligible } from '../workflows/exchange';
-import { AmmPool } from '../aggregates/exchange';
+import { AmmPool } from '../aggregates/market';
+import type { Market, AmmPool as AmmPoolType } from '../aggregates/market';
+import type { Order, OrderBook } from '../aggregates/exchange';
 import {
   OrderId,
   OrderPublicId,
@@ -11,7 +13,6 @@ import {
 } from '../values/exchange';
 import { Cent, Units } from '../values/currencies';
 import { UserId, Nonce } from '../values/user';
-import type { Order, OrderBook, Market, AmmPool as AmmPoolType } from '../aggregates/exchange';
 import type { AssetId } from '../values/asset';
 
 const now = new Date();

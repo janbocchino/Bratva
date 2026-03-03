@@ -1,4 +1,4 @@
-import type { Market } from '../aggregates/exchange';
+import type { Market } from '../aggregates/market';
 import type { Cent, Units } from '../values/currencies';
 import { E, Fn } from '@/lib/shared/imports';
 import type { LiquidityPosition } from '../aggregates/liquidity';

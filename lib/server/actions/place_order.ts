@@ -2,7 +2,7 @@
 'use server';
 
 import { E, Fn } from '@/lib/shared/imports';
-import { AmmPool } from '@/domain/aggregates/exchange';
+import { AmmPool } from '@/domain/aggregates/market';
 import type { Order, OrderStatus } from '@/domain/aggregates/exchange';
 import type { UserLedger } from '@/domain/aggregates/ledger';
 import { debitUserBalance, creditUserBalance } from '@/domain/workflows/ledger';
@@ -17,9 +17,8 @@ import { type } from 'arktype';
 import { Db, db } from '../db';
 import { ledgerReadRepo, ledgerWriteRepo } from '../ports/ledger';
 import { userReadRepo, userWriteRepo } from '../ports/user';
+import { marketReadRepo, marketWriteRepo } from '../ports/market';
 import {
-  marketReadRepo,
-  marketWriteRepo,
   orderReadRepo,
   orderWriteRepo,
   transactionWriteRepo,

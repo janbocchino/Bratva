@@ -1,5 +1,4 @@
 import { Clock, E, Fn } from '@/lib/shared/imports';
-import type { AssetId } from '../values/asset';
 import type { Cent, Units } from '../values/currencies';
 import type {
   OrderId,
@@ -14,8 +13,6 @@ import type { Nonce, UserId } from '../values/user';
 export type Side = 'bid' | 'ask';
 
 export type OrderStatus = 'open' | 'filled' | 'cancelled' | 'expired';
-
-export type MarketStatus = 'pending' | 'active' | 'closed';
 
 export type Order = {
   id: OrderId;
@@ -53,32 +50,6 @@ export const Order = {
 export type OrderBook = {
   bid: Order[];
   ask: Order[];
-};
-
-export type AmmPool = {
-  reserveBase: Units;
-  reserveQuote: Cent;
-};
-
-export const AmmPool = {
-  k: (p: AmmPool) => BigInt(p.reserveBase) * BigInt(p.reserveQuote),
-};
-
-export type Market = {
-  id: MarketId;
-  publicId: MarketPublicId;
-  baseAssetId: AssetId;
-  quoteAssetId: AssetId;
-  sequenceNumber: MarketSequenceNumber;
-  ammPool: AmmPool;
-  modelPrice: Cent;
-  totalLpTokens: bigint;
-  status: MarketStatus;
-  // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
-  wasPreviouslyActive: boolean;
-  // end of LLM written Code
-  createdAt: Date;
-  updatedAt: Date;
 };
 
 export type Transaction = {

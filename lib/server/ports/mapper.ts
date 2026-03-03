@@ -1,5 +1,6 @@
 import type { Asset } from '@/domain/aggregates/asset';
-import type { Market, Order, OrderStatus } from '@/domain/aggregates/exchange';
+import type { Market } from '@/domain/aggregates/market';
+import type { Order, OrderStatus } from '@/domain/aggregates/exchange';
 import type { UserLedger } from '@/domain/aggregates/ledger';
 import type { PriceSeries } from '@/domain/aggregates/price-series';
 import type { User } from '@/domain/aggregates/user';
