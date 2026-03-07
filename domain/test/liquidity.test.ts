@@ -36,7 +36,9 @@ const mkMarket = (overrides: Partial<Market> = {}): Market => ({
   },
   modelPrice: Cent.new(1000n),
   totalLpTokens: 0n,
-  status: 'pending',
+  // beginning of LLM written Code, Model: Claude
+  status: 'closed',
+  // end of LLM written Code
   // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
   wasPreviouslyActive: false,
   // end of LLM written Code
@@ -154,13 +156,40 @@ describe('provideLiquidity', () => {
     expect(result.shouldActivateMarket).toBe(false);
   });
   // end of LLM written Code
+
+  // beginning of LLM written Code, Model: Claude
+  it('shouldActivateMarket when total pool value crosses $100 from closed status', () => {
+    const quoteNeeded = MIN_LIQUIDITY_CENTS / 2n;
+    const result = provideLiquidity({
+      market: mkMarket({ status: 'closed' }),
+      amountBase: Units(5n),
+      amountQuote: Cent.new(quoteNeeded),
+      currentTimestamp: now,
+    });
+
+    expect(result.shouldActivateMarket).toBe(true);
+  });
+
+  it('does not activate a closed market below threshold', () => {
+    const quoteJustBelow = MIN_LIQUIDITY_CENTS / 2n - 1n;
+    const result = provideLiquidity({
+      market: mkMarket({ status: 'closed' }),
+      amountBase: Units(4n),
+      amountQuote: Cent.new(quoteJustBelow),
+      currentTimestamp: now,
+    });
+
+    expect(result.shouldActivateMarket).toBe(false);
+  });
+  // end of LLM written Code
 });
 
 /* ------------------------------------------------------------------ */
 /*  Validation (Effect-based)                                          */
 /* ------------------------------------------------------------------ */
 describe('validateLiquidityParams', () => {
-  it('rejects closed market', () => {
+  // beginning of LLM written Code, Model: Claude
+  it('allows LP add on closed market (LP add is the entry point)', () => {
     const exit = E.runSyncExit(
       validateLiquidityParams({
         market: mkMarket({ status: 'closed' }),
@@ -168,8 +197,9 @@ describe('validateLiquidityParams', () => {
         amountQuote: Cent.new(5000n),
       }),
     );
-    expect(exit._tag).toBe('Failure');
+    expect(exit._tag).toBe('Success');
   });
+  // end of LLM written Code
 
   it('rejects zero base amount', () => {
     const exit = E.runSyncExit(

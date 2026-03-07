@@ -133,7 +133,10 @@ export async function provideLiquidityAction(p: {
                   // end of LLM written Code
                   if (didActivate) {
                     const lockedUntil = new Date(Date.now() + LOCK_DURATION_MS);
-                    return liquidityMarketWriteRepo.activatePendingPositions(market.id, lockedUntil);
+                    return liquidityMarketWriteRepo.activatePendingPositions(
+                      market.id,
+                      lockedUntil,
+                    );
                   }
                   return E.void;
                 }),

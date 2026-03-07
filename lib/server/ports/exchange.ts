@@ -1,12 +1,7 @@
 // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 import { eq, sql } from 'drizzle-orm';
 import type { Order } from '@/domain/aggregates/exchange';
-import {
-  InfraError,
-  InfraNotFoundError,
-  OrderNotFoundError,
-  PortError,
-} from '@/domain/errors';
+import { InfraError, InfraNotFoundError, OrderNotFoundError, PortError } from '@/domain/errors';
 import type {
   OrderReadRepo as OrderReadRepoDomain,
   OrderWriteRepo as OrderWriteRepoDomain,
@@ -21,12 +16,7 @@ import { orders, transactions } from '../schema';
 import { orderMapper } from './mapper';
 
 const errMapper =
-  (
-    WrappedError:
-      | typeof InfraNotFoundError
-      | typeof InfraError
-      | typeof OrderNotFoundError,
-  ) =>
+  (WrappedError: typeof InfraNotFoundError | typeof InfraError | typeof OrderNotFoundError) =>
   (cause: unknown) =>
     new PortError({ cause: new WrappedError({ cause }) });
 

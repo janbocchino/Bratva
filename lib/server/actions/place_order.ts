@@ -18,11 +18,7 @@ import { Db, db } from '../db';
 import { ledgerReadRepo, ledgerWriteRepo } from '../ports/ledger';
 import { userReadRepo, userWriteRepo } from '../ports/user';
 import { marketReadRepo, marketWriteRepo } from '../ports/market';
-import {
-  orderReadRepo,
-  orderWriteRepo,
-  transactionWriteRepo,
-} from '../ports/exchange';
+import { orderReadRepo, orderWriteRepo, transactionWriteRepo } from '../ports/exchange';
 import type { CreateTransactionParams, UpdateOrderFillsParams } from '@/domain/ports/exchange';
 
 const parsePrice = type('string.numeric.parse').pipe(Math.trunc).pipe(BigInt);

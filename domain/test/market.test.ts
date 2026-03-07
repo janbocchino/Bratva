@@ -1,4 +1,4 @@
-// beginning of LLM written Code, Model: gpt-5.3-codex
+// beginning of LLM written Code, Model: Claude
 /// <reference types="jest" />
 import { E } from '@/lib/shared/imports';
 import type { Market } from '../aggregates/market';
@@ -21,15 +21,59 @@ const mkMarket = (overrides: Partial<Market> = {}): Market => ({
   },
   modelPrice: Cent.new(1_000n),
   totalLpTokens: 0n,
-  status: 'pending',
+  status: 'closed',
   wasPreviouslyActive: false,
-  resolvedAt: null,
   createdAt: now,
   updatedAt: now,
   ...overrides,
 });
 
 describe('market workflow transitions', () => {
+  // ── Closed → Pending / Active ─────────────────────────────────────
+
+  it('moves closed market to pending on LP add below threshold', () => {
+    const market = mkMarket({ status: 'closed' });
+    const transitioned = E.runSync(
+      transitionMarket(market, {
+        _tag: 'LiquidityProvided',
+        occurredAt: now,
+        result: {
+          lpTokensMinted: 5n,
+          newReserveBase: 5n,
+          newReserveQuote: 2_000n,
+          newTotalLpTokens: 5n,
+          lockedUntil: null,
+          shouldActivateMarket: false,
+        },
+      }),
+    );
+
+    expect(transitioned.status).toBe('pending');
+  });
+
+  it('moves closed market directly to active on LP add meeting threshold', () => {
+    const market = mkMarket({ status: 'closed' });
+    const transitioned = E.runSync(
+      transitionMarket(market, {
+        _tag: 'LiquidityProvided',
+        occurredAt: now,
+        result: {
+          lpTokensMinted: 10n,
+          newReserveBase: 50n,
+          newReserveQuote: 50_000n,
+          newTotalLpTokens: 10n,
+          lockedUntil: null,
+          shouldActivateMarket: true,
+        },
+      }),
+    );
+
+    expect(transitioned.status).toBe('active');
+    expect(transitioned.wasPreviouslyActive).toBe(true);
+  });
+
+  // ── Pending → Active ──────────────────────────────────────────────
+
   it('activates pending market when liquidity event says shouldActivateMarket', () => {
     const market = mkMarket({ status: 'pending' });
     const transitioned = E.runSync(
@@ -51,6 +95,8 @@ describe('market workflow transitions', () => {
     expect(transitioned.wasPreviouslyActive).toBe(true);
     expect(transitioned.totalLpTokens).toBe(10n);
   });
+
+  // ── Active → Pending ──────────────────────────────────────────────
 
   it('deactivates active market to pending on low-liquidity withdraw', () => {
     const market = mkMarket({
@@ -78,7 +124,9 @@ describe('market workflow transitions', () => {
     expect(transitioned.status).toBe('pending');
   });
 
-  it('resolves market and resets to model price when pool becomes empty', () => {
+  // ── Pool empty → Closed (one step) ────────────────────────────────
+
+  it('closes market directly when pool becomes empty', () => {
     const market = mkMarket({
       status: 'active',
       wasPreviouslyActive: true,
@@ -102,39 +150,53 @@ describe('market workflow transitions', () => {
       }),
     );
 
-    expect(transitioned.status).toBe('resolved');
+    expect(transitioned.status).toBe('closed');
     expect(transitioned.modelPrice).toBe(Cent.new(2_500n));
-    expect(transitioned.resolvedAt?.toISOString()).toBe(now.toISOString());
   });
 
-  it('closes resolved market', () => {
+  it('closes pending market when pool becomes empty', () => {
     const market = mkMarket({
-      status: 'resolved',
-      resolvedAt: now,
-      wasPreviouslyActive: true,
+      status: 'pending',
+      ammPool: { reserveBase: Units(5n), reserveQuote: Cent.new(2_000n) },
+      totalLpTokens: 10n,
     });
 
     const transitioned = E.runSync(
       transitionMarket(market, {
-        _tag: 'Close',
+        _tag: 'LiquidityWithdrawn',
         occurredAt: now,
+        result: {
+          shareBase: 5n,
+          shareQuote: 2_000n,
+          newReserveBase: 0n,
+          newReserveQuote: 0n,
+          newTotalLpTokens: 0n,
+          shouldDeactivateMarket: false,
+        },
       }),
     );
 
     expect(transitioned.status).toBe('closed');
   });
 
-  it('rejects close transition from active market', () => {
-    const market = mkMarket({
-      status: 'active',
-      wasPreviouslyActive: true,
-    });
+  // ── Rejected transitions ──────────────────────────────────────────
+
+  it('rejects withdraw from closed market', () => {
+    const market = mkMarket({ status: 'closed' });
 
     const error = E.runSync(
       E.flip(
         transitionMarket(market, {
-          _tag: 'Close',
+          _tag: 'LiquidityWithdrawn',
           occurredAt: now,
+          result: {
+            shareBase: 5n,
+            shareQuote: 5_000n,
+            newReserveBase: 0n,
+            newReserveQuote: 0n,
+            newTotalLpTokens: 0n,
+            shouldDeactivateMarket: false,
+          },
         }),
       ),
     );

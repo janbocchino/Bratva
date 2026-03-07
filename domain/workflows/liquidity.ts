@@ -16,18 +16,19 @@ const meetsThreshold = (reserveQuote: bigint) =>
 
 // ── Validation (called from action layer) ────────────────────────────
 
+// beginning of LLM written Code, Model: Claude
 export function validateLiquidityParams(p: {
   market: Market;
   amountBase: Units;
   amountQuote: Cent;
-}): E.Effect<void, LiquidityValidationError | MarketClosedError> {
-  if (p.market.status === 'closed') return E.fail(new MarketClosedError({ marketId: p.market.id }));
+}): E.Effect<void, LiquidityValidationError> {
   if (p.amountBase <= 0n)
     return E.fail(new LiquidityValidationError({ cause: 'Base amount must be > 0' }));
   if (p.amountQuote <= 0n)
     return E.fail(new LiquidityValidationError({ cause: 'Quote amount must be > 0' }));
   return E.void;
 }
+// end of LLM written Code
 
 export function validateDepositRatio(
   amountBase: bigint,
@@ -127,12 +128,15 @@ export const provideLiquidity = (input: ProvideLiquidityInput): ProvideLiquidity
       newReserveBase: ctx.newReserveBase,
       newReserveQuote: ctx.newReserveQuote,
       newTotalLpTokens: input.market.totalLpTokens + ctx.lpTokensMinted,
+      // beginning of LLM written Code, Model: Claude
       lockedUntil:
         input.market.status === 'active'
           ? new Date(input.currentTimestamp.getTime() + LOCK_DURATION_MS)
           : null,
       shouldActivateMarket:
-        input.market.status === 'pending' && meetsThreshold(ctx.newReserveQuote),
+        (input.market.status === 'closed' || input.market.status === 'pending') &&
+        meetsThreshold(ctx.newReserveQuote),
+      // end of LLM written Code
     }),
   );
 // end of LLM written Code

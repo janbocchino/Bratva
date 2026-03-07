@@ -1,11 +1,6 @@
 // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 import { eq } from 'drizzle-orm';
-import {
-  InfraError,
-  InfraNotFoundError,
-  MarketNotFoundError,
-  PortError,
-} from '@/domain/errors';
+import { InfraError, InfraNotFoundError, MarketNotFoundError, PortError } from '@/domain/errors';
 import type {
   MarketReadRepo as MarketReadRepoDomain,
   MarketWriteRepo as MarketWriteRepoDomain,
@@ -17,12 +12,7 @@ import { markets } from '../schema';
 import { marketMapper } from './mapper';
 
 const errMapper =
-  (
-    WrappedError:
-      | typeof InfraNotFoundError
-      | typeof InfraError
-      | typeof MarketNotFoundError,
-  ) =>
+  (WrappedError: typeof InfraNotFoundError | typeof InfraError | typeof MarketNotFoundError) =>
   (cause: unknown) =>
     new PortError({ cause: new WrappedError({ cause }) });
 

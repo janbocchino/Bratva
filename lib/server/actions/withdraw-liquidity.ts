@@ -57,53 +57,53 @@ export async function withdrawLiquidityAction(p: { userId: number; positionId: n
                   Fn.pipe(
                     marketTransition,
                     E.flatMap((nextMarket) => {
-                  const effects: E.Effect<void, any, Db>[] = [];
+                      const effects: E.Effect<void, any, Db>[] = [];
 
-                  if (result.shareBase > 0n) {
-                    effects.push(
-                      Fn.pipe(
-                        creditUserBalance({
-                          userId: user.id,
-                          assetId: baseAsset.id,
-                          amount: Units(result.shareBase),
-                          units: 'unit',
-                        }),
-                        E.flatMap(ledgerWriteRepo.createEntry),
-                      ),
-                    );
-                  }
+                      if (result.shareBase > 0n) {
+                        effects.push(
+                          Fn.pipe(
+                            creditUserBalance({
+                              userId: user.id,
+                              assetId: baseAsset.id,
+                              amount: Units(result.shareBase),
+                              units: 'unit',
+                            }),
+                            E.flatMap(ledgerWriteRepo.createEntry),
+                          ),
+                        );
+                      }
 
-                  if (result.shareQuote > 0n) {
-                    effects.push(
-                      Fn.pipe(
-                        creditUserBalance({
-                          userId: user.id,
-                          assetId: quoteAsset.id,
-                          amount: Cent.new(result.shareQuote),
-                          units: 'cent',
-                        }),
-                        E.flatMap(ledgerWriteRepo.createEntry),
-                      ),
-                    );
-                  }
+                      if (result.shareQuote > 0n) {
+                        effects.push(
+                          Fn.pipe(
+                            creditUserBalance({
+                              userId: user.id,
+                              assetId: quoteAsset.id,
+                              amount: Cent.new(result.shareQuote),
+                              units: 'cent',
+                            }),
+                            E.flatMap(ledgerWriteRepo.createEntry),
+                          ),
+                        );
+                      }
 
-                  return Fn.pipe(
-                    E.all(effects),
-                    E.flatMap(() => liquidityPositionWriteRepo.markWithdrawn(position.id)),
-                    E.flatMap(() =>
-                      liquidityMarketWriteRepo.updateMarketLiquidity({
-                        marketId: market.id,
-                        ammReserveBase: nextMarket.ammPool.reserveBase,
-                        ammReserveQuote: nextMarket.ammPool.reserveQuote,
-                        totalLpTokens: nextMarket.totalLpTokens,
-                        status: nextMarket.status,
-                        // beginning of LLM written Code, Model: gpt-5.3-codex
-                        wasPreviouslyActive: nextMarket.wasPreviouslyActive,
-                        // end of LLM written Code
-                      }),
-                    ),
-                    E.map(() => result),
-                  );
+                      return Fn.pipe(
+                        E.all(effects),
+                        E.flatMap(() => liquidityPositionWriteRepo.markWithdrawn(position.id)),
+                        E.flatMap(() =>
+                          liquidityMarketWriteRepo.updateMarketLiquidity({
+                            marketId: market.id,
+                            ammReserveBase: nextMarket.ammPool.reserveBase,
+                            ammReserveQuote: nextMarket.ammPool.reserveQuote,
+                            totalLpTokens: nextMarket.totalLpTokens,
+                            status: nextMarket.status,
+                            // beginning of LLM written Code, Model: gpt-5.3-codex
+                            wasPreviouslyActive: nextMarket.wasPreviouslyActive,
+                            // end of LLM written Code
+                          }),
+                        ),
+                        E.map(() => result),
+                      );
                     }),
                   ),
                 ),

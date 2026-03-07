@@ -177,12 +177,12 @@ export const markets = sqliteTable(
     modelPrice: blob('model_price', { mode: 'bigint' }).notNull(),
     totalLpTokens: blob('total_lp_tokens', { mode: 'bigint' }).notNull().default(sql`0`),
     status: text('status', {
-      // beginning of LLM written Code, Model: gpt-5.3-codex
-      enum: ['pending', 'active', 'resolved', 'closed'],
+      // beginning of LLM written Code, Model: Claude
+      enum: ['closed', 'pending', 'active'],
       // end of LLM written Code
     })
       .notNull()
-      .default('pending'),
+      .default('closed'),
     // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
     wasPreviouslyActive: integer('was_previously_active', { mode: 'boolean' })
       .notNull()
