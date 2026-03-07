@@ -87,14 +87,17 @@ export async function provideLiquidityAction(p: {
         }),
         E.flatMap(ledgerWriteRepo.createEntry),
         // Pure computation
-        E.map(() =>
-          provideLiquidity({
+        // beginning of LLM written Code, Model: Gemini
+        E.map(() => {
+          const now = new Date();
+          return provideLiquidity({
             market,
             amountBase: Units(baseAmount),
             amountQuote: Cent.new(quoteAmount),
-            currentTimestamp: new Date(),
-          }),
-        ),
+            currentTimestamp: now,
+          });
+        }),
+        // end of LLM written Code
         // Persist
         E.flatMap((lpResult) =>
           Fn.pipe(
@@ -102,7 +105,7 @@ export async function provideLiquidityAction(p: {
               // beginning of LLM written Code, Model: gpt-5.3-codex
               _tag: 'LiquidityProvided',
               result: lpResult,
-              occurredAt: new Date(),
+              occurredAt: lpResult.lockedUntil ?? new Date(),
               // end of LLM written Code
             }),
             E.flatMap((nextMarket) =>

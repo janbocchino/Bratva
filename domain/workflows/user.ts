@@ -3,14 +3,14 @@ import type { User } from '../aggregates/user';
 import { UserDisplayName, UserEmail, UserId } from '../values/user';
 import { EmailAlreadyInUseError, DisplayNameAlreadyInUseError } from '../errors';
 
-export interface DbSnaphot {
+export interface DbSnapshot {
   emailToUserId: Map<UserEmail, UserId>;
   displayNameToUserId: Map<UserDisplayName, UserId>;
 }
 
 export function createUserAccount(
   p: Pick<User, 'displayName' | 'email'>,
-  snapshot: DbSnaphot,
+  snapshot: DbSnapshot,
 ): E.Effect<
   Pick<User, 'displayName' | 'email'>,
   EmailAlreadyInUseError | DisplayNameAlreadyInUseError

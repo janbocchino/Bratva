@@ -5,6 +5,7 @@ import { E, Fn } from '@/lib/shared/imports';
 import { creditUserBalance } from '@/domain/workflows/ledger';
 import { executeWithdraw } from '@/domain/workflows/liquidity';
 import { transitionMarket } from '@/domain/workflows/market';
+import { PositionOwnershipError } from '@/domain/errors';
 import { Cent, Units } from '@/domain/values/currencies';
 import { Db, db } from '../db';
 import { ledgerWriteRepo } from '../ports/ledger';
@@ -29,7 +30,7 @@ export async function withdrawLiquidityAction(p: { userId: number; positionId: n
     E.all({ user, position }),
     E.flatMap(({ user, position }) => {
       if (position.userId !== user.id) {
-        return E.fail(new Error('Position does not belong to user'));
+        return E.fail(new PositionOwnershipError({ positionId: position.id, userId: user.id }));
       }
       return Fn.pipe(
         marketReadRepo.getMarket({ id: position.marketId }),

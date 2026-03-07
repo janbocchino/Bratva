@@ -2,10 +2,10 @@
 import { E, O } from '@/lib/shared/imports';
 import * as Cause from 'effect/Cause';
 import { createUserAccount } from '../workflows/user';
-import type { DbSnaphot } from '../workflows/user';
+import type { DbSnapshot } from '../workflows/user';
 import { UserId, UserEmail, UserDisplayName } from '../values/user';
 
-const mkSnapshot = (overrides: Partial<DbSnaphot> = {}): DbSnaphot => ({
+const mkSnapshot = (overrides: Partial<DbSnapshot> = {}): DbSnapshot => ({
   emailToUserId: new Map(),
   displayNameToUserId: new Map(),
   ...overrides,

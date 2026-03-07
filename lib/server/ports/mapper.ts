@@ -5,7 +5,7 @@ import type { UserLedger } from '@/domain/aggregates/ledger';
 import type { PriceSeries } from '@/domain/aggregates/price-series';
 import type { User } from '@/domain/aggregates/user';
 import { A } from '@/lib/shared/imports';
-import type { Mapper as MapperPort } from '@/domain/ports/mapper';
+import type { Mapper as MapperPort, ReadMapper as ReadMapperPort } from '@/domain/ports/mapper';
 import { AssetId, AssetName, AssetPublicId, AssetTicker } from '@/domain/values/asset';
 import { Cent, Units } from '@/domain/values/currencies';
 import {
@@ -16,7 +16,7 @@ import {
   OrderPublicId,
 } from '@/domain/values/exchange';
 import { PriceSeriesId, PriceSeriesPublicId } from '@/domain/values/price-series';
-import { UserDisplayName, UserEmail, UserId, UserPublicId, Nonce } from '@/domain/values/user';
+import { Nonce, UserDisplayName, UserEmail, UserId, UserPublicId } from '@/domain/values/user';
 import type {
   AssetPrs,
   LedgerEntryWithBalancePrs,
@@ -86,30 +86,42 @@ export const priceSeriesMapper: MapperPort<PriceSeries, PriceSeriesPrs> = {
 
 const balanceToBigInt = type('string.numeric.parse').pipe(Math.trunc).pipe(BigInt);
 
-export const ledgerEntryMapper: MapperPort<UserLedger, LedgerEntryWithBalancePrs[]> = {
-  toDomain: (p: LedgerEntryWithBalancePrs[]) => ({
-    userId: UserId(p[0].userId),
-    summary: p.map(({ assetId, balance, units }) => ({
-      assetId: AssetId(assetId),
-      balance:
-        units === 'cent'
-          ? Cent.new(balanceToBigInt.assert(balance))
-          : Units(balanceToBigInt.assert(balance)),
-      units: units,
-    })),
-    transactions: p.map(({ assetId, drCr, amount, units, createdAt }) => ({
-      assetId: AssetId(assetId),
-      drCr: drCr,
-      amount: units == 'cent' ? Cent.new(amount) : Units(amount),
-      units: units,
-      createdAt,
-    })),
-  }),
-  // @ts-ignore
-  toPersistence: (tx: LedgerEntryWithBalancePrs) => {
-    throw new Error('Not implemented');
+// beginning of LLM written Code, Model: Gemini
+export const ledgerEntryMapper: ReadMapperPort<UserLedger, LedgerEntryWithBalancePrs[]> = {
+  toDomain: (p: LedgerEntryWithBalancePrs[]): UserLedger => {
+    if (p.length === 0) {
+      return { userId: UserId(0), summary: [], transactions: [] };
+    }
+
+    const summaryMap = new Map<string, UserLedger['summary'][number]>();
+    for (const row of p) {
+      const key = `${row.assetId}:${row.units}`;
+      if (!summaryMap.has(key)) {
+        summaryMap.set(key, {
+          assetId: AssetId(row.assetId),
+          balance:
+            row.units === 'cent'
+              ? Cent.new(balanceToBigInt.assert(row.balance))
+              : Units(balanceToBigInt.assert(row.balance)),
+          units: row.units,
+        });
+      }
+    }
+
+    return {
+      userId: UserId(p[0].userId),
+      summary: [...summaryMap.values()],
+      transactions: p.map(({ assetId, drCr, amount, units, createdAt }) => ({
+        assetId: AssetId(assetId),
+        drCr: drCr,
+        amount: units === 'cent' ? Cent.new(amount) : Units(amount),
+        units: units,
+        createdAt,
+      })),
+    };
   },
 };
+// end of LLM written Code
 
 // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 export const marketMapper: MapperPort<Market, MarketPrs> = {

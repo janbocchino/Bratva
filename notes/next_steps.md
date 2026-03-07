@@ -14,6 +14,7 @@
 `backend`
 - connect ml for asset prices --> python API
 - provide liquidity: will it be fixed time based for liquidity?
+token to token in exchange
 
 
 `overall`

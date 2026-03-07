@@ -1,6 +1,6 @@
-import { AssetId } from '../values/asset';
-import { Cent, Units } from '../values/currencies';
-import { UserId } from '../values/user';
+import type { AssetId } from '../values/asset';
+import type { Cent, Units } from '../values/currencies';
+import type { UserId } from '../values/user';
 
 export type UserLedger = {
   userId: UserId;

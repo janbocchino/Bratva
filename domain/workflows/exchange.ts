@@ -6,7 +6,8 @@ import { AmmPool } from '../aggregates/market';
 import type { Market } from '../aggregates/market';
 import type { UserLedger } from '../aggregates/ledger';
 import { Cent } from '../values/currencies';
-import { OrderPublicId, MarketSequenceNumber } from '../values/exchange';
+import { OrderId, OrderPublicId, MarketSequenceNumber } from '../values/exchange';
+import { Nonce, UserId } from '../values/user';
 import { MarketNotActiveError, OrderValidationError } from '../errors';
 
 const priceOrder = (kind: Side) =>
@@ -52,18 +53,16 @@ export function processOrder(o: {
     };
   }
 
+  // beginning of LLM written Code, Model: Gemini
   const [newCounterOrderArray, orderBeingProcessed] = Fn.pipe(
     orderSubset,
-    A.reduce<[Order[], Order], Order>([[], order], (acc, currentOrder) => {
-      const [orderBeingProcessedInTheMainFn, orderBeingProcessedInTheLoop] = acc;
-      const oA = orderBeingProcessedInTheMainFn;
-      const oB = orderBeingProcessedInTheLoop;
+    A.reduce<[Order[], Order], Order>([[], { ...order }], (acc, currentOrder) => {
+      const [oA, oB] = acc;
 
-      // If this is the first, matched order, just return it as a array
       if (!oA) {
-        return [[currentOrder], oB];
+        return [[{ ...currentOrder }], oB];
       }
-      // Or else, keep adding (oA may be empty on first iteration)
+
       const fulfilledSoFar =
         oA.length === 0 ? 0 : oA.map((o) => o.quantity - o.filled).reduce((a, b) => a + b);
       const remaining = order.quantity - fulfilledSoFar;
@@ -72,29 +71,34 @@ export function processOrder(o: {
         currentOrder.quantity - currentOrder.filled,
         remaining,
       );
-      currentOrder.filled = currentOrder.quantity - currentOrder.filled - currentOrderSatisfies;
-      oB.filled = oB.filled + currentOrderSatisfies;
+      const updatedCounterOrder: Order = {
+        ...currentOrder,
+        filled: currentOrder.quantity - currentOrder.filled - currentOrderSatisfies,
+      };
+      const updatedIncoming: Order = {
+        ...oB,
+        filled: oB.filled + currentOrderSatisfies,
+      };
 
-      return [[...oA, currentOrder], oB];
+      return [[...oA, updatedCounterOrder], updatedIncoming];
     }),
   );
+  // end of LLM written Code
 
   const newCounterOrderBook = Fn.pipe(
     orderBook,
     S.get(counterOrderKind),
-    A.map((o) => {
-      const replaceIds = newCounterOrderArray.map((o) => o.id);
-      return newCounterOrderArray.find((r) => r.id === o.id) ?? o;
-    }),
+    A.map((o) => newCounterOrderArray.find((r) => r.id === o.id) ?? o),
   );
 
   return {
     [counterOrderKind]: newCounterOrderBook,
-    [order.kind]: [...orderBook[order.kind], order],
+    [order.kind]: [...orderBook[order.kind], orderBeingProcessed],
   } as OrderBook;
 }
 
 // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
+
 export function buildAmmOrder(pool: AmmPool, market: Market, counterSide: Side): Order {
   const hasLiquidity = AmmPool.k(pool) > 0n && pool.reserveBase > 1n && pool.reserveQuote > 1n;
 
@@ -105,10 +109,10 @@ export function buildAmmOrder(pool: AmmPool, market: Market, counterSide: Side):
       : Number(AmmPool.k(pool) - pool.reserveBase);
 
   return {
-    id: 0 as any,
+    id: OrderId(0),
     publicId: OrderPublicId('__amm__'),
     marketId: market.id,
-    userId: 0 as any,
+    userId: UserId(0),
     kind: counterSide,
     price: hasLiquidity
       ? Cent.new(pool.reserveQuote / pool.reserveBase)
@@ -117,7 +121,7 @@ export function buildAmmOrder(pool: AmmPool, market: Market, counterSide: Side):
     filled: 0,
     stopLoss: Cent.new(0n),
     marketSequenceNumber: MarketSequenceNumber(0),
-    nonce: 0 as any,
+    nonce: Nonce(0),
     status: 'open',
     createdAt: new Date(),
     updatedAt: new Date(),

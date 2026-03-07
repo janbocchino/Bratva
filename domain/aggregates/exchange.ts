@@ -1,4 +1,6 @@
-import { Clock, E, Fn } from '@/lib/shared/imports';
+// beginning of LLM written Code, Model: Gemini
+import { E, Fn } from '@/lib/shared/imports';
+// end of LLM written Code
 import type { Cent, Units } from '../values/currencies';
 import type {
   OrderId,
@@ -34,18 +36,16 @@ export type Order = {
   canceledAt: Date;
 };
 
+// beginning of LLM written Code, Model: Gemini
 export const Order = {
-  cancel: (o: Order): E.Effect<Order> =>
-    Fn.pipe(
-      Clock.currentTimeMillis,
-      E.map((ms) => ({
-        ...o,
-        canceled: true,
-        canceledAt: new Date(ms),
-        status: 'cancelled' as OrderStatus,
-      })),
-    ),
+  cancel: (o: Order, canceledAt: Date): Order => ({
+    ...o,
+    canceled: true,
+    canceledAt,
+    status: 'cancelled' as OrderStatus,
+  }),
 };
+// end of LLM written Code
 
 export type OrderBook = {
   bid: Order[];

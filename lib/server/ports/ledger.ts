@@ -10,10 +10,8 @@ import { ledgerEntries, ledgerEntriesWithBalance } from '../schema';
 import { ledgerEntryMapper } from './mapper';
 
 const errMapper =
-  (WrappedError: typeof InfraNotFoundError | typeof InfraError) => (cause: unknown) => {
-    console.log(cause);
-    return new PortError({ cause: new WrappedError({ cause }) });
-  };
+  (WrappedError: typeof InfraNotFoundError | typeof InfraError) => (cause: unknown) =>
+    new PortError({ cause: new WrappedError({ cause }) });
 
 export const ledgerReadRepo: LedgerReadRepoDomain<Db> = {
   getLedgerByUserId: (userId) =>

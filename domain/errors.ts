@@ -82,3 +82,25 @@ export class LiquidityPositionNotFoundError extends Data.TaggedError(
   cause: unknown;
 }> {}
 // end of LLM written Code
+
+// beginning of LLM written Code, Model: Gemini
+export class OrderOwnershipError extends Data.TaggedError('OrderOwnershipError')<{
+  orderId: number;
+  userId: number;
+}> {}
+
+export class OrderNotCancellableError extends Data.TaggedError('OrderNotCancellableError')<{
+  orderId: number;
+  status: string;
+}> {}
+
+export class PositionOwnershipError extends Data.TaggedError('PositionOwnershipError')<{
+  positionId: number;
+  userId: number;
+}> {}
+
+export class ParseError extends Data.TaggedError('ParseError')<{
+  field: string;
+  input: unknown;
+}> {}
+// end of LLM written Code
