@@ -55,7 +55,7 @@ CREATE TABLE `markets` (
 	`amm_reserve_quote` blob NOT NULL,
 	`model_price` blob NOT NULL,
 	`total_lp_tokens` blob DEFAULT 0 NOT NULL,
-	`status` text DEFAULT 'pending' NOT NULL,
+	`status` text DEFAULT 'closed' NOT NULL,
 	`was_previously_active` integer DEFAULT false NOT NULL,
 	`created_at` integer DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	`updated_at` integer DEFAULT CURRENT_TIMESTAMP NOT NULL,

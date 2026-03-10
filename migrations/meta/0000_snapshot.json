@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "0d2a8170-c8cb-47d7-ba0d-f38f25ec6b16",
+  "id": "80b566d6-9f0a-40b3-8026-92df5fa578e4",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -409,7 +409,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'pending'"
+          "default": "'closed'"
         },
         "was_previously_active": {
           "name": "was_previously_active",
