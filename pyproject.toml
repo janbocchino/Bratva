@@ -18,9 +18,7 @@ dependencies = [
 
 [project.scripts]
 bratva-worker = "backend.main:main"
-# beginning of LLM written Code, Model: gpt-5.3-codex
 bratva-price-api = "backend.api:main"
-# end of LLM written Code
 
 [tool.uv]
 override-dependencies = [
