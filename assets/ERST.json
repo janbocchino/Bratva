@@ -1,0 +1,21 @@
+{
+  "assetId": "ERST",
+  "name": "Eric Schmidt",
+  "occupation": "Businessman",
+  "citizenship": ["United States"],
+  "net_worth": 36300000000,
+  "social_media_followers": 11600,
+  "associations": [
+    "Google",
+    "Alphabet Inc.",
+    "Relativity Space",
+    "Bloomberg Billionaires Index",
+    "Bell Labs",
+    "Sun Microsystems",
+    "Novell",
+    "Carnegie Mellon University",
+    "Apple",
+    "Princeton University"
+  ],
+  "age": 50
+}

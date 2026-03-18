@@ -1,0 +1,10 @@
+{
+  "assetId": "ZUCK",
+  "name": "Mark Zuckerberg",
+  "occupation": "Entrepreneur",
+  "citizenship": ["United States"],
+  "net_worth": 200000000000,
+  "social_media_followers": 120000000,
+  "associations": ["Meta"],
+  "age": 41
+}

@@ -1,6 +1,6 @@
 samples = [
     {
-        "assetId": "001",
+        "assetId": "JBCN",
         "name": "Jan Bocchino",
         "occupation": "Freelancer",
         "citizenship": ["Germany", "Italy"],
@@ -11,7 +11,7 @@ samples = [
         "age": 23,
     },
     {
-        "assetId": "002",
+        "assetId": "ERST",
         "name": "Eric Schmidt",
         "occupation": "Businessman",
         "citizenship": ["United States"],
@@ -25,7 +25,7 @@ samples = [
         "age": 50,
     },
     {
-        "assetId": "003",
+        "assetId": "ZUCK",
         "name": "Mark Zuckerberg",
         "occupation": "Entrepreneur",
         "citizenship": ["United States"],
@@ -35,7 +35,7 @@ samples = [
         "age": 41,
     },
     {
-        "assetId": "004",
+        "assetId": "DISO",
         "name": "Dmitri Sokolov",
         "occupation": "Investor",
         "citizenship": ["Russia"],
@@ -45,7 +45,7 @@ samples = [
         "social_media_followers": 25000,
     },
     {
-        "assetId": "005",
+        "assetId": "FASL",
         "name": "Fabian Stahl",
         "occupation": "Engineer",
         "citizenship": ["Germany"],

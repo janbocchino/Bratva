@@ -5,7 +5,10 @@ import {
   PortError,
   PriceSeriesNotFoundError,
 } from '@/domain/errors';
-import type { PriceSeriesReadRepo as PriceSeriesReadRepoDomain } from '@/domain/ports/price-series';
+import type {
+  PriceSeriesReadRepo as PriceSeriesReadRepoDomain,
+  PriceSeriesWriteRepo as PriceSeriesWriteRepoDomain,
+} from '@/domain/ports/price-series';
 import { A, E, Fn } from '@/lib/shared/imports';
 import { Db } from '../db';
 import { priceSeriesMapper } from './mapper';
@@ -52,3 +55,30 @@ export const priceSeriesReadRepo: PriceSeriesReadRepoDomain<Db> = {
       E.map((rows) => rows.map(priceSeriesMapper.toDomain)),
     ),
 };
+// beginning of LLM written Code, Model: gpt-5.3-codex
+export const priceSeriesWriteRepo: PriceSeriesWriteRepoDomain<Db> = {
+  insertPriceSeriesBatch: (rows) =>
+    Fn.pipe(
+      E.serviceOptional(Db),
+      E.mapError(errMapper(InfraNotFoundError)),
+      E.flatMap((db) =>
+        E.tryPromise({
+          try: () =>
+            db
+              .insert(priceSeries)
+              .values(
+                rows.map((row) => ({
+                  assetId: row.assetId,
+                  price: row.price,
+                  createdAt: row.createdAt,
+                })),
+              )
+              .returning(),
+          catch: errMapper(InfraError),
+        }),
+      ),
+      E.map((insertedRows) => insertedRows.map(priceSeriesMapper.toDomain)),
+    ),
+};
+// end of LLM written Code
+

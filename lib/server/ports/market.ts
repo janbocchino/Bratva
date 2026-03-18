@@ -4,6 +4,7 @@ import { InfraError, InfraNotFoundError, MarketNotFoundError, PortError } from '
 import type {
   MarketReadRepo as MarketReadRepoDomain,
   MarketWriteRepo as MarketWriteRepoDomain,
+  UpdateMarketModelPriceParams,
   UpdateMarketParams,
 } from '@/domain/ports/market';
 import { A, E, Fn } from '@/lib/shared/imports';
@@ -56,5 +57,35 @@ export const marketWriteRepo: MarketWriteRepoDomain<Db> = {
       ),
       E.asVoid,
     ),
+  // beginning of LLM written Code, Model: gpt-5.3-codex
+  updateMarketModelPrices: (rows: readonly UpdateMarketModelPriceParams[]) =>
+    Fn.pipe(
+      E.serviceOptional(Db),
+      E.mapError(errMapper(InfraNotFoundError)),
+      E.flatMap((db) =>
+        E.tryPromise({
+          try: async () => {
+            if (rows.length === 0) return 0;
+
+            return db.transaction(async (tx) => {
+              let updatedCount = 0;
+              for (const row of rows) {
+                const updatedRows = await tx
+                  .update(markets)
+                  .set({
+                    modelPrice: row.modelPrice,
+                  })
+                  .where(eq(markets.baseAssetId, row.baseAssetId))
+                  .returning({ id: markets.id });
+                updatedCount += updatedRows.length;
+              }
+              return updatedCount;
+            });
+          },
+          catch: errMapper(InfraError),
+        }),
+      ),
+    ),
+  // end of LLM written Code
 };
 // end of LLM written Code

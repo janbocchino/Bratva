@@ -31,6 +31,16 @@ stateDiagram-v2
     end note
 ```
 
+## Price source policy by state
+
+- `closed`: use `markets.modelPrice` (model price from backend worker ingestion route).
+- `pending` and `active`: use AMM-derived price (`ammReserveQuote / ammReserveBase`).
+
+This creates two write routes with explicit precedence:
+
+- **Backend route** updates `markets.modelPrice` continuously from model inference.
+- **Domain route** updates AMM reserves during liquidity/order workflows; this derived AMM price is authoritative while market is tradeable.
+
 ### State and transition notes
 
 - **Closed** (initial): Created by default. Liquidity can be added; `model_price` is shown. → **Pending** when LP add and `sum(L) < x`; → **Active** when LP add and `sum(L) >= x`.

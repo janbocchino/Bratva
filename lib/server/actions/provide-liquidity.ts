@@ -5,6 +5,7 @@ import type { UserLedger } from '@/domain/aggregates/ledger';
 import { debitUserBalance } from '@/domain/workflows/ledger';
 import { provideLiquidity, validateProvide, LOCK_DURATION_MS } from '@/domain/workflows/liquidity';
 import { transitionMarket } from '@/domain/workflows/market';
+import { selectMarketDisplayPrice } from '@/domain/workflows/price';
 import { Cent, Units } from '@/domain/values/currencies';
 import { Db, db } from '../db';
 import { assetReadRepo } from '../ports/asset';
@@ -56,12 +57,11 @@ export async function provideLiquidityAction(p: {
   const result = Fn.pipe(
     E.all({ cents, user, usdAsset, market, currentLedger }),
     E.flatMap(({ cents, user, usdAsset, market, currentLedger }) => {
-      // Compute the price split
-      const reserveBase = BigInt(market.ammPool.reserveBase);
-      const reserveQuote = BigInt(market.ammPool.reserveQuote);
-      const isEmptyPool = reserveBase === 0n && reserveQuote === 0n;
-
-      const price = isEmptyPool ? BigInt(market.modelPrice) : reserveQuote / reserveBase;
+      // beginning of LLM written Code, Model: gpt-5.3-codex
+      // Compute split using status-based market display price.
+      const price = BigInt(selectMarketDisplayPrice(market));
+      if (price <= 0n) return E.fail(new Error('Market price must be > 0'));
+      // end of LLM written Code
       const quoteAmount = cents / 2n;
       const baseAmount = quoteAmount / price;
 
