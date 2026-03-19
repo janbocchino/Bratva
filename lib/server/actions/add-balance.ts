@@ -5,7 +5,7 @@ import type { UserLedger } from '@/domain/aggregates/ledger';
 import { creditUserBalance } from '@/domain/workflows/ledger';
 import { Cent } from '@/domain/values/currencies';
 import { Db, db } from '../db';
-import { assetReadRepo, assetWriteRepo } from '../ports/asset';
+import { assetReadRepo } from '../ports/asset';
 import { type } from 'arktype';
 import { ledgerReadRepo, ledgerWriteRepo } from '../ports/ledger';
 import { userReadRepo } from '../ports/user';
@@ -28,22 +28,7 @@ export async function addBalance(p: {
     E.flatMap((id) => userReadRepo.getUser({ id })),
   );
 
-  const usdAsset = Fn.pipe(
-    assetReadRepo.getAsset({ ticker: 'USD' }),
-    E.catch('name', {
-      failure: 'PortError',
-      onFailure: (err) => {
-        const cause = (err as { cause?: { name?: string; _tag?: string } }).cause;
-        if (cause?.name === 'AssetNotFoundError' || cause?._tag === 'AssetNotFoundError') {
-          return assetWriteRepo.createAsset({
-            name: 'US Dollar',
-            ticker: 'USD',
-          });
-        }
-        return E.fail(err);
-      },
-    }),
-  );
+  const usdAsset = Fn.pipe(assetReadRepo.getAsset({ ticker: 'USD' }));
 
   const ledger = Fn.pipe(
     E.all({ cents, user, usdAsset }),
