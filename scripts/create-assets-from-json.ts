@@ -4,6 +4,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { assetReadRepo, assetWriteRepo } from '../lib/server/ports/asset';
 import { Db, db } from '../lib/server/db';
+import { markets } from '../lib/server/schema';
 import { E, Fn } from '../lib/shared/imports';
 
 const AssetJsonFile = type({
@@ -42,7 +43,43 @@ async function parseAssetFile(filePath: string): Promise<AssetJsonFile> {
   return AssetJsonFile.assert(parsed);
 }
 
-async function ensureAsset(asset: AssetJsonFile): Promise<'created' | 'skipped'> {
+async function resolveUsdAssetId(): Promise<number> {
+  const tryTicker = async (ticker: string) =>
+    await Fn.pipe(assetReadRepo.getAsset({ ticker }), E.provideService(Db, db), E.either, E.runPromise);
+
+  const upper = await tryTicker('USD');
+  if (upper._tag === 'Right') return upper.right.id;
+
+  const lower = await tryTicker('usd');
+  if (lower._tag === 'Right') return lower.right.id;
+
+  throw new Error('USD asset missing. Create asset with ticker `USD` (or `usd`) before running import.');
+}
+
+async function createAssetUsdMarket(baseAssetId: number, usdAssetId: number): Promise<boolean> {
+  const inserted = await db
+    .insert(markets)
+    .values({
+      baseAssetId,
+      quoteAssetId: usdAssetId,
+      sequenceNumber: 0,
+      ammReserveBase: 0n,
+      ammReserveQuote: 0n,
+      modelPrice: 0n,
+      totalLpTokens: 0n,
+      status: 'closed',
+      wasPreviouslyActive: false,
+    })
+    .onConflictDoNothing({
+      target: [markets.baseAssetId, markets.quoteAssetId],
+    })
+    .returning({ id: markets.id });
+  return inserted.length > 0;
+}
+
+async function ensureAsset(
+  asset: AssetJsonFile,
+): Promise<{ kind: 'created'; assetId: number } | { kind: 'skipped'; assetId: number }> {
   const existing = await Fn.pipe(
     assetReadRepo.getAsset({ ticker: asset.assetId }),
     E.provideService(Db, db),
@@ -50,15 +87,15 @@ async function ensureAsset(asset: AssetJsonFile): Promise<'created' | 'skipped'>
     E.runPromise,
   );
 
-  if (existing._tag === 'Right') return 'skipped';
+  if (existing._tag === 'Right') return { kind: 'skipped', assetId: existing.right.id };
   if (!isAssetNotFoundError(existing.left)) throw existing.left;
 
-  await Fn.pipe(
+  const created = await Fn.pipe(
     assetWriteRepo.createAsset({ name: asset.name, ticker: asset.assetId }),
     E.provideService(Db, db),
     E.runPromise,
   );
-  return 'created';
+  return { kind: 'created', assetId: created.id };
 }
 
 async function main(): Promise<void> {
@@ -68,18 +105,35 @@ async function main(): Promise<void> {
     return;
   }
 
+  const usdAssetId = await resolveUsdAssetId();
   let created = 0;
   let skipped = 0;
+  let marketsCreated = 0;
+  let marketsSkipped = 0;
 
   for (const filePath of files) {
     const asset = await parseAssetFile(filePath);
     const result = await ensureAsset(asset);
-    if (result === 'created') created += 1;
+    if (result.kind === 'created') created += 1;
     else skipped += 1;
-    console.log(`${result.toUpperCase()}: ${asset.assetId} (${asset.name}) from ${filePath}`);
+
+    if (result.assetId === usdAssetId) {
+      marketsSkipped += 1;
+      console.log(`${result.kind.toUpperCase()}: ${asset.assetId} (${asset.name}) (self-quote skipped) from ${filePath}`);
+      continue;
+    }
+
+    const didCreateMarket = await createAssetUsdMarket(result.assetId, usdAssetId);
+    if (didCreateMarket) marketsCreated += 1;
+    else marketsSkipped += 1;
+    console.log(
+      `${result.kind.toUpperCase()}: ${asset.assetId} (${asset.name}) market=${didCreateMarket ? 'CREATED' : 'SKIPPED'} pair=${asset.assetId}/USD from ${filePath}`,
+    );
   }
 
-  console.log(`Asset import completed. created=${created} skipped=${skipped}`);
+  console.log(
+    `Asset import completed. created=${created} skipped=${skipped} marketsCreated=${marketsCreated} marketsSkipped=${marketsSkipped}`,
+  );
 }
 
 main().catch((error) => {

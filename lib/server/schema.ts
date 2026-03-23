@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { blob, index, integer, sqliteTable, text, sqliteView } from 'drizzle-orm/sqlite-core';
+import { blob, index, integer, sqliteTable, text, uniqueIndex, sqliteView } from 'drizzle-orm/sqlite-core';
 import { v4 as uuidv4 } from 'uuid';
 
 export const timestamps = {
@@ -192,7 +192,9 @@ export const markets = sqliteTable(
   },
   (table) => [
     index('markets_public_id_idx').on(table.publicId),
-    index('markets_base_quote_idx').on(table.baseAssetId, table.quoteAssetId),
+    // beginning of LLM written Code, Model: gpt-5.3-codex-low
+    uniqueIndex('markets_base_quote_unique').on(table.baseAssetId, table.quoteAssetId),
+    // end of LLM written Code
   ],
 );
 
