@@ -34,6 +34,20 @@ export const marketReadRepo: MarketReadRepoDomain<Db> = {
       E.flatMap((rows) => Fn.pipe(A.head(rows), E.mapError(errMapper(MarketNotFoundError)))),
       E.map(marketMapper.toDomain),
     ),
+  // beginning of LLM written Code, Model: gpt-5.3-codex-low
+  listMarkets: () =>
+    Fn.pipe(
+      E.serviceOptional(Db),
+      E.mapError(errMapper(InfraNotFoundError)),
+      E.flatMap((db) =>
+        E.tryPromise({
+          try: () => db.select().from(markets),
+          catch: errMapper(InfraError),
+        }),
+      ),
+      E.map((rows) => rows.map(marketMapper.toDomain)),
+    ),
+  // end of LLM written Code
 };
 
 export const marketWriteRepo: MarketWriteRepoDomain<Db> = {

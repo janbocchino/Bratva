@@ -6,7 +6,7 @@ This document explains how the current `backend/` runtime predicts and streams a
 
 What write-path should worker ingestion use?
 
-- [x] Local FastAPI bridge (`127.0.0.1`) forwarding to Next internal ingestion endpoint — keeps ingress local while preserving typed DB writes on server side.
+- [x] Local FastAPI bridge (`127.0.0.1`) stores latest worker batch; Next server action pulls from FastAPI and applies typed DB writes.
 - [ ] Direct Python DB writes
 - [ ] Public HTTP API ingestion
 
@@ -37,7 +37,8 @@ Inside `PriceWorker.run()`:
     - `assetTicker` (from `assetId` field in JSON, normalized lowercase)
     - `priceCents` (`int(current_price * 100)`)
     - `timestamp`
-  - Sends batch to local FastAPI bridge, which forwards to Next internal route that resolves ticker -> market and updates `markets.modelPrice`.
+  - Sends batch to local FastAPI bridge, which stores latest rows in memory.
+  - Next frontend polling triggers a server action that pulls from FastAPI, resolves ticker -> market, and updates `markets.modelPrice`.
   - Logs every 10 updates.
   - Sleeps for the configured interval.
 
@@ -172,7 +173,7 @@ On each tick, worker emits one record per asset to DB write batch:
 The worker persistence interface is:
 
 - `POST http://127.0.0.1:8010/model-prices` (FastAPI local bridge)
-- FastAPI forwards to Next internal route `POST /api/internal/model-prices`, which writes through typed server ports.
+- FastAPI also exposes `GET /model-prices` for the Next server action pull path (optional token via `x-model-price-token`).
 
 ## 5) Runtime Characteristics
 
@@ -185,7 +186,7 @@ The worker persistence interface is:
 
 ## 6) Runtime boot sequence
 
-- Start Next server (`npm run dev`) so internal route `/api/internal/model-prices` is available.
+- Start Next server (`npm run dev`) so frontend polling can call server actions.
 - Start FastAPI bridge (`uv run bratva-price-api`).
 - Start worker (`uv run bratva-worker`).
 - Worker reads `assets/*.json` each tick and sends model prices to local FastAPI bridge.

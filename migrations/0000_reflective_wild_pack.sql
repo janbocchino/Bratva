@@ -3,8 +3,8 @@ CREATE TABLE `assets` (
 	`public_id` text NOT NULL,
 	`name` text NOT NULL,
 	`ticker` text NOT NULL,
-	`created_at` integer DEFAULT CURRENT_TIMESTAMP NOT NULL,
-	`updated_at` integer DEFAULT CURRENT_TIMESTAMP NOT NULL
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `assets_public_id_unique` ON `assets` (`public_id`);--> statement-breakpoint
@@ -18,7 +18,7 @@ CREATE TABLE `ledger_entries` (
 	`dr_cr` text NOT NULL,
 	`amount` blob NOT NULL,
 	`unit` text NOT NULL,
-	`created_at` integer DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE no action
 );
@@ -36,8 +36,8 @@ CREATE TABLE `liquidity_positions` (
 	`deposit_quote` blob NOT NULL,
 	`locked_until` integer,
 	`status` text DEFAULT 'active' NOT NULL,
-	`created_at` integer DEFAULT CURRENT_TIMESTAMP NOT NULL,
-	`updated_at` integer DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`market_id`) REFERENCES `markets`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
 );
@@ -57,15 +57,15 @@ CREATE TABLE `markets` (
 	`total_lp_tokens` blob DEFAULT 0 NOT NULL,
 	`status` text DEFAULT 'closed' NOT NULL,
 	`was_previously_active` integer DEFAULT false NOT NULL,
-	`created_at` integer DEFAULT CURRENT_TIMESTAMP NOT NULL,
-	`updated_at` integer DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`base_asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`quote_asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `markets_public_id_unique` ON `markets` (`public_id`);--> statement-breakpoint
 CREATE INDEX `markets_public_id_idx` ON `markets` (`public_id`);--> statement-breakpoint
-CREATE INDEX `markets_base_quote_idx` ON `markets` (`base_asset_id`,`quote_asset_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `markets_base_quote_unique` ON `markets` (`base_asset_id`,`quote_asset_id`);--> statement-breakpoint
 CREATE TABLE `orders` (
 	`id` integer PRIMARY KEY NOT NULL,
 	`public_id` text NOT NULL,
@@ -79,8 +79,8 @@ CREATE TABLE `orders` (
 	`market_sequence_number` integer NOT NULL,
 	`nonce` integer DEFAULT 0 NOT NULL,
 	`status` text DEFAULT 'open' NOT NULL,
-	`created_at` integer DEFAULT CURRENT_TIMESTAMP NOT NULL,
-	`updated_at` integer DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`expires_at` integer NOT NULL,
 	FOREIGN KEY (`market_id`) REFERENCES `markets`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
@@ -95,7 +95,7 @@ CREATE TABLE `price_series` (
 	`public_id` text NOT NULL,
 	`asset_id` integer NOT NULL,
 	`price` blob NOT NULL,
-	`created_at` integer DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
@@ -113,7 +113,7 @@ CREATE TABLE `transactions` (
 	`quantity` integer NOT NULL,
 	`side` text NOT NULL,
 	`source` text NOT NULL,
-	`created_at` integer DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`market_id`) REFERENCES `markets`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`maker_order_id`) REFERENCES `orders`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`taker_order_id`) REFERENCES `orders`(`id`) ON UPDATE no action ON DELETE no action,
@@ -130,8 +130,8 @@ CREATE TABLE `users` (
 	`display_name` text NOT NULL,
 	`email` text NOT NULL,
 	`nonce` integer DEFAULT 0 NOT NULL,
-	`created_at` integer DEFAULT CURRENT_TIMESTAMP NOT NULL,
-	`updated_at` integer DEFAULT CURRENT_TIMESTAMP NOT NULL
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `users_public_id_unique` ON `users` (`public_id`);--> statement-breakpoint

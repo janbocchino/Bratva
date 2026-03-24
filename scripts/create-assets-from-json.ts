@@ -44,16 +44,11 @@ async function parseAssetFile(filePath: string): Promise<AssetJsonFile> {
 }
 
 async function resolveUsdAssetId(): Promise<number> {
-  const tryTicker = async (ticker: string) =>
-    await Fn.pipe(assetReadRepo.getAsset({ ticker }), E.provideService(Db, db), E.either, E.runPromise);
-
-  const upper = await tryTicker('USD');
-  if (upper._tag === 'Right') return upper.right.id;
-
-  const lower = await tryTicker('usd');
-  if (lower._tag === 'Right') return lower.right.id;
-
-  throw new Error('USD asset missing. Create asset with ticker `USD` (or `usd`) before running import.');
+  // beginning of LLM written Code, Model: gpt-5.3-codex-low
+  const usd = await Fn.pipe(assetReadRepo.getAsset({ ticker: 'usd' }), E.provideService(Db, db), E.either, E.runPromise);
+  if (usd._tag === 'Right') return usd.right.id;
+  throw new Error('USD asset missing. Create asset with ticker `usd` before running import.');
+  // end of LLM written Code
 }
 
 async function createAssetUsdMarket(baseAssetId: number, usdAssetId: number): Promise<boolean> {
@@ -127,7 +122,9 @@ async function main(): Promise<void> {
     if (didCreateMarket) marketsCreated += 1;
     else marketsSkipped += 1;
     console.log(
-      `${result.kind.toUpperCase()}: ${asset.assetId} (${asset.name}) market=${didCreateMarket ? 'CREATED' : 'SKIPPED'} pair=${asset.assetId}/USD from ${filePath}`,
+      // beginning of LLM written Code, Model: gpt-5.3-codex-low
+      `${result.kind.toUpperCase()}: ${asset.assetId} (${asset.name}) market=${didCreateMarket ? 'CREATED' : 'SKIPPED'} pair=${asset.assetId}/usd from ${filePath}`,
+      // end of LLM written Code
     );
   }
 

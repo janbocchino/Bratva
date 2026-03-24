@@ -28,7 +28,7 @@ export async function withdrawBalance(p: {
     E.flatMap((id) => userReadRepo.getUser({ id })),
   );
 
-  const usdAsset = assetReadRepo.getAsset({ ticker: 'USD' });
+  const usdAsset = assetReadRepo.getAsset({ ticker: 'usd' });
 
   const currentLedger = Fn.pipe(
     user,

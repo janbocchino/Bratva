@@ -16,6 +16,9 @@ import {
   OrderPublicId,
 } from '@/domain/values/exchange';
 import { PriceSeriesId, PriceSeriesPublicId } from '@/domain/values/price-series';
+// beginning of LLM written Code, Model: gpt-5.3-codex
+import { requireValidDate } from '@/domain/values/timestamp';
+// end of LLM written Code
 import { Nonce, UserDisplayName, UserEmail, UserId, UserPublicId } from '@/domain/values/user';
 import type {
   AssetPrs,
@@ -33,8 +36,10 @@ export const userMapper: MapperPort<User, UserPrs> = {
     publicId: UserPublicId(p.publicId),
     displayName: UserDisplayName(p.displayName),
     email: UserEmail(p.email),
-    createdAt: new Date(p.createdAt),
-    updatedAt: new Date(p.updatedAt),
+    // beginning of LLM written Code, Model: gpt-5.3-codex
+    createdAt: requireValidDate(p.createdAt),
+    updatedAt: requireValidDate(p.updatedAt),
+    // end of LLM written Code
     nonce: Nonce(p.nonce),
   }),
   toPersistence: (d) => ({
@@ -54,8 +59,10 @@ export const assetMapper: MapperPort<Asset, AssetPrs> = {
     publicId: AssetPublicId(p.publicId),
     name: AssetName(p.name),
     ticker: AssetTicker(p.ticker),
-    createdAt: new Date(p.createdAt),
-    updatedAt: new Date(p.updatedAt),
+    // beginning of LLM written Code, Model: gpt-5.3-codex
+    createdAt: requireValidDate(p.createdAt),
+    updatedAt: requireValidDate(p.updatedAt),
+    // end of LLM written Code
   }),
   toPersistence: (d) => ({
     id: d.id,
@@ -73,7 +80,9 @@ export const priceSeriesMapper: MapperPort<PriceSeries, PriceSeriesPrs> = {
     publicId: PriceSeriesPublicId(p.publicId),
     assetId: AssetId(p.assetId),
     price: Cent.new(p.price),
-    createdAt: new Date(p.createdAt),
+    // beginning of LLM written Code, Model: gpt-5.3-codex
+    createdAt: requireValidDate(p.createdAt),
+    // end of LLM written Code
   }),
   toPersistence: (d) => ({
     id: d.id,
@@ -86,7 +95,10 @@ export const priceSeriesMapper: MapperPort<PriceSeries, PriceSeriesPrs> = {
 
 const balanceToBigInt = type('string.numeric.parse').pipe(Math.trunc).pipe(BigInt);
 
-// beginning of LLM written Code, Model: Gemini
+// beginning of LLM written Code, Model: gpt-5.3-codex
+const parseLedgerCreatedAt = (createdAt: unknown): Date => requireValidDate(createdAt);
+// end of LLM written Code
+
 export const ledgerEntryMapper: ReadMapperPort<UserLedger, LedgerEntryWithBalancePrs[]> = {
   toDomain: (p: LedgerEntryWithBalancePrs[]): UserLedger => {
     if (p.length === 0) {
@@ -116,7 +128,9 @@ export const ledgerEntryMapper: ReadMapperPort<UserLedger, LedgerEntryWithBalanc
         drCr: drCr,
         amount: units === 'cent' ? Cent.new(amount) : Units(amount),
         units: units,
-        createdAt,
+        // beginning of LLM written Code, Model: gpt-5.3-codex
+        createdAt: parseLedgerCreatedAt(createdAt),
+        // end of LLM written Code
       })),
     };
   },
@@ -141,8 +155,10 @@ export const marketMapper: MapperPort<Market, MarketPrs> = {
     // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
     wasPreviouslyActive: p.wasPreviouslyActive,
     // end of LLM written Code
-    createdAt: new Date(p.createdAt),
-    updatedAt: new Date(p.updatedAt),
+    // beginning of LLM written Code, Model: gpt-5.3-codex
+    createdAt: requireValidDate(p.createdAt),
+    updatedAt: requireValidDate(p.updatedAt),
+    // end of LLM written Code
   }),
   toPersistence: (d) => ({
     id: d.id,
@@ -177,11 +193,13 @@ export const orderMapper: MapperPort<Order, OrderPrs> = {
     marketSequenceNumber: MarketSequenceNumber(p.marketSequenceNumber),
     nonce: Nonce(p.nonce),
     status: p.status as OrderStatus,
-    createdAt: new Date(p.createdAt),
-    updatedAt: new Date(p.updatedAt),
-    expiresAt: new Date(p.expiresAt),
+    // beginning of LLM written Code, Model: gpt-5.3-codex
+    createdAt: requireValidDate(p.createdAt),
+    updatedAt: requireValidDate(p.updatedAt),
+    expiresAt: requireValidDate(p.expiresAt),
+    // end of LLM written Code
     canceled: p.status === 'cancelled',
-    canceledAt: p.status === 'cancelled' ? new Date(p.updatedAt) : new Date(0),
+    canceledAt: p.status === 'cancelled' ? requireValidDate(p.updatedAt) : new Date(0),
   }),
   toPersistence: (d) => ({
     id: d.id,

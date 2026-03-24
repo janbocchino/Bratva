@@ -1,16 +1,15 @@
 # beginning of LLM written Code, Model: gpt-5.3-codex
-"""Local FastAPI bridge for model-price ingestion into Next.js."""
+"""Local FastAPI service that stores and serves model-price batches."""
 
 import json
+from threading import Lock
 from typing import Any, Dict, List
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
-from backend.constants import BACKEND_FASTAPI_HOST, BACKEND_FASTAPI_PORT, NEXT_MODEL_PRICE_INGEST_URL
+from backend.constants import BACKEND_FASTAPI_HOST, BACKEND_FASTAPI_PORT, FASTAPI_MODEL_PRICE_TOKEN
 
 
 class ModelPriceRow(BaseModel):
@@ -28,62 +27,35 @@ class ModelPriceRow(BaseModel):
 
 
 app = FastAPI(title="Bratva Local Price Ingest API")
+_LATEST_MODEL_PRICE_ROWS: List[Dict[str, Any]] = []
+_LATEST_MODEL_PRICE_ROWS_LOCK = Lock()
 
-
-def _forward_to_next(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
-    payload = json.dumps(batch).encode("utf-8")
-    request = Request(
-        NEXT_MODEL_PRICE_INGEST_URL,
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-
-    try:
-        with urlopen(request, timeout=10.0) as response:
-            body = response.read().decode("utf-8")
-            if not body:
-                return {"status": response.status, "payload": {"ok": True}}
-            return {
-                "status": response.status,
-                "payload": json.loads(body),
-            }
-    except HTTPError as error:
-        error_body = error.read().decode("utf-8")
-        return {
-            "status": error.code,
-            "payload": {
-                "ok": False,
-                "error": error_body or "Next.js ingestion endpoint returned an error",
-            },
-        }
-    except URLError as error:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Failed to reach Next.js ingestion endpoint: {error.reason}",
-        ) from error
+def _assert_valid_token(x_model_price_token: str | None) -> None:
+    if not FASTAPI_MODEL_PRICE_TOKEN:
+        return
+    provided = (x_model_price_token or "").strip()
+    if provided != FASTAPI_MODEL_PRICE_TOKEN:
+        raise HTTPException(status_code=401, detail="Invalid model-price token")
 
 
 @app.post("/model-prices")
 def ingest_model_prices(rows: List[ModelPriceRow]) -> Dict[str, Any]:
-    forward_result = _forward_to_next([row.model_dump() for row in rows])
-    status = int(forward_result["status"])
-
-    if status >= 400:
-        raise HTTPException(
-            status_code=502,
-            detail={
-                "cause": "Next.js ingestion endpoint returned a non-success status",
-                "status": status,
-                "response": forward_result["payload"],
-            },
-        )
+    serialized_rows = [row.model_dump() for row in rows]
+    with _LATEST_MODEL_PRICE_ROWS_LOCK:
+        _LATEST_MODEL_PRICE_ROWS.clear()
+        _LATEST_MODEL_PRICE_ROWS.extend(serialized_rows)
 
     return {
         "ok": True,
-        "forwardedRows": len(rows),
-        "nextResponse": forward_result["payload"],
+        "storedRows": len(rows),
     }
+
+
+@app.get("/model-prices")
+def list_model_prices(x_model_price_token: str | None = Header(default=None)) -> List[Dict[str, Any]]:
+    _assert_valid_token(x_model_price_token)
+    with _LATEST_MODEL_PRICE_ROWS_LOCK:
+        return json.loads(json.dumps(_LATEST_MODEL_PRICE_ROWS))
 
 
 def main() -> None:

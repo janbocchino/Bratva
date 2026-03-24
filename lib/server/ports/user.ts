@@ -1,4 +1,4 @@
-import { eq, or, sql } from 'drizzle-orm';
+import { desc, eq, or, sql } from 'drizzle-orm';
 import type { User } from '@/domain/aggregates/user';
 import { InfraError, InfraNotFoundError, PortError, UserNotFoundError } from '@/domain/errors';
 import type {
@@ -7,6 +7,9 @@ import type {
   UserWriteRepo as UserWriteRepoDomain,
 } from '@/domain/ports/user';
 import { UserDisplayName, UserEmail, UserId, UserPublicId, Nonce } from '@/domain/values/user';
+// beginning of LLM written Code, Model: gpt-5.3-codex
+import { requireValidDate } from '@/domain/values/timestamp';
+// end of LLM written Code
 import { A, E, Fn } from '@/lib/shared/imports';
 import { Db } from '../db';
 import { users } from '../schema';
@@ -43,12 +46,41 @@ export const userReadRepo: UserReadRepoDomain<Db> = {
           publicId: UserPublicId(u.publicId),
           displayName: UserDisplayName(u.displayName),
           email: UserEmail(u.email),
-          createdAt: new Date(u.createdAt),
-          updatedAt: new Date(u.updatedAt),
+          // beginning of LLM written Code, Model: gpt-5.3-codex
+          createdAt: requireValidDate(u.createdAt),
+          updatedAt: requireValidDate(u.updatedAt),
+          // end of LLM written Code
           nonce: Nonce(u.nonce),
         }),
       ),
     ),
+  // beginning of LLM written Code, Model: gpt-5.3-codex-low
+  getImplicitUser: () =>
+    Fn.pipe(
+      E.serviceOptional(Db),
+      E.mapError(errMapper(InfraNotFoundError)),
+      E.flatMap((db) =>
+        E.tryPromise({
+          try: () => db.select().from(users).orderBy(desc(users.createdAt)).limit(1),
+          catch: errMapper(InfraError),
+        }),
+      ),
+      E.flatMap((us) => Fn.pipe(A.head(us), E.mapError(errMapper(UserNotFoundError)))),
+      E.map(
+        (u): User => ({
+          id: UserId(u.id),
+          publicId: UserPublicId(u.publicId),
+          displayName: UserDisplayName(u.displayName),
+          email: UserEmail(u.email),
+          // beginning of LLM written Code, Model: gpt-5.3-codex
+          createdAt: requireValidDate(u.createdAt),
+          updatedAt: requireValidDate(u.updatedAt),
+          // end of LLM written Code
+          nonce: Nonce(u.nonce),
+        }),
+      ),
+    ),
+  // end of LLM written Code
 };
 
 export const userWriteRepo: UserWriteRepoDomain<Db> = {
@@ -76,8 +108,10 @@ export const userWriteRepo: UserWriteRepoDomain<Db> = {
           publicId: UserPublicId(u.publicId),
           displayName: UserDisplayName(u.displayName),
           email: UserEmail(u.email),
-          createdAt: new Date(u.createdAt),
-          updatedAt: new Date(u.updatedAt),
+          // beginning of LLM written Code, Model: gpt-5.3-codex
+          createdAt: requireValidDate(u.createdAt),
+          updatedAt: requireValidDate(u.updatedAt),
+          // end of LLM written Code
           nonce: Nonce(u.nonce),
         }),
       ),

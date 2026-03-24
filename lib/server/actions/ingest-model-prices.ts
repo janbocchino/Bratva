@@ -1,34 +1,15 @@
 // beginning of LLM written Code, Model: gpt-5.3-codex
 'use server';
 
-import { type } from 'arktype';
 import { AssetId } from '@/domain/values/asset';
 import { Cent } from '@/domain/values/currencies';
 import { Db, db } from '../db';
+import { ModelPriceInputBatch, toLatestRowByTicker } from '../model-price-ingest';
 import { assetReadRepo } from '../ports/asset';
+import { fetchModelPricesFromFastApi } from '../ports/model-price-feed';
 import { marketWriteRepo } from '../ports/market';
 import { E, Fn } from '@/lib/shared/imports';
 import type { UpdateMarketModelPriceParams } from '@/domain/ports/market';
-
-const ModelPriceInputRow = type({
-  assetTicker: 'string.trim |> string.lower',
-  priceCents: 'number.integer >= 0',
-  timestamp: 'number',
-});
-const ModelPriceInputBatch = ModelPriceInputRow.array();
-
-type ModelPriceInputRow = typeof ModelPriceInputRow.infer;
-
-const toLatestRowByTicker = (rows: readonly ModelPriceInputRow[]) => {
-  const latestByTicker = new Map<string, ModelPriceInputRow>();
-  for (const row of rows) {
-    const previous = latestByTicker.get(row.assetTicker);
-    if (previous === undefined || row.timestamp >= previous.timestamp) {
-      latestByTicker.set(row.assetTicker, row);
-    }
-  }
-  return latestByTicker;
-};
 
 const resolveAssetIdByTicker = async (ticker: string): Promise<number> =>
   await Fn.pipe(assetReadRepo.getAsset({ ticker }), E.provideService(Db, db), E.runPromise).then(
@@ -67,5 +48,42 @@ export async function ingestModelPricesBatch(rawPayload: unknown): Promise<{
     appliedAssets: updates.length,
     updatedMarkets,
   };
+}
+
+export type RefreshModelPricesFromFastApiResult =
+  | {
+      ok: true;
+      receivedRows: number;
+      appliedAssets: number;
+      updatedMarkets: number;
+    }
+  | {
+      ok: false;
+      error: string;
+      statusCode?: number;
+    };
+
+export async function refreshModelPricesFromFastApi(): Promise<RefreshModelPricesFromFastApiResult> {
+  const feedResult = await fetchModelPricesFromFastApi();
+  if (!feedResult.ok) {
+    return {
+      ok: false,
+      error: feedResult.error,
+      statusCode: feedResult.statusCode,
+    };
+  }
+
+  try {
+    const ingestionResult = await ingestModelPricesBatch(feedResult.rows);
+    return {
+      ok: true,
+      ...ingestionResult,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'Failed to ingest model prices',
+    };
+  }
 }
 // end of LLM written Code

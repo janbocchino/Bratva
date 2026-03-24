@@ -18,7 +18,10 @@ export const GetMarketParams = type({
 export type GetMarketParams = typeof GetMarketParams.infer;
 
 export interface MarketReadRepo<D> {
+  // beginning of LLM written Code, Model: gpt-5.3-codex-low
   getMarket(o: GetMarketParams): E.Effect<Market, PortError, D>;
+  listMarkets(): E.Effect<readonly Market[], PortError, D>;
+  // end of LLM written Code
 }
 
 export type UpdateMarketParams = {

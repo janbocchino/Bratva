@@ -34,7 +34,7 @@ export async function provideLiquidityAction(p: {
     E.flatMap((id) => userReadRepo.getUser({ id })),
   );
 
-  const usdAsset = assetReadRepo.getAsset({ ticker: 'USD' });
+  const usdAsset = assetReadRepo.getAsset({ ticker: 'usd' });
 
   const market = marketReadRepo.getMarket({ publicId: p.marketPublicId });
 

@@ -3,11 +3,13 @@ import { blob, index, integer, sqliteTable, text, uniqueIndex, sqliteView } from
 import { v4 as uuidv4 } from 'uuid';
 
 export const timestamps = {
-  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: integer('updated_at', { mode: 'timestamp' })
+  // beginning of LLM written Code, Model: gpt-5.3-codex
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(unixepoch() * 1000)`),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
     .notNull()
-    .default(sql`CURRENT_TIMESTAMP`)
-    .$onUpdate(() => sql`CURRENT_TIMESTAMP`),
+    .default(sql`(unixepoch() * 1000)`)
+    .$onUpdate(() => sql`(unixepoch() * 1000)`),
+  // end of LLM written Code
 };
 
 export const users = sqliteTable(
@@ -67,9 +69,11 @@ export const priceSeries = sqliteTable(
       .notNull()
       .references(() => assets.id),
     price: blob('price', { mode: 'bigint' }).notNull(),
-    createdAt: integer('created_at', { mode: 'timestamp' })
+    // beginning of LLM written Code, Model: gpt-5.3-codex
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
       .notNull()
-      .default(sql`CURRENT_TIMESTAMP`),
+      .default(sql`(unixepoch() * 1000)`),
+    // end of LLM written Code
   },
   (table) => [
     index('price_series_public_id_idx').on(table.publicId),
@@ -93,7 +97,9 @@ export const ledgerEntries = sqliteTable(
     drCr: text('dr_cr', { enum: ['dr', 'cr'] }).notNull(),
     amount: blob('amount', { mode: 'bigint' }).notNull(),
     units: text('unit', { enum: ['cent', 'unit'] }).notNull(),
-    createdAt: integer('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    // beginning of LLM written Code, Model: gpt-5.3-codex
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(unixepoch() * 1000)`),
+    // end of LLM written Code
   },
   (table) => [
     index('ledger_entries_user_id_idx').on(table.userId),
@@ -135,7 +141,9 @@ export const ledgerEntriesWithBalance = sqliteView('ledger_entries_with_balance'
   drCr: text('dr_cr', { enum: ['dr', 'cr'] }).notNull(),
   amount: blob('amount', { mode: 'bigint' }).notNull(),
   units: text('unit', { enum: ['cent', 'unit'] }).notNull(),
-  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  // beginning of LLM written Code, Model: gpt-5.3-codex
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  // end of LLM written Code
   balance: text('balance').notNull(),
 }).as(sql`
 	SELECT
@@ -218,7 +226,9 @@ export const liquidityPositions = sqliteTable(
     lpTokens: blob('lp_tokens', { mode: 'bigint' }).notNull(),
     depositBase: blob('deposit_base', { mode: 'bigint' }).notNull(),
     depositQuote: blob('deposit_quote', { mode: 'bigint' }).notNull(),
-    lockedUntil: integer('locked_until', { mode: 'timestamp' }),
+    // beginning of LLM written Code, Model: gpt-5.3-codex
+    lockedUntil: integer('locked_until', { mode: 'timestamp_ms' }),
+    // end of LLM written Code
     status: text('status', { enum: ['active', 'withdrawn'] })
       .notNull()
       .default('active'),
@@ -260,7 +270,9 @@ export const orders = sqliteTable(
       .notNull()
       .default('open'),
     ...timestamps,
-    expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+    // beginning of LLM written Code, Model: gpt-5.3-codex
+    expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+    // end of LLM written Code
   },
   (table) => [
     index('orders_market_id_idx').on(table.marketId),
@@ -291,9 +303,11 @@ export const transactions = sqliteTable(
     quantity: integer('quantity').notNull(),
     side: text('side', { enum: ['bid', 'ask'] }).notNull(),
     source: text('source', { enum: ['book', 'amm'] }).notNull(),
-    createdAt: integer('created_at', { mode: 'timestamp' })
+    // beginning of LLM written Code, Model: gpt-5.3-codex
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
       .notNull()
-      .default(sql`CURRENT_TIMESTAMP`),
+      .default(sql`(unixepoch() * 1000)`),
+    // end of LLM written Code
   },
   (table) => [
     index('transactions_market_id_idx').on(table.marketId),

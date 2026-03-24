@@ -3,6 +3,9 @@ import type { MarketId } from '@/domain/values/exchange';
 import type { UserId } from '@/domain/values/user';
 import type { LiquidityPosition } from '@/domain/aggregates/liquidity';
 import { Cent, Units } from '@/domain/values/currencies';
+// beginning of LLM written Code, Model: gpt-5.3-codex
+import { requireValidDate } from '@/domain/values/timestamp';
+// end of LLM written Code
 import {
   InfraError,
   InfraNotFoundError,
@@ -35,10 +38,14 @@ function mapPositionToDomain(p: LiquidityPositionPrs): LiquidityPosition {
     lpTokens: p.lpTokens,
     depositBase: Units(p.depositBase),
     depositQuote: Cent.new(p.depositQuote),
-    lockedUntil: p.lockedUntil ? new Date(p.lockedUntil) : null,
+    // beginning of LLM written Code, Model: gpt-5.3-codex
+    lockedUntil: p.lockedUntil ? requireValidDate(p.lockedUntil) : null,
+    // end of LLM written Code
     status: p.status,
-    createdAt: new Date(p.createdAt),
-    updatedAt: new Date(p.updatedAt),
+    // beginning of LLM written Code, Model: gpt-5.3-codex
+    createdAt: requireValidDate(p.createdAt),
+    updatedAt: requireValidDate(p.updatedAt),
+    // end of LLM written Code
   };
 }
 
@@ -64,6 +71,26 @@ export const liquidityPositionReadRepo: LiquidityPositionReadRepoDomain<Db> = {
           : E.succeed(mapPositionToDomain(rows[0])),
       ),
     ),
+
+  // beginning of LLM written Code, Model: gpt-5.3-codex
+  getPositionsByUserId: (userId) =>
+    Fn.pipe(
+      E.serviceOptional(Db),
+      E.mapError(errMapper(InfraNotFoundError)),
+      E.flatMap((db) =>
+        E.tryPromise({
+          try: () =>
+            db
+              .select()
+              .from(liquidityPositions)
+              .where(eq(liquidityPositions.userId, userId))
+              .orderBy(sql`${liquidityPositions.createdAt} DESC`),
+          catch: errMapper(InfraError),
+        }),
+      ),
+      E.map((rows) => rows.map(mapPositionToDomain)),
+    ),
+  // end of LLM written Code
 
   getActivePositionsByMarketAndUser: (marketId: MarketId, userId: UserId) =>
     Fn.pipe(

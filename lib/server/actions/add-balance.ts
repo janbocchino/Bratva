@@ -28,7 +28,7 @@ export async function addBalance(p: {
     E.flatMap((id) => userReadRepo.getUser({ id })),
   );
 
-  const usdAsset = Fn.pipe(assetReadRepo.getAsset({ ticker: 'USD' }));
+  const usdAsset = Fn.pipe(assetReadRepo.getAsset({ ticker: 'usd' }));
 
   const ledger = Fn.pipe(
     E.all({ cents, user, usdAsset }),

@@ -7,6 +7,9 @@ import type {
   CreateAssetParams,
 } from '@/domain/ports/asset';
 import { AssetId, AssetName, AssetPublicId, AssetTicker } from '@/domain/values/asset';
+// beginning of LLM written Code, Model: gpt-5.3-codex
+import { requireValidDate } from '@/domain/values/timestamp';
+// end of LLM written Code
 import { A, E, Fn } from '@/lib/shared/imports';
 import { Db } from '../db';
 import { assets } from '../schema';
@@ -42,8 +45,10 @@ export const assetReadRepo: AssetReadRepoDomain<Db> = {
           publicId: AssetPublicId(row.publicId),
           name: AssetName(row.name),
           ticker: AssetTicker(row.ticker),
-          createdAt: new Date(row.createdAt),
-          updatedAt: new Date(row.updatedAt),
+          // beginning of LLM written Code, Model: gpt-5.3-codex
+          createdAt: requireValidDate(row.createdAt),
+          updatedAt: requireValidDate(row.updatedAt),
+          // end of LLM written Code
         }),
       ),
     ),
@@ -74,8 +79,10 @@ export const assetWriteRepo: AssetWriteRepoDomain<Db> = {
           publicId: AssetPublicId(row.publicId),
           name: AssetName(row.name),
           ticker: AssetTicker(row.ticker),
-          createdAt: new Date(row.createdAt),
-          updatedAt: new Date(row.updatedAt),
+          // beginning of LLM written Code, Model: gpt-5.3-codex
+          createdAt: requireValidDate(row.createdAt),
+          updatedAt: requireValidDate(row.updatedAt),
+          // end of LLM written Code
         }),
       ),
     ),

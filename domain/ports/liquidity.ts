@@ -33,6 +33,9 @@ export interface LiquidityPositionReadRepo<D> {
   getPosition(
     positionId: number,
   ): E.Effect<LiquidityPosition, LiquidityPositionNotFoundError | PortError, D>;
+  // beginning of LLM written Code, Model: gpt-5.3-codex
+  getPositionsByUserId(userId: UserId): E.Effect<LiquidityPosition[], PortError, D>;
+  // end of LLM written Code
   getActivePositionsByMarketAndUser(
     marketId: MarketId,
     userId: UserId,

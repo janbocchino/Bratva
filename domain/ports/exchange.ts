@@ -1,7 +1,6 @@
 // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
-import { type } from 'arktype';
 import type { E } from '@/lib/shared/imports';
-import type { Order, OrderStatus, Side } from '../aggregates/exchange';
+import type { Order, OrderStatus, Side, Transaction } from '../aggregates/exchange';
 import type { PortError } from '../errors';
 import type { MarketId } from '../values/exchange';
 import type { Cent, Units } from '../values/currencies';
@@ -17,9 +16,7 @@ export type CreateOrderParams = {
   quantity: number;
   stopLoss: Cent | Units;
   marketSequenceNumber: number;
-  // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
   nonce: Nonce;
-  // end of LLM written Code
   expiresAt: Date;
 };
 
@@ -56,4 +53,10 @@ export type CreateTransactionParams = {
 export interface TransactionWriteRepo<D> {
   createTransactions(o: CreateTransactionParams[]): E.Effect<void, PortError, D>;
 }
+
+// beginning of LLM written Code, Model: gpt-5.3-codex
+export interface TransactionReadRepo<D> {
+  listByUserId(userId: UserId): E.Effect<Transaction[], PortError, D>;
+}
+// end of LLM written Code
 // end of LLM written Code
