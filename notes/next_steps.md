@@ -37,5 +37,7 @@
 - build simple buttons on UI to test
 - do some for showing errors to user like "not enough balance blablabla"
 
-read actions:
-- show market
+`Questions to Jackie:`
+- What components should handle the refreshing evey second?
+
+

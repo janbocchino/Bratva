@@ -254,39 +254,60 @@ export default function ExploreMarketPage() {
             </div>
 
             <form onSubmit={handlePlaceTrade} className='grid max-w-2xl gap-2 sm:grid-cols-2'>
-              <input
-                className='rounded border border-black/20 px-3 py-2 text-sm'
-                type='text'
-                placeholder='Price'
-                value={tradePrice}
-                onChange={(event) => setTradePrice(event.target.value)}
-                disabled={snapshot === null || isTradeDisabled || isTradeSubmitting}
-              />
-              <input
-                className='rounded border border-black/20 px-3 py-2 text-sm'
-                type='number'
-                min={1}
-                step={1}
-                placeholder='Quantity'
-                value={tradeQuantity}
-                onChange={(event) => setTradeQuantity(event.target.value)}
-                disabled={snapshot === null || isTradeDisabled || isTradeSubmitting}
-              />
-              <input
-                className='rounded border border-black/20 px-3 py-2 text-sm'
-                type='text'
-                placeholder='Stop Loss'
-                value={tradeStopLoss}
-                onChange={(event) => setTradeStopLoss(event.target.value)}
-                disabled={snapshot === null || isTradeDisabled || isTradeSubmitting}
-              />
-              <input
-                className='rounded border border-black/20 px-3 py-2 text-sm'
-                type='datetime-local'
-                value={tradeExpiresAt}
-                onChange={(event) => setTradeExpiresAt(event.target.value)}
-                disabled={snapshot === null || isTradeDisabled || isTradeSubmitting}
-              />
+              <div className='flex flex-col gap-1'>
+                <label className='text-sm text-black/70' htmlFor='trade-price'>
+                  Price
+                </label>
+                <input
+                  id='trade-price'
+                  className='rounded border border-black/20 px-3 py-2 text-sm'
+                  type='text'
+                  value={tradePrice}
+                  onChange={(event) => setTradePrice(event.target.value)}
+                  disabled={snapshot === null || isTradeDisabled || isTradeSubmitting}
+                />
+              </div>
+              <div className='flex flex-col gap-1'>
+                <label className='text-sm text-black/70' htmlFor='trade-quantity'>
+                  Quantity
+                </label>
+                <input
+                  id='trade-quantity'
+                  className='rounded border border-black/20 px-3 py-2 text-sm'
+                  type='number'
+                  min={1}
+                  step={1}
+                  value={tradeQuantity}
+                  onChange={(event) => setTradeQuantity(event.target.value)}
+                  disabled={snapshot === null || isTradeDisabled || isTradeSubmitting}
+                />
+              </div>
+              <div className='flex flex-col gap-1'>
+                <label className='text-sm text-black/70' htmlFor='trade-stop-loss'>
+                  Stop Loss
+                </label>
+                <input
+                  id='trade-stop-loss'
+                  className='rounded border border-black/20 px-3 py-2 text-sm'
+                  type='text'
+                  value={tradeStopLoss}
+                  onChange={(event) => setTradeStopLoss(event.target.value)}
+                  disabled={snapshot === null || isTradeDisabled || isTradeSubmitting}
+                />
+              </div>
+              <div className='flex flex-col gap-1'>
+                <label className='text-sm text-black/70' htmlFor='trade-expires-at'>
+                  Expires At
+                </label>
+                <input
+                  id='trade-expires-at'
+                  className='rounded border border-black/20 px-3 py-2 text-sm'
+                  type='datetime-local'
+                  value={tradeExpiresAt}
+                  onChange={(event) => setTradeExpiresAt(event.target.value)}
+                  disabled={snapshot === null || isTradeDisabled || isTradeSubmitting}
+                />
+              </div>
               <div className='sm:col-span-2'>
                 <button
                   className='rounded border border-black/20 px-3 py-2 text-sm font-medium'
