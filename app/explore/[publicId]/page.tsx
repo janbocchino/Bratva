@@ -4,6 +4,8 @@ import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AccountSnapshot } from '@/lib/server/actions/get-account';
 import { getAccount } from '@/lib/server/actions/get-account';
+import type { MarketPriceSeriesPoint } from '@/lib/server/actions/get-market-price-series';
+import { getMarketPriceSeries } from '@/lib/server/actions/get-market-price-series';
 import type { ExploreMarketRow } from '@/lib/server/actions/list-markets';
 import { listMarkets } from '@/lib/server/actions/list-markets';
 import { placeOrder } from '@/lib/server/actions/place-order';
@@ -42,6 +44,7 @@ export default function ExploreMarketPage() {
 
   const [snapshot, setSnapshot] = useState<AccountSnapshot | null>(null);
   const [market, setMarket] = useState<ExploreMarketRow | null>(null);
+  const [priceSeries, setPriceSeries] = useState<readonly MarketPriceSeriesPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string>('');
 
@@ -65,10 +68,15 @@ export default function ExploreMarketPage() {
     setIsLoading(true);
     setLoadError('');
     try {
-      const [account, markets] = await Promise.all([getAccount(), listMarkets()]);
+      const [account, markets, series] = await Promise.all([
+        getAccount(),
+        listMarkets(),
+        getMarketPriceSeries({ marketPublicId: publicId, limit: 250 }),
+      ]);
       const selected = markets.find((item) => item.publicId === publicId) ?? null;
       setSnapshot(account);
       setMarket(selected);
+      setPriceSeries(series);
       if (selected === null) setLoadError('Market not found.');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load market.';
@@ -180,6 +188,90 @@ export default function ExploreMarketPage() {
           .
         </p>
       ) : null}
+
+      <section className='flex flex-col gap-3 rounded-lg border border-black/10 p-4'>
+        <h2 className='text-lg font-medium'>Price series</h2>
+        {priceSeries.length < 2 ? (
+          <p className='text-sm text-black/70'>
+            No trade price history yet for this market.
+          </p>
+        ) : (
+          (() => {
+            const points = priceSeries;
+            const prices = points
+              .map((p) => Number(p.priceCents))
+              .filter((n) => Number.isFinite(n));
+            const min = Math.min(...prices);
+            const max = Math.max(...prices);
+            const w = 640;
+            const h = 160;
+            const pad = 8;
+            const span = Math.max(1, max - min);
+            const step = (w - pad * 2) / Math.max(1, points.length - 1);
+            const svgPoints = points
+              .map((p, i) => {
+                const x = pad + i * step;
+                const y = pad + (1 - (Number(p.priceCents) - min) / span) * (h - pad * 2);
+                return `${x.toFixed(2)},${y.toFixed(2)}`;
+              })
+              .join(' ');
+
+            const latest = points[points.length - 1];
+            return (
+              <div className='flex flex-col gap-3'>
+                <div className='flex flex-wrap items-baseline gap-x-6 gap-y-1'>
+                  <p className='text-sm text-black/70'>
+                    Latest: <span className='font-medium text-black'>{latest.priceCents}</span>¢
+                  </p>
+                  <p className='text-sm text-black/70'>
+                    Range: <span className='font-medium text-black'>{min}</span>¢ –{' '}
+                    <span className='font-medium text-black'>{max}</span>¢
+                  </p>
+                  <p className='text-xs text-black/50'>
+                    {new Date(latest.createdAtIso).toLocaleString()}
+                  </p>
+                </div>
+                <div className='overflow-x-auto'>
+                  <svg
+                    width={w}
+                    height={h}
+                    viewBox={`0 0 ${w} ${h}`}
+                    className='block min-w-[640px] rounded border border-black/10 bg-white'
+                    role='img'
+                    aria-label='Price series sparkline'
+                  >
+                    <polyline
+                      points={svgPoints}
+                      fill='none'
+                      stroke='black'
+                      strokeOpacity={0.9}
+                      strokeWidth={2}
+                      strokeLinejoin='round'
+                      strokeLinecap='round'
+                    />
+                  </svg>
+                </div>
+                <div className='grid gap-2 sm:grid-cols-2'>
+                  {points
+                    .slice(-10)
+                    .reverse()
+                    .map((p) => (
+                      <div
+                        key={p.createdAtIso}
+                        className='flex items-baseline justify-between rounded border border-black/10 px-3 py-2'
+                      >
+                        <span className='text-sm font-medium'>{p.priceCents}¢</span>
+                        <span className='text-xs text-black/60'>
+                          {new Date(p.createdAtIso).toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            );
+          })()
+        )}
+      </section>
 
       <section className='flex flex-col gap-3 rounded-lg border border-black/10 p-4'>
         <h2 className='text-lg font-medium'>Actions</h2>

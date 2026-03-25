@@ -53,7 +53,6 @@ CREATE TABLE `markets` (
 	`sequence_number` integer DEFAULT 0 NOT NULL,
 	`amm_reserve_base` blob NOT NULL,
 	`amm_reserve_quote` blob NOT NULL,
-	`model_price` blob NOT NULL,
 	`total_lp_tokens` blob DEFAULT 0 NOT NULL,
 	`status` text DEFAULT 'closed' NOT NULL,
 	`was_previously_active` integer DEFAULT false NOT NULL,
@@ -66,6 +65,16 @@ CREATE TABLE `markets` (
 CREATE UNIQUE INDEX `markets_public_id_unique` ON `markets` (`public_id`);--> statement-breakpoint
 CREATE INDEX `markets_public_id_idx` ON `markets` (`public_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `markets_base_quote_unique` ON `markets` (`base_asset_id`,`quote_asset_id`);--> statement-breakpoint
+CREATE TABLE `model_price` (
+	`id` integer PRIMARY KEY NOT NULL,
+	`market_id` integer NOT NULL,
+	`price` blob NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`market_id`) REFERENCES `markets`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE INDEX `model_price_market_id_idx` ON `model_price` (`market_id`);--> statement-breakpoint
+CREATE INDEX `model_price_created_at_idx` ON `model_price` (`created_at`);--> statement-breakpoint
 CREATE TABLE `orders` (
 	`id` integer PRIMARY KEY NOT NULL,
 	`public_id` text NOT NULL,

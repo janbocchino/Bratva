@@ -87,7 +87,7 @@ export default function ExplorePage() {
           <thead className='border-b border-black/10 bg-black/5'>
             <tr>
               <th className='px-4 py-3 font-medium'>Market</th>
-              <th className='px-4 py-3 font-medium'>Model Price</th>
+              <th className='px-4 py-3 font-medium'>Display Price</th>
               <th className='px-4 py-3 font-medium'>Status</th>
             </tr>
           </thead>
@@ -104,7 +104,7 @@ export default function ExplorePage() {
                   </a>
                 </td>
                 <td className='px-4 py-3 font-mono'>
-                  {formatUsdFromCents(market.modelPriceCents)}
+                  {formatUsdFromCents(market.displayPriceCents)}
                 </td>
                 <td className='px-4 py-3'>
                   <span className='rounded border border-black/15 px-2 py-1 text-xs uppercase tracking-wide'>

@@ -53,7 +53,7 @@ export const accountHistoryReadRepo: AccountHistoryReadRepoDomain<Db> = {
           ledger: ledger.transactions,
           trades,
           liquidityPositions,
-          markets,
+          markets: [...markets],
           usdAssetId,
         }),
       ),

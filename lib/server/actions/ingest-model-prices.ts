@@ -1,6 +1,14 @@
 // beginning of LLM written Code, Model: gpt-5.3-codex
 'use server';
 
+// beginning of LLM written Code, Model: gpt-5.3-codex
+/*
+Decision questionnaire
+- Where should model prices be persisted?
+  - [x] Append-only `model_price` table; no writes to `markets`.
+  - [ ] Mutable latest snapshot on `markets`.
+*/
+// end of LLM written Code
 import { AssetId } from '@/domain/values/asset';
 import { Cent } from '@/domain/values/currencies';
 import { Db, db } from '../db';
@@ -9,7 +17,7 @@ import { assetReadRepo } from '../ports/asset';
 import { fetchModelPricesFromFastApi } from '../ports/model-price-feed';
 import { marketWriteRepo } from '../ports/market';
 import { E, Fn } from '@/lib/shared/imports';
-import type { UpdateMarketModelPriceParams } from '@/domain/ports/market';
+import type { InsertModelPriceParams } from '@/domain/ports/market';
 
 const resolveAssetIdByTicker = async (ticker: string): Promise<number> =>
   await Fn.pipe(assetReadRepo.getAsset({ ticker }), E.provideService(Db, db), E.runPromise).then(
@@ -27,25 +35,27 @@ export async function ingestModelPricesBatch(rawPayload: unknown): Promise<{
   }
 
   const latestRows = toLatestRowByTicker(rows);
-  const updates: UpdateMarketModelPriceParams[] = [];
+  const inserts: InsertModelPriceParams[] = [];
+  const createdAt = new Date();
 
   for (const row of latestRows.values()) {
     const assetId = await resolveAssetIdByTicker(row.assetTicker);
-    updates.push({
+    inserts.push({
       baseAssetId: AssetId(assetId),
-      modelPrice: Cent.new(BigInt(row.priceCents)),
+      price: Cent.new(BigInt(row.priceCents)),
+      createdAt,
     });
   }
 
   const updatedMarkets = await Fn.pipe(
-    marketWriteRepo.updateMarketModelPrices(updates),
+    marketWriteRepo.insertModelPrices(inserts),
     E.provideService(Db, db),
     E.runPromise,
   );
 
   return {
     receivedRows: rows.length,
-    appliedAssets: updates.length,
+    appliedAssets: inserts.length,
     updatedMarkets,
   };
 }

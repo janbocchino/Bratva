@@ -149,7 +149,10 @@ export const marketMapper: MapperPort<Market, MarketPrs> = {
       reserveBase: Units(p.ammReserveBase),
       reserveQuote: Cent.new(p.ammReserveQuote),
     },
-    modelPrice: Cent.new(p.modelPrice),
+    // beginning of LLM written Code, Model: gpt-5.3-codex
+    // `markets` no longer stores model price; read paths must hydrate this separately.
+    modelPrice: Cent.new(0n),
+    // end of LLM written Code
     totalLpTokens: p.totalLpTokens,
     status: p.status,
     // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
@@ -168,7 +171,6 @@ export const marketMapper: MapperPort<Market, MarketPrs> = {
     sequenceNumber: d.sequenceNumber,
     ammReserveBase: d.ammPool.reserveBase,
     ammReserveQuote: d.ammPool.reserveQuote,
-    modelPrice: d.modelPrice,
     totalLpTokens: d.totalLpTokens,
     status: d.status,
     // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking

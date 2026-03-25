@@ -2,6 +2,14 @@ import { sql } from 'drizzle-orm';
 import { blob, index, integer, sqliteTable, text, uniqueIndex, sqliteView } from 'drizzle-orm/sqlite-core';
 import { v4 as uuidv4 } from 'uuid';
 
+// beginning of LLM written Code, Model: gpt-5.3-codex
+/*
+Decision questionnaire
+- Where should model price history live?
+  - [x] Dedicated append-only `model_price` table with FK to `markets`.
+  - [ ] Mutable `markets.model_price` column.
+*/
+// end of LLM written Code
 export const timestamps = {
   // beginning of LLM written Code, Model: gpt-5.3-codex
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(unixepoch() * 1000)`),
@@ -182,7 +190,6 @@ export const markets = sqliteTable(
     sequenceNumber: integer('sequence_number').notNull().default(0),
     ammReserveBase: blob('amm_reserve_base', { mode: 'bigint' }).notNull(),
     ammReserveQuote: blob('amm_reserve_quote', { mode: 'bigint' }).notNull(),
-    modelPrice: blob('model_price', { mode: 'bigint' }).notNull(),
     totalLpTokens: blob('total_lp_tokens', { mode: 'bigint' }).notNull().default(sql`0`),
     status: text('status', {
       // beginning of LLM written Code, Model: Claude
@@ -208,6 +215,29 @@ export const markets = sqliteTable(
 
 export type MarketPrs = typeof markets.$inferSelect;
 export type NewMarketPrs = typeof markets.$inferInsert;
+
+// beginning of LLM written Code, Model: gpt-5.3-codex
+export const modelPrice = sqliteTable(
+  'model_price',
+  {
+    id: integer('id').primaryKey(),
+    marketId: integer('market_id')
+      .notNull()
+      .references(() => markets.id),
+    price: blob('price', { mode: 'bigint' }).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (table) => [
+    index('model_price_market_id_idx').on(table.marketId),
+    index('model_price_created_at_idx').on(table.createdAt),
+  ],
+);
+
+export type ModelPricePrs = typeof modelPrice.$inferSelect;
+export type NewModelPricePrs = typeof modelPrice.$inferInsert;
+// end of LLM written Code
 
 export const liquidityPositions = sqliteTable(
   'liquidity_positions',

@@ -4,9 +4,17 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { assetReadRepo, assetWriteRepo } from '../lib/server/ports/asset';
 import { Db, db } from '../lib/server/db';
-import { markets } from '../lib/server/schema';
+import { markets, modelPrice } from '../lib/server/schema';
 import { E, Fn } from '../lib/shared/imports';
 
+// beginning of LLM written Code, Model: gpt-5.3-codex
+/*
+Decision questionnaire
+- Should newly created USD markets receive an initial model-price row?
+  - [x] Yes, insert a `model_price` row at `0` to keep read paths consistent.
+  - [ ] No, require external ingestion before market reads.
+*/
+// end of LLM written Code
 const AssetJsonFile = type({
   assetId: 'string.trim |> string.lower',
   name: 'string.trim',
@@ -44,10 +52,12 @@ async function parseAssetFile(filePath: string): Promise<AssetJsonFile> {
 }
 
 async function resolveUsdAssetId(): Promise<number> {
-  // beginning of LLM written Code, Model: gpt-5.3-codex-low
-  const usd = await Fn.pipe(assetReadRepo.getAsset({ ticker: 'usd' }), E.provideService(Db, db), E.either, E.runPromise);
-  if (usd._tag === 'Right') return usd.right.id;
-  throw new Error('USD asset missing. Create asset with ticker `usd` before running import.');
+  // beginning of LLM written Code, Model: GPT-5.2
+  const usd = await ensureAsset({ assetId: 'usd', name: 'US Dollar' });
+  if (usd.kind === 'created') {
+    console.log('CREATED: usd (US Dollar) (bootstrap quote asset)');
+  }
+  return usd.assetId;
   // end of LLM written Code
 }
 
@@ -60,7 +70,6 @@ async function createAssetUsdMarket(baseAssetId: number, usdAssetId: number): Pr
       sequenceNumber: 0,
       ammReserveBase: 0n,
       ammReserveQuote: 0n,
-      modelPrice: 0n,
       totalLpTokens: 0n,
       status: 'closed',
       wasPreviouslyActive: false,
@@ -69,7 +78,14 @@ async function createAssetUsdMarket(baseAssetId: number, usdAssetId: number): Pr
       target: [markets.baseAssetId, markets.quoteAssetId],
     })
     .returning({ id: markets.id });
-  return inserted.length > 0;
+  if (inserted.length === 0) return false;
+
+  await db.insert(modelPrice).values({
+    marketId: inserted[0].id,
+    price: 0n,
+    createdAt: new Date(),
+  });
+  return true;
 }
 
 async function ensureAsset(

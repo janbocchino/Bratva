@@ -1,5 +1,13 @@
 'use server';
 
+// beginning of LLM written Code, Model: gpt-5.3-codex
+/*
+Decision questionnaire
+- Should LP quote math depend on `price_series`?
+  - [x] No, LP quote remains reserve/model-status derived through `selectMarketDisplayPrice`.
+  - [ ] Yes, derive LP quote from latest `price_series`.
+*/
+// end of LLM written Code
 import { E, Fn } from '@/lib/shared/imports';
 import type { UserLedger } from '@/domain/aggregates/ledger';
 import { debitUserBalance } from '@/domain/workflows/ledger';
@@ -14,6 +22,7 @@ import { ledgerReadRepo, ledgerWriteRepo } from '../ports/ledger';
 import { userReadRepo } from '../ports/user';
 import { marketReadRepo } from '../ports/market';
 import { liquidityMarketWriteRepo, liquidityPositionWriteRepo } from '../ports/liquidity';
+import { priceSeriesWriteRepo } from '../ports/price-series';
 
 export async function provideLiquidityAction(p: {
   userId: number;
@@ -130,6 +139,24 @@ export async function provideLiquidityAction(p: {
                     // end of LLM written Code
                   }),
                 ),
+                E.flatMap(() => {
+                  // beginning of LLM written Code, Model: gpt-5.3-codex
+                  const didMoveFromClosedToTradable =
+                    market.status === 'closed' &&
+                    (nextMarket.status === 'pending' || nextMarket.status === 'active');
+                  if (!didMoveFromClosedToTradable) return E.void;
+                  return Fn.pipe(
+                    priceSeriesWriteRepo.insertPriceSeriesBatch([
+                      {
+                        assetId: market.baseAssetId,
+                        price: market.modelPrice,
+                        createdAt: new Date(),
+                      },
+                    ]),
+                    E.asVoid,
+                  );
+                  // end of LLM written Code
+                }),
                 E.flatMap(() => {
                   // beginning of LLM written Code, Model: gpt-5.3-codex
                   const didActivate = market.status !== 'active' && nextMarket.status === 'active';
