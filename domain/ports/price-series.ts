@@ -33,6 +33,10 @@ export type CreatePriceSeriesBatchParams = readonly CreatePriceSeriesParams[];
 export interface PriceSeriesReadRepo<D> {
   getPriceSeries(o: GetPriceSeriesParams): E.Effect<PriceSeries, PortError, D>;
   getPriceSeriesByAssetId(assetId: AssetId): E.Effect<PriceSeries[], PortError, D>;
+  // beginning of LLM written Code, Model: gpt-5.3-codex
+  // V1 semantics: latest executed trade price in USD cents for USD-quoted markets.
+  getLatestPriceByAssetId(assetId: AssetId): E.Effect<PriceSeries | null, PortError, D>;
+  // end of LLM written Code
 }
 // beginning of LLM written Code, Model: gpt-5.3-codex
 export interface PriceSeriesWriteRepo<D> {

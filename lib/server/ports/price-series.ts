@@ -1,4 +1,4 @@
-import { asc, eq } from 'drizzle-orm';
+import { asc, desc, eq } from 'drizzle-orm';
 import {
   InfraError,
   InfraNotFoundError,
@@ -54,6 +54,30 @@ export const priceSeriesReadRepo: PriceSeriesReadRepoDomain<Db> = {
       ),
       E.map((rows) => rows.map(priceSeriesMapper.toDomain)),
     ),
+  // beginning of LLM written Code, Model: gpt-5.3-codex
+  getLatestPriceByAssetId: (assetId) =>
+    Fn.pipe(
+      E.serviceOptional(Db),
+      E.mapError(errMapper(InfraNotFoundError)),
+      E.flatMap((db) =>
+        E.tryPromise({
+          try: () =>
+            db
+              .select()
+              .from(priceSeries)
+              .where(eq(priceSeries.assetId, assetId))
+              .orderBy(desc(priceSeries.createdAt))
+              .limit(1),
+          catch: errMapper(InfraError),
+        }),
+      ),
+      E.map((rows) => {
+        const row = A.head(rows);
+        if (row._tag === 'None') return null;
+        return priceSeriesMapper.toDomain(row.value);
+      }),
+    ),
+  // end of LLM written Code
 };
 // beginning of LLM written Code, Model: gpt-5.3-codex
 export const priceSeriesWriteRepo: PriceSeriesWriteRepoDomain<Db> = {

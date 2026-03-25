@@ -12,13 +12,16 @@ import {
   buildAmmOrder,
   filterNonceEligible,
 } from '@/domain/workflows/exchange';
+import { mapTransactionsToUsdPriceSeriesPoints } from '@/domain/workflows/price-series';
 import { Cent, Units } from '@/domain/values/currencies';
 import { type } from 'arktype';
 import { Db, db } from '../db';
+import { assetReadRepo } from '../ports/asset';
 import { ledgerReadRepo, ledgerWriteRepo } from '../ports/ledger';
 import { userReadRepo, userWriteRepo } from '../ports/user';
 import { marketReadRepo, marketWriteRepo } from '../ports/market';
 import { orderReadRepo, orderWriteRepo, transactionWriteRepo } from '../ports/exchange';
+import { priceSeriesWriteRepo } from '../ports/price-series';
 import type { CreateTransactionParams, UpdateOrderFillsParams } from '@/domain/ports/exchange';
 
 const parsePrice = type('string.numeric.parse').pipe(Math.trunc).pipe(BigInt);
@@ -76,10 +79,12 @@ export async function placeOrder(p: {
     ),
   );
 
+  const usdAsset = assetReadRepo.getAsset({ ticker: 'usd' });
+
   const pipeline = Fn.pipe(
-    E.all({ price, quantity, stopLoss, expiresAt, market, user, currentLedger }),
+    E.all({ price, quantity, stopLoss, expiresAt, market, user, currentLedger, usdAsset }),
     E.flatMap((ctx) => {
-      const { price, quantity, stopLoss, expiresAt, market, user, currentLedger } = ctx;
+      const { price, quantity, stopLoss, expiresAt, market, user, currentLedger, usdAsset } = ctx;
 
       return Fn.pipe(
         // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
@@ -265,13 +270,32 @@ export async function placeOrder(p: {
                 filled: incomingDomainOrder.filled,
                 status: incomingStatus,
               };
+              const executedAt = new Date();
+              const tradePriceSeriesRows = mapTransactionsToUsdPriceSeriesPoints({
+                market,
+                usdAssetId: usdAsset.id,
+                transactions: txnParams,
+                executedAt,
+              });
+              const persistTransactionsAndPriceSeries =
+                txnParams.length > 0
+                  ? Fn.pipe(
+                      transactionWriteRepo.createTransactions(txnParams),
+                      E.flatMap(() =>
+                        tradePriceSeriesRows.length > 0
+                          ? Fn.pipe(
+                              priceSeriesWriteRepo.insertPriceSeriesBatch(tradePriceSeriesRows),
+                              E.asVoid,
+                            )
+                          : E.void,
+                      ),
+                    )
+                  : E.void;
 
               return Fn.pipe(
                 E.all([
                   orderWriteRepo.updateOrderFills([incomingFillUpdate, ...orderFillUpdates]),
-                  txnParams.length > 0
-                    ? transactionWriteRepo.createTransactions(txnParams)
-                    : E.void,
+                  persistTransactionsAndPriceSeries,
                   E.all(settlementEffects),
                   ammFilled > 0
                     ? (() => {

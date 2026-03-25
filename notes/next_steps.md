@@ -16,12 +16,16 @@
 
 `overall`
 - cleanup/testing
+- Fetch live data
 - take out use server/client
 - pull USD value from coingecko
 - user accounting 
 - no trading if user is LP for market
 - Fractional Base Units
+    - multiply by some number, sota in for example ethereum
+    - Explain how bigints are used in finance to not use floating point
 - show to which assets liquidity is provided
+- news fetching for model
 
 
 
@@ -39,5 +43,7 @@
 
 `Questions to Jackie:`
 - What components should handle the refreshing evey second?
+
+--> reacted programming without client sided refresh
 
 
