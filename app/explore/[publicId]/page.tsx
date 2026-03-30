@@ -191,9 +191,10 @@ export default function ExploreMarketPage() {
 
       <section className='flex flex-col gap-3 rounded-lg border border-black/10 p-4'>
         <h2 className='text-lg font-medium'>Price series</h2>
-        {priceSeries.length < 2 ? (
+        {/* beginning of LLM written Code, Model: GPT-5.2-Codex */}
+        {priceSeries.length === 0 ? (
           <p className='text-sm text-black/70'>
-            No trade price history yet for this market.
+            No price history yet for this market.
           </p>
         ) : (
           (() => {
@@ -208,13 +209,20 @@ export default function ExploreMarketPage() {
             const pad = 8;
             const span = Math.max(1, max - min);
             const step = (w - pad * 2) / Math.max(1, points.length - 1);
-            const svgPoints = points
-              .map((p, i) => {
-                const x = pad + i * step;
-                const y = pad + (1 - (Number(p.priceCents) - min) / span) * (h - pad * 2);
-                return `${x.toFixed(2)},${y.toFixed(2)}`;
-              })
-              .join(' ');
+            const isSingle = points.length === 1;
+            const svgPoints = isSingle
+              ? ''
+              : points
+                  .map((p, i) => {
+                    const x = pad + i * step;
+                    const y = pad + (1 - (Number(p.priceCents) - min) / span) * (h - pad * 2);
+                    return `${x.toFixed(2)},${y.toFixed(2)}`;
+                  })
+                  .join(' ');
+            const singleX = w / 2;
+            const singleY =
+              pad +
+              (1 - (Number(points[0].priceCents) - min) / span) * (h - pad * 2);
 
             const latest = points[points.length - 1];
             return (
@@ -240,15 +248,25 @@ export default function ExploreMarketPage() {
                     role='img'
                     aria-label='Price series sparkline'
                   >
-                    <polyline
-                      points={svgPoints}
-                      fill='none'
-                      stroke='black'
-                      strokeOpacity={0.9}
-                      strokeWidth={2}
-                      strokeLinejoin='round'
-                      strokeLinecap='round'
-                    />
+                    {isSingle ? (
+                      <circle
+                        cx={singleX}
+                        cy={singleY}
+                        r={4}
+                        fill='black'
+                        fillOpacity={0.9}
+                      />
+                    ) : (
+                      <polyline
+                        points={svgPoints}
+                        fill='none'
+                        stroke='black'
+                        strokeOpacity={0.9}
+                        strokeWidth={2}
+                        strokeLinejoin='round'
+                        strokeLinecap='round'
+                      />
+                    )}
                   </svg>
                 </div>
                 <div className='grid gap-2 sm:grid-cols-2'>
@@ -271,6 +289,7 @@ export default function ExploreMarketPage() {
             );
           })()
         )}
+        {/* end of LLM written Code */}
       </section>
 
       <section className='flex flex-col gap-3 rounded-lg border border-black/10 p-4'>
