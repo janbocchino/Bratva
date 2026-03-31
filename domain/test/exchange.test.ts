@@ -1,6 +1,11 @@
 // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 /// <reference types="jest" />
-import { processOrder, buildAmmOrder, filterNonceEligible } from '../workflows/exchange';
+import {
+  processOrder,
+  processOrderDetailed,
+  buildAmmOrder,
+  filterNonceEligible,
+} from '../workflows/exchange';
 import { AmmPool } from '../aggregates/market';
 import type { Market, AmmPool as AmmPoolType } from '../aggregates/market';
 import type { Order, OrderBook } from '../aggregates/exchange';
@@ -1340,6 +1345,74 @@ describe('filterNonceEligible', () => {
     expect(result.bid[0].filled).toBe(3);
     expect(result.ask).toHaveLength(1);
     expect(result.ask[0].publicId).toBe(eligibleAsk.publicId);
+  });
+});
+
+describe('processOrderDetailed', () => {
+  beforeEach(() => {
+    counter = 0;
+  });
+
+  it('returns explicit AMM match details for AMM-only fills', () => {
+    const bid = mkOrder({
+      publicId: OrderPublicId('bid-detailed-1'),
+      kind: 'bid',
+      price: Cent.new(100n),
+      quantity: 10,
+    });
+    const ammOrder = mkOrder({
+      publicId: OrderPublicId('__amm__'),
+      kind: 'ask',
+      price: Cent.new(90n),
+      quantity: 6,
+    });
+
+    const result = processOrderDetailed({ order: bid, orderBook: emptyBook, ammOrder });
+
+    expect(result.taker.filled).toBe(6);
+    expect(result.orderBook.bid[0].filled).toBe(6);
+    expect(result.matches).toHaveLength(1);
+    expect(result.matches[0]).toMatchObject({
+      source: 'amm',
+      matchedQuantity: 6,
+    });
+  });
+
+  it('returns explicit book match quantities for partially filled makers', () => {
+    const bid = mkOrder({
+      publicId: OrderPublicId('bid-detailed-2'),
+      kind: 'bid',
+      price: Cent.new(100n),
+      quantity: 10,
+    });
+    const ask = mkOrder({
+      publicId: OrderPublicId('ask-detailed-1'),
+      kind: 'ask',
+      price: Cent.new(80n),
+      quantity: 10,
+      filled: 2,
+    });
+    const ammOrder = mkOrder({
+      publicId: OrderPublicId('__amm__'),
+      kind: 'ask',
+      price: Cent.new(200n),
+      quantity: 100,
+    });
+
+    const result = processOrderDetailed({
+      order: bid,
+      orderBook: { bid: [], ask: [ask] },
+      ammOrder,
+    });
+
+    expect(result.taker.filled).toBe(8);
+    expect(result.matches).toHaveLength(1);
+    expect(result.matches[0]).toMatchObject({
+      source: 'book',
+      matchedQuantity: 8,
+    });
+    expect(result.matches[0]?.before.filled).toBe(2);
+    expect(result.matches[0]?.after.filled).toBe(0);
   });
 });
 // end of LLM written Code

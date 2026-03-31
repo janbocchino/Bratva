@@ -10,6 +10,15 @@ import { OrderId, OrderPublicId, MarketSequenceNumber } from '../values/exchange
 import { Nonce, UserId } from '../values/user';
 import { MarketNotActiveError, OrderValidationError } from '../errors';
 
+// beginning of LLM written Code, Model: GPT-5.4
+/*
+Decision questionnaire
+- Where should match settlement metadata come from?
+  - [x] Return explicit match summaries from the matching workflow so orchestration does not diff mutated books.
+  - [ ] Infer fills later from persisted order-book state.
+*/
+// end of LLM written Code
+
 const priceOrder = (kind: Side) =>
   kind === 'bid' ? OrderEffect.reverse(OrderEffect.bigint) : OrderEffect.bigint;
 
@@ -20,11 +29,25 @@ const orderOrdered = (kind: Side) =>
     quantity: OrderEffect.reverse(OrderEffect.number),
   });
 
-export function processOrder(o: {
+// beginning of LLM written Code, Model: GPT-5.4
+export type ProcessOrderMatch = {
+  before: Order;
+  after: Order;
+  matchedQuantity: number;
+  source: 'book' | 'amm';
+};
+
+export type ProcessOrderDetailedResult = {
+  orderBook: OrderBook;
+  taker: Order;
+  matches: readonly ProcessOrderMatch[];
+};
+
+export function processOrderDetailed(o: {
   order: Order;
   orderBook: OrderBook;
   ammOrder: Order;
-}): OrderBook {
+}): ProcessOrderDetailedResult {
   /* Assumptions:
     1. User has the privilege to call this function.
     2. Market has liquidity.
@@ -47,43 +70,62 @@ export function processOrder(o: {
 
   if (orderSubset.length === 0) {
     // No matching order: write the incoming order to the correct side of the book and return the new book
-    return {
+    const nextOrderBook = {
       ...orderBook,
       [order.kind]: [...orderBook[order.kind], order],
     };
+    return {
+      orderBook: nextOrderBook,
+      taker: order,
+      matches: [],
+    };
   }
 
-  // beginning of LLM written Code, Model: Gemini
-  const [newCounterOrderArray, orderBeingProcessed] = Fn.pipe(
+  const [newCounterOrderArray, orderBeingProcessed, matches] = Fn.pipe(
     orderSubset,
-    A.reduce<[Order[], Order], Order>([[], { ...order }], (acc, currentOrder) => {
-      const [oA, oB] = acc;
+    A.reduce<[Order[], Order, ProcessOrderMatch[]], Order>(
+      [[], { ...order }, []],
+      (acc, currentOrder) => {
+        const [oA, oB, priorMatches] = acc;
 
-      if (!oA) {
-        return [[{ ...currentOrder }], oB];
-      }
+        const remaining = order.quantity - oB.filled;
+        if (remaining <= 0) {
+          return [
+            [
+              ...oA,
+              {
+                ...currentOrder,
+                filled: currentOrder.quantity - currentOrder.filled,
+              },
+            ],
+            oB,
+            priorMatches,
+          ];
+        }
 
-      const fulfilledSoFar =
-        oA.length === 0 ? 0 : oA.map((o) => o.quantity - o.filled).reduce((a, b) => a + b);
-      const remaining = order.quantity - fulfilledSoFar;
+        const currentOrderSatisfies = Math.min(
+          currentOrder.quantity - currentOrder.filled,
+          remaining,
+        );
+        const updatedCounterOrder: Order = {
+          ...currentOrder,
+          filled: currentOrder.quantity - currentOrder.filled - currentOrderSatisfies,
+        };
+        const updatedIncoming: Order = {
+          ...oB,
+          filled: oB.filled + currentOrderSatisfies,
+        };
+        const match: ProcessOrderMatch = {
+          before: currentOrder,
+          after: updatedCounterOrder,
+          matchedQuantity: currentOrderSatisfies,
+          source: currentOrder.publicId === ammOrder.publicId ? 'amm' : 'book',
+        };
 
-      const currentOrderSatisfies = Math.min(
-        currentOrder.quantity - currentOrder.filled,
-        remaining,
-      );
-      const updatedCounterOrder: Order = {
-        ...currentOrder,
-        filled: currentOrder.quantity - currentOrder.filled - currentOrderSatisfies,
-      };
-      const updatedIncoming: Order = {
-        ...oB,
-        filled: oB.filled + currentOrderSatisfies,
-      };
-
-      return [[...oA, updatedCounterOrder], updatedIncoming];
-    }),
+        return [[...oA, updatedCounterOrder], updatedIncoming, [...priorMatches, match]];
+      },
+    ),
   );
-  // end of LLM written Code
 
   const newCounterOrderBook = Fn.pipe(
     orderBook,
@@ -92,10 +134,23 @@ export function processOrder(o: {
   );
 
   return {
-    [counterOrderKind]: newCounterOrderBook,
-    [order.kind]: [...orderBook[order.kind], orderBeingProcessed],
-  } as OrderBook;
+    orderBook: {
+      [counterOrderKind]: newCounterOrderBook,
+      [order.kind]: [...orderBook[order.kind], orderBeingProcessed],
+    } as OrderBook,
+    taker: orderBeingProcessed,
+    matches,
+  };
 }
+
+export function processOrder(o: {
+  order: Order;
+  orderBook: OrderBook;
+  ammOrder: Order;
+}): OrderBook {
+  return processOrderDetailed(o).orderBook;
+}
+// end of LLM written Code
 
 // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 

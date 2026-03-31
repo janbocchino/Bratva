@@ -7,7 +7,7 @@ import type { Order, OrderStatus } from '@/domain/aggregates/exchange';
 import type { UserLedger } from '@/domain/aggregates/ledger';
 import { debitUserBalance, creditUserBalance } from '@/domain/workflows/ledger';
 import {
-  processOrder,
+  processOrderDetailed,
   validateOrderParams,
   buildAmmOrder,
   filterNonceEligible,
@@ -15,6 +15,11 @@ import {
 import { mapTransactionsToUsdPriceSeriesPoints } from '@/domain/workflows/price-series';
 import { Cent, Units } from '@/domain/values/currencies';
 import { type } from 'arktype';
+import {
+  applyAmmFillToPool,
+  parseOptionalExpiresAt,
+  parseOptionalStopLoss,
+} from './place-order.shared';
 import { Db, db } from '../db';
 import { assetReadRepo } from '../ports/asset';
 import { ledgerReadRepo, ledgerWriteRepo } from '../ports/ledger';
@@ -23,6 +28,16 @@ import { marketReadRepo, marketWriteRepo } from '../ports/market';
 import { orderReadRepo, orderWriteRepo, transactionWriteRepo } from '../ports/exchange';
 import { priceSeriesWriteRepo } from '../ports/price-series';
 import type { CreateTransactionParams, UpdateOrderFillsParams } from '@/domain/ports/exchange';
+
+/*
+Decision questionnaire
+- How should settlement learn about matches?
+  - [x] Consume explicit match summaries from the matcher and persist cumulative fills.
+  - [ ] Diff mutated order books after the fact.
+- How should optional trade inputs be persisted?
+  - [x] Normalize blank `stopLoss` and `expiresAt` in the action so storage shape stays unchanged.
+  - [ ] Make DB/domain fields nullable.
+*/
 
 const parsePrice = type('string.numeric.parse').pipe(Math.trunc).pipe(BigInt);
 const parseQuantity = type('number.integer > 0');
@@ -33,8 +48,8 @@ export async function placeOrder(p: {
   side: 'bid' | 'ask';
   price: string;
   quantity: number;
-  stopLoss: string;
-  expiresAt: string;
+  stopLoss?: string;
+  expiresAt?: string;
 }): Promise<Order> {
   const price = E.try({
     try: () => Cent.new(parsePrice.assert(p.price)),
@@ -47,12 +62,12 @@ export async function placeOrder(p: {
   });
 
   const stopLoss = E.try({
-    try: () => Cent.new(parsePrice.assert(p.stopLoss)),
+    try: () => parseOptionalStopLoss(p.stopLoss),
     catch: () => new Error('Invalid stopLoss'),
   });
 
   const expiresAt = E.try({
-    try: () => new Date(p.expiresAt),
+    try: () => parseOptionalExpiresAt(p.expiresAt),
     catch: () => new Error('Invalid expiresAt'),
   });
 
@@ -142,31 +157,24 @@ export async function placeOrder(p: {
                 ask: orderBook.ask.map((o) => ({ ...o })),
               };
 
-              const newBook = processOrder({
+              const processedOrder = processOrderDetailed({
                 order: incomingDomainOrder,
                 orderBook: snapshotBook,
                 ammOrder,
               });
-
-              const ammFilled = ammOrder.filled;
-
-              // Determine fills on counter orders by comparing before/after
-              const counterBefore = p.side === 'bid' ? orderBook.ask : orderBook.bid;
-              const counterAfter = p.side === 'bid' ? newBook.ask : newBook.bid;
+              const settledIncomingOrder = processedOrder.taker;
+              const ammFilled =
+                processedOrder.matches.find((match) => match.source === 'amm')?.matchedQuantity ?? 0;
 
               const orderFillUpdates: UpdateOrderFillsParams[] = [];
               const txnParams: CreateTransactionParams[] = [];
               const settlementEffects: E.Effect<void, any, Db>[] = [];
 
-              for (const after of counterAfter) {
-                const before = counterBefore.find((b) => b.publicId === after.publicId);
-                if (!before) continue;
+              for (const match of processedOrder.matches.filter((entry) => entry.source === 'book')) {
+                if (match.matchedQuantity <= 0) continue;
 
-                const filledDelta = before.filled - after.filled;
-                if (filledDelta <= 0) continue;
-
-                const newFilled = before.quantity - (after.quantity - after.filled + filledDelta);
-                const totalFilled = before.filled + filledDelta;
+                const before = match.before;
+                const totalFilled = before.filled + match.matchedQuantity;
                 const newStatus: OrderStatus =
                   totalFilled >= before.quantity
                     ? 'filled'
@@ -175,19 +183,19 @@ export async function placeOrder(p: {
                       : before.status;
 
                 orderFillUpdates.push({
-                  orderId: after.id,
-                  filled: after.filled,
+                  orderId: before.id,
+                  filled: totalFilled,
                   status: newStatus,
                 });
 
                 txnParams.push({
                   marketId: market.id,
-                  makerOrderId: after.id,
+                  makerOrderId: before.id,
                   takerOrderId: createdOrder.id,
-                  makerUserId: after.userId,
+                  makerUserId: before.userId,
                   takerUserId: user.id,
-                  price: Cent.new(BigInt(after.price)),
-                  quantity: filledDelta,
+                  price: Cent.new(BigInt(before.price)),
+                  quantity: match.matchedQuantity,
                   side: p.side,
                   source: 'book',
                 });
@@ -197,14 +205,14 @@ export async function placeOrder(p: {
                   p.side === 'bid' ? market.quoteAssetId : market.baseAssetId;
                 const makerCreditAmount =
                   p.side === 'bid'
-                    ? Cent.new(BigInt(after.price) * BigInt(filledDelta))
-                    : Units(BigInt(filledDelta));
+                    ? Cent.new(BigInt(before.price) * BigInt(match.matchedQuantity))
+                    : Units(BigInt(match.matchedQuantity));
                 const makerCreditUnits = p.side === 'bid' ? ('cent' as const) : ('unit' as const);
 
                 settlementEffects.push(
                   Fn.pipe(
                     creditUserBalance({
-                      userId: after.userId,
+                      userId: before.userId,
                       assetId: makerCreditAssetId,
                       amount: makerCreditAmount,
                       units: makerCreditUnits,
@@ -230,7 +238,7 @@ export async function placeOrder(p: {
               }
 
               // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
-              if (incomingDomainOrder.filled > 0) {
+              if (settledIncomingOrder.filled > 0) {
                 const isBid = p.side === 'bid';
                 const takerDebitAssetId = isBid ? market.quoteAssetId : market.baseAssetId;
 
@@ -263,11 +271,11 @@ export async function placeOrder(p: {
 
               // Update order status for incoming order
               const incomingStatus: OrderStatus =
-                incomingDomainOrder.filled >= quantity ? 'filled' : 'open';
+                settledIncomingOrder.filled >= quantity ? 'filled' : 'open';
 
               const incomingFillUpdate: UpdateOrderFillsParams = {
                 orderId: createdOrder.id,
-                filled: incomingDomainOrder.filled,
+                filled: settledIncomingOrder.filled,
                 status: incomingStatus,
               };
               const executedAt = new Date();
@@ -299,14 +307,19 @@ export async function placeOrder(p: {
                   E.all(settlementEffects),
                   ammFilled > 0
                     ? (() => {
-                        const k = AmmPool.k(market.ammPool);
-                        const newRB = market.ammPool.reserveBase - BigInt(ammFilled);
-                        const newRQ = (k + newRB - 1n) / newRB;
+                        const nextPool = applyAmmFillToPool({
+                          side: p.side,
+                          pool: {
+                            reserveBase: BigInt(market.ammPool.reserveBase),
+                            reserveQuote: BigInt(market.ammPool.reserveQuote),
+                          },
+                          quantity: ammFilled,
+                        });
                         return marketWriteRepo.updateMarketAfterMatch({
                           marketId: market.id,
                           sequenceNumber: market.sequenceNumber + 1,
-                          ammReserveBase: BigInt(newRB),
-                          ammReserveQuote: BigInt(newRQ),
+                          ammReserveBase: nextPool.reserveBase,
+                          ammReserveQuote: nextPool.reserveQuote,
                         });
                       })()
                     : E.void,
@@ -315,7 +328,7 @@ export async function placeOrder(p: {
                   () =>
                     ({
                       ...createdOrder,
-                      filled: incomingDomainOrder.filled,
+                      filled: settledIncomingOrder.filled,
                       status: incomingStatus,
                     }) satisfies Order,
                 ),

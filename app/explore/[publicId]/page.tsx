@@ -23,21 +23,6 @@ Decision questionnaire
 
 type TradeSide = 'bid' | 'ask';
 
-const toDatetimeLocalValue = (date: Date): string => {
-  const pad = (n: number): string => String(n).padStart(2, '0');
-  const yyyy = date.getFullYear();
-  const mm = pad(date.getMonth() + 1);
-  const dd = pad(date.getDate());
-  const hh = pad(date.getHours());
-  const min = pad(date.getMinutes());
-  return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
-};
-
-const defaultExpiry = (): string => {
-  const future = new Date(Date.now() + 60 * 60 * 1000);
-  return toDatetimeLocalValue(future);
-};
-
 export default function ExploreMarketPage() {
   const params = useParams<{ publicId: string }>();
   const publicId = params.publicId;
@@ -54,14 +39,19 @@ export default function ExploreMarketPage() {
 
   const [tradePanelOpen, setTradePanelOpen] = useState(false);
   const [tradeSide, setTradeSide] = useState<TradeSide>('bid');
-  const [tradePrice, setTradePrice] = useState('100');
+  const [tradePrice, setTradePrice] = useState('');
+  const [tradePriceDirty, setTradePriceDirty] = useState(false);
   const [tradeQuantity, setTradeQuantity] = useState('1');
-  const [tradeStopLoss, setTradeStopLoss] = useState('90');
-  const [tradeExpiresAt, setTradeExpiresAt] = useState(defaultExpiry);
+  const [tradeStopLoss, setTradeStopLoss] = useState('');
+  const [tradeExpiresAt, setTradeExpiresAt] = useState('');
   const [tradeStatus, setTradeStatus] = useState('');
   const [isTradeSubmitting, setIsTradeSubmitting] = useState(false);
 
   const isTradeDisabled = useMemo(() => market?.status === 'closed', [market?.status]);
+  const latestTradePrice = useMemo(
+    () => priceSeries[priceSeries.length - 1]?.priceCents ?? '100',
+    [priceSeries],
+  );
 
   const refreshPageData = useCallback(async () => {
     if (!publicId || publicId.length === 0) return;
@@ -89,6 +79,11 @@ export default function ExploreMarketPage() {
   useEffect(() => {
     void refreshPageData();
   }, [refreshPageData]);
+
+  useEffect(() => {
+    if (!tradePanelOpen || tradePriceDirty) return;
+    setTradePrice(latestTradePrice);
+  }, [latestTradePrice, tradePanelOpen, tradePriceDirty]);
 
   const handleProvideLiquidity = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -134,8 +129,8 @@ export default function ExploreMarketPage() {
         side: tradeSide,
         price: tradePrice,
         quantity,
-        stopLoss: tradeStopLoss,
-        expiresAt: new Date(tradeExpiresAt).toISOString(),
+        stopLoss: tradeStopLoss.trim() === '' ? undefined : tradeStopLoss,
+        expiresAt: tradeExpiresAt.trim() === '' ? undefined : new Date(tradeExpiresAt).toISOString(),
       });
       await refreshPageData();
       setTradeStatus(
@@ -374,7 +369,11 @@ export default function ExploreMarketPage() {
                   className='rounded border border-black/20 px-3 py-2 text-sm'
                   type='text'
                   value={tradePrice}
-                  onChange={(event) => setTradePrice(event.target.value)}
+                  placeholder={latestTradePrice}
+                  onChange={(event) => {
+                    setTradePriceDirty(true);
+                    setTradePrice(event.target.value);
+                  }}
                   disabled={snapshot === null || isTradeDisabled || isTradeSubmitting}
                 />
               </div>
@@ -395,20 +394,21 @@ export default function ExploreMarketPage() {
               </div>
               <div className='flex flex-col gap-1'>
                 <label className='text-sm text-black/70' htmlFor='trade-stop-loss'>
-                  Stop Loss
+                  Stop Loss (optional)
                 </label>
                 <input
                   id='trade-stop-loss'
                   className='rounded border border-black/20 px-3 py-2 text-sm'
                   type='text'
                   value={tradeStopLoss}
+                  placeholder='0'
                   onChange={(event) => setTradeStopLoss(event.target.value)}
                   disabled={snapshot === null || isTradeDisabled || isTradeSubmitting}
                 />
               </div>
               <div className='flex flex-col gap-1'>
                 <label className='text-sm text-black/70' htmlFor='trade-expires-at'>
-                  Expires At
+                  Expires At (optional)
                 </label>
                 <input
                   id='trade-expires-at'

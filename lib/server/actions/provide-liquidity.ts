@@ -16,6 +16,7 @@ import { transitionMarket } from '@/domain/workflows/market';
 import { selectMarketDisplayPrice } from '@/domain/workflows/price';
 import { Cent, Units } from '@/domain/values/currencies';
 import { Db, db } from '../db';
+import { buildLiquidityPriceSeriesPoint } from './provide-liquidity.shared';
 import { assetReadRepo } from '../ports/asset';
 import { type } from 'arktype';
 import { ledgerReadRepo, ledgerWriteRepo } from '../ports/ledger';
@@ -139,24 +140,20 @@ export async function provideLiquidityAction(p: {
                     // end of LLM written Code
                   }),
                 ),
-                E.flatMap(() => {
-                  // beginning of LLM written Code, Model: gpt-5.3-codex
-                  const didMoveFromClosedToTradable =
-                    market.status === 'closed' &&
-                    (nextMarket.status === 'pending' || nextMarket.status === 'active');
-                  if (!didMoveFromClosedToTradable) return E.void;
-                  return Fn.pipe(
-                    priceSeriesWriteRepo.insertPriceSeriesBatch([
-                      {
+                E.flatMap(() =>
+                  // beginning of LLM written Code, Model: GPT-5.4
+                  Fn.pipe(
+                    priceSeriesWriteRepo.insertPriceSeriesBatch(
+                      [buildLiquidityPriceSeriesPoint({
                         assetId: market.baseAssetId,
-                        price: market.modelPrice,
+                        market: nextMarket,
                         createdAt: new Date(),
-                      },
-                    ]),
+                      })],
+                    ),
                     E.asVoid,
-                  );
+                  ),
                   // end of LLM written Code
-                }),
+                ),
                 E.flatMap(() => {
                   // beginning of LLM written Code, Model: gpt-5.3-codex
                   const didActivate = market.status !== 'active' && nextMarket.status === 'active';
