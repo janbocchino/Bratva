@@ -8,6 +8,7 @@ import { Db, db } from '../db';
 import { accountHistoryReadRepo } from '../ports/account-history';
 import { ledgerReadRepo } from '../ports/ledger';
 import { userReadRepo } from '../ports/user';
+import { runServerDomainEffect } from '../run-server-domain-effect';
 
 // beginning of LLM written Code, Model: gpt-5.3-codex-low
 export type AccountSnapshot = {
@@ -41,6 +42,6 @@ export async function getAccount(): Promise<AccountSnapshot | null> {
     }),
   );
 
-  return snapshot.pipe(E.provideService(Db, db), E.runPromise);
+  return runServerDomainEffect(snapshot.pipe(E.provideService(Db, db)));
 }
 // end of LLM written Code

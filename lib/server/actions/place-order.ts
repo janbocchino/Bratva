@@ -21,6 +21,7 @@ import {
   parseOptionalStopLoss,
 } from './place-order.shared';
 import { Db, db } from '../db';
+import { runServerDomainEffect } from '../run-server-domain-effect';
 import { assetReadRepo } from '../ports/asset';
 import { ledgerReadRepo, ledgerWriteRepo } from '../ports/ledger';
 import { userReadRepo, userWriteRepo } from '../ports/user';
@@ -340,6 +341,6 @@ export async function placeOrder(p: {
     }),
   );
 
-  return await pipeline.pipe(E.provideService(Db, db), E.runPromise);
+  return await runServerDomainEffect(pipeline.pipe(E.provideService(Db, db)));
 }
 // end of LLM written Code

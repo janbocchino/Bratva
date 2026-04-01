@@ -13,7 +13,6 @@
 `frontend`
 - charts
 - design
-- withdraw balance button
 - Liquidity providing should not be shown as withdraw
 - error messages
 

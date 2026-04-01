@@ -4,6 +4,7 @@
 import { E, Fn } from '@/lib/shared/imports';
 import { Db, db } from '../db';
 import { marketReadRepo } from '../ports/market';
+import { runServerDomainEffect } from '../run-server-domain-effect';
 import { priceSeriesReadRepo } from '../ports/price-series';
 
 export type MarketPriceSeriesPoint = {
@@ -32,7 +33,7 @@ export async function getMarketPriceSeries(input: {
     ),
   );
 
-  return await pipeline.pipe(E.provideService(Db, db), E.runPromise);
+  return await runServerDomainEffect(pipeline.pipe(E.provideService(Db, db)));
 }
 // end of LLM written Code
 

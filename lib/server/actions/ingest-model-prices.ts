@@ -17,12 +17,13 @@ import { assetReadRepo } from '../ports/asset';
 import { fetchModelPricesFromFastApi } from '../ports/model-price-feed';
 import { marketWriteRepo } from '../ports/market';
 import { E, Fn } from '@/lib/shared/imports';
+import { runServerDomainEffect } from '../run-server-domain-effect';
 import type { InsertModelPriceParams } from '@/domain/ports/market';
 
 const resolveAssetIdByTicker = async (ticker: string): Promise<number> =>
-  await Fn.pipe(assetReadRepo.getAsset({ ticker }), E.provideService(Db, db), E.runPromise).then(
-    (asset) => asset.id,
-  );
+  await runServerDomainEffect(
+    Fn.pipe(assetReadRepo.getAsset({ ticker }), E.provideService(Db, db)),
+  ).then((asset) => asset.id);
 
 export async function ingestModelPricesBatch(rawPayload: unknown): Promise<{
   receivedRows: number;
@@ -47,10 +48,8 @@ export async function ingestModelPricesBatch(rawPayload: unknown): Promise<{
     });
   }
 
-  const updatedMarkets = await Fn.pipe(
-    marketWriteRepo.insertModelPrices(inserts),
-    E.provideService(Db, db),
-    E.runPromise,
+  const updatedMarkets = await runServerDomainEffect(
+    Fn.pipe(marketWriteRepo.insertModelPrices(inserts), E.provideService(Db, db)),
   );
 
   return {

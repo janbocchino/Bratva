@@ -6,6 +6,7 @@ import { Order } from '@/domain/aggregates/exchange';
 import type { Order as OrderType } from '@/domain/aggregates/exchange';
 import { OrderOwnershipError, OrderNotCancellableError } from '@/domain/errors';
 import { Db, db } from '../db';
+import { runServerDomainEffect } from '../run-server-domain-effect';
 import { orderReadRepo, orderWriteRepo } from '../ports/exchange';
 import { userReadRepo } from '../ports/user';
 
@@ -41,6 +42,6 @@ export async function cancelOrder(p: { userId: number; orderId: number }): Promi
     ),
   );
 
-  return await pipeline.pipe(E.provideService(Db, db), E.runPromise);
+  return await runServerDomainEffect(pipeline.pipe(E.provideService(Db, db)));
 }
 // end of LLM written Code

@@ -2,6 +2,7 @@
 // beginning of LLM written Code, Model: gpt-5.3-codex
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { formatActionError } from '@/lib/client/format-action-error';
 import type { AccountSnapshot } from '@/lib/server/actions/get-account';
 import { getAccount } from '@/lib/server/actions/get-account';
 import type { MarketPriceSeriesPoint } from '@/lib/server/actions/get-market-price-series';
@@ -69,8 +70,7 @@ export default function ExploreMarketPage() {
       setPriceSeries(series);
       if (selected === null) setLoadError('Market not found.');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to load market.';
-      setLoadError(message);
+      setLoadError(formatActionError(error, 'Failed to load market.'));
     } finally {
       setIsLoading(false);
     }
@@ -99,8 +99,7 @@ export default function ExploreMarketPage() {
       await refreshPageData();
       setLiquidityStatus('Liquidity provided.');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to provide liquidity.';
-      setLiquidityStatus(message);
+      setLiquidityStatus(formatActionError(error, 'Failed to provide liquidity.'));
     } finally {
       setIsLiquiditySubmitting(false);
     }
@@ -137,8 +136,7 @@ export default function ExploreMarketPage() {
         `Order placed (${placed.publicId}) as ${tradeSide === 'bid' ? 'buy' : 'sell'}.`,
       );
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to place order.';
-      setTradeStatus(message);
+      setTradeStatus(formatActionError(error, 'Failed to place order.'));
     } finally {
       setIsTradeSubmitting(false);
     }

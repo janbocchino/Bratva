@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { AccountSnapshot } from '@/lib/server/actions/get-account';
 import type { AccountHistoryEntry } from '@/domain/aggregates/account-history';
+import { UserDisplayName, UserEmail } from '@/domain/values/user';
+import { formatActionError } from '@/lib/client/format-action-error';
 import { addBalance } from '@/lib/server/actions/add-balance';
 import { createUser } from '@/lib/server/actions/create-user';
+import type { AccountSnapshot } from '@/lib/server/actions/get-account';
 import { getAccount } from '@/lib/server/actions/get-account';
 import { withdrawBalance } from '@/lib/server/actions/withdraw-balance';
-import { UserDisplayName, UserEmail } from '@/domain/values/user';
 
 // beginning of LLM written Code, Model: gpt-5.3-codex-low
 export default function AccountPage() {
@@ -43,8 +44,7 @@ export default function AccountPage() {
       await refreshAccount();
       setStatus('Balance added.');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to add balance.';
-      setStatus(message);
+      setStatus(formatActionError(error, 'Failed to add balance.'));
     } finally {
       setBalanceAction('idle');
     }
@@ -61,8 +61,7 @@ export default function AccountPage() {
       await refreshAccount();
       setStatus('Withdrawn.');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to withdraw balance.';
-      setStatus(message);
+      setStatus(formatActionError(error, 'Failed to withdraw balance.'));
     } finally {
       setBalanceAction('idle');
     }
@@ -83,8 +82,7 @@ export default function AccountPage() {
       await refreshAccount();
       setCreateStatus(`Account created for ${createdUser.displayName}.`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to create account.';
-      setCreateStatus(message);
+      setCreateStatus(formatActionError(error, 'Failed to create account.'));
     } finally {
       setIsCreating(false);
     }

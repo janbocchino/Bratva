@@ -24,6 +24,7 @@ import { userReadRepo } from '../ports/user';
 import { marketReadRepo } from '../ports/market';
 import { liquidityMarketWriteRepo, liquidityPositionWriteRepo } from '../ports/liquidity';
 import { priceSeriesWriteRepo } from '../ports/price-series';
+import { runServerDomainEffect } from '../run-server-domain-effect';
 
 export async function provideLiquidityAction(p: {
   userId: number;
@@ -176,5 +177,5 @@ export async function provideLiquidityAction(p: {
     }),
   );
 
-  return await result.pipe(E.provideService(Db, db), E.runPromise);
+  return await runServerDomainEffect(result.pipe(E.provideService(Db, db)));
 }

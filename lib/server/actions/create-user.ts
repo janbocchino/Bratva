@@ -6,6 +6,7 @@ import { createUserAccount } from '@/domain/workflows/user';
 import { type } from 'arktype';
 import { Db, db } from '../db';
 import { userReadRepo, userWriteRepo } from '../ports/user';
+import { runServerDomainEffect } from '../run-server-domain-effect';
 import { UserDisplayName, UserEmail, UserId } from '@/domain/values/user';
 
 const parseEmail = type('string.trim |> string.lower |> string.email');
@@ -64,5 +65,5 @@ export async function createUser(p: Pick<User, 'displayName' | 'email'>): Promis
     E.flatMap(userWriteRepo.createUser),
   );
 
-  return user.pipe(E.provideService(Db, db), E.runPromise);
+  return runServerDomainEffect(user.pipe(E.provideService(Db, db)));
 }

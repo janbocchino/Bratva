@@ -9,6 +9,7 @@ import { assetReadRepo } from '../ports/asset';
 import { type } from 'arktype';
 import { ledgerReadRepo, ledgerWriteRepo } from '../ports/ledger';
 import { userReadRepo } from '../ports/user';
+import { runServerDomainEffect } from '../run-server-domain-effect';
 
 export async function addBalance(p: {
   userId: number;
@@ -45,5 +46,5 @@ export async function addBalance(p: {
     E.flatMap((u) => ledgerReadRepo.getLedgerByUserId(u.id)),
   );
 
-  return await ledger.pipe(E.provideService(Db, db), E.runPromise);
+  return await runServerDomainEffect(ledger.pipe(E.provideService(Db, db)));
 }

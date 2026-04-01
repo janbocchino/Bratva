@@ -14,6 +14,7 @@ import { Db, db } from '../db';
 import { assetReadRepo } from '../ports/asset';
 import { marketReadRepo } from '../ports/market';
 import { priceSeriesReadRepo } from '../ports/price-series';
+import { runServerDomainEffect } from '../run-server-domain-effect';
 
 // beginning of LLM written Code, Model: gpt-5.3-codex-low
 export type ExploreMarketRow = {
@@ -28,16 +29,24 @@ export type ExploreMarketRow = {
 };
 
 export async function listMarkets(): Promise<readonly ExploreMarketRow[]> {
-  const markets = await marketReadRepo.listMarkets().pipe(E.provideService(Db, db), E.runPromise);
+  const markets = await runServerDomainEffect(
+    marketReadRepo.listMarkets().pipe(E.provideService(Db, db)),
+  );
   const rows = await Promise.all(
     markets.map(async (market) => {
       const [baseAsset, quoteAsset] = await Promise.all([
-        assetReadRepo.getAsset({ id: market.baseAssetId }).pipe(E.provideService(Db, db), E.runPromise),
-        assetReadRepo.getAsset({ id: market.quoteAssetId }).pipe(E.provideService(Db, db), E.runPromise),
+        runServerDomainEffect(
+          assetReadRepo.getAsset({ id: market.baseAssetId }).pipe(E.provideService(Db, db)),
+        ),
+        runServerDomainEffect(
+          assetReadRepo.getAsset({ id: market.quoteAssetId }).pipe(E.provideService(Db, db)),
+        ),
       ]);
-      const latestTradePrice = await priceSeriesReadRepo
-        .getLatestPriceByAssetId(market.baseAssetId)
-        .pipe(E.provideService(Db, db), E.runPromise);
+      const latestTradePrice = await runServerDomainEffect(
+        priceSeriesReadRepo
+          .getLatestPriceByAssetId(market.baseAssetId)
+          .pipe(E.provideService(Db, db)),
+      );
 
       // beginning of LLM written Code, Model: gpt-5.3-codex
       const displayPrice =

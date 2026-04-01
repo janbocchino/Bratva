@@ -17,6 +17,7 @@ import {
   liquidityPositionWriteRepo,
 } from '../ports/liquidity';
 import { assetReadRepo } from '../ports/asset';
+import { runServerDomainEffect } from '../run-server-domain-effect';
 
 export async function withdrawLiquidityAction(p: { userId: number; positionId: number }) {
   const user = Fn.pipe(
@@ -116,6 +117,6 @@ export async function withdrawLiquidityAction(p: { userId: number; positionId: n
     }),
   );
 
-  return await pipeline.pipe(E.provideService(Db, db), E.runPromise);
+  return await runServerDomainEffect(pipeline.pipe(E.provideService(Db, db)));
 }
 // end of LLM written Code
