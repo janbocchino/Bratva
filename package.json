@@ -13,7 +13,8 @@
 		"db:studio": "drizzle-kit studio",
 		"db:push": "drizzle-kit push",
 		"fmt": "biome format --write app domain lib",
-		"assets:import": "bun run ./scripts/create-assets-from-json.ts"
+		"assets:import": "bun run ./scripts/create-assets-from-json.ts",
+		"dev:all": "concurrently \"npm run dev\" \"uv run python -m backend.api\" \"uv run python -m backend.main\""
 	},
 	"dependencies": {
 		"@libsql/client": "^0.17.0",
@@ -34,6 +35,7 @@
 		"@types/react": "^19",
 		"@types/react-dom": "^19",
 		"biome": "^0.3.3",
+		"concurrently": "^9.2.1",
 		"drizzle-kit": "^0.31.8",
 		"eslint": "^9",
 		"eslint-config-next": "16.1.6",

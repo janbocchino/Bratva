@@ -11,7 +11,11 @@
 
 
 `frontend`
-- everything
+- charts
+- design
+- withdraw balance button
+- Liquidity providing should not be shown as withdraw
+- error messages
 
 
 `overall`
@@ -25,20 +29,12 @@
     - multiply by some number, sota in for example ethereum
     - Explain how bigints are used in finance to not use floating point
 - news fetching for model
-
+- footbal players
 
 
 
 `later release:`
 - token to token in exchange
-
-
-`today`
-- Read actions for Frontend
-- build simple buttons on UI to test
-- do some for showing errors to user like "not enough balance blablabla"
-
-`Questions to Jackie:`
 
 
 
