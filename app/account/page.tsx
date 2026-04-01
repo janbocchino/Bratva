@@ -6,6 +6,7 @@ import type { AccountHistoryEntry } from '@/domain/aggregates/account-history';
 import { addBalance } from '@/lib/server/actions/add-balance';
 import { createUser } from '@/lib/server/actions/create-user';
 import { getAccount } from '@/lib/server/actions/get-account';
+import { withdrawBalance } from '@/lib/server/actions/withdraw-balance';
 import { UserDisplayName, UserEmail } from '@/domain/values/user';
 
 // beginning of LLM written Code, Model: gpt-5.3-codex-low
@@ -17,7 +18,7 @@ export default function AccountPage() {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [balanceAction, setBalanceAction] = useState<'idle' | 'add' | 'withdraw'>('idle');
   const [isCreating, setIsCreating] = useState(false);
 
   const refreshAccount = async () => {
@@ -36,7 +37,7 @@ export default function AccountPage() {
     if (!snapshot) return;
 
     setStatus('');
-    setIsSubmitting(true);
+    setBalanceAction('add');
     try {
       await addBalance({ userId: snapshot.user.id, amountDollars });
       await refreshAccount();
@@ -45,9 +46,28 @@ export default function AccountPage() {
       const message = error instanceof Error ? error.message : 'Failed to add balance.';
       setStatus(message);
     } finally {
-      setIsSubmitting(false);
+      setBalanceAction('idle');
     }
   };
+
+  // beginning of LLM written Code, Model: Claude Opus 4.5
+  const handleWithdrawBalance = async () => {
+    if (!snapshot) return;
+
+    setStatus('');
+    setBalanceAction('withdraw');
+    try {
+      await withdrawBalance({ userId: snapshot.user.id, amountDollars });
+      await refreshAccount();
+      setStatus('Withdrawn.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to withdraw balance.';
+      setStatus(message);
+    } finally {
+      setBalanceAction('idle');
+    }
+  };
+  // end of LLM written Code
 
   const handleCreateUser = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -153,9 +173,10 @@ export default function AccountPage() {
         </dl>
       </section>
 
+      {/* beginning of LLM written Code, Model: Claude Opus 4.5 */}
       <section className='rounded-lg border border-black/10 p-4'>
-        <h2 className='mb-3 text-lg font-medium'>Add Balance</h2>
-        <form onSubmit={handleAddBalance} className='flex flex-col gap-2 sm:max-w-xs'>
+        <h2 className='mb-3 text-lg font-medium'>Add / withdraw balance</h2>
+        <form onSubmit={handleAddBalance} className='flex flex-col gap-2 sm:max-w-md'>
           <input
             className='rounded border border-black/20 px-3 py-2 text-sm'
             type='text'
@@ -163,12 +184,27 @@ export default function AccountPage() {
             onChange={(event) => setAmountDollars(event.target.value)}
             placeholder='Amount in dollars'
           />
-          <button className='rounded border border-black/20 px-3 py-2 text-sm font-medium' type='submit' disabled={isSubmitting}>
-            {isSubmitting ? 'Adding...' : 'Add Balance'}
-          </button>
+          <div className='flex flex-wrap gap-2'>
+            <button
+              className='rounded border border-black/20 px-3 py-2 text-sm font-medium'
+              type='submit'
+              disabled={balanceAction !== 'idle'}
+            >
+              {balanceAction === 'add' ? 'Adding...' : 'Add Balance'}
+            </button>
+            <button
+              className='rounded border border-black/20 px-3 py-2 text-sm font-medium'
+              type='button'
+              disabled={balanceAction !== 'idle'}
+              onClick={() => void handleWithdrawBalance()}
+            >
+              {balanceAction === 'withdraw' ? 'Withdrawing...' : 'Withdraw'}
+            </button>
+          </div>
           {status ? <p className='text-xs text-black/70'>{status}</p> : null}
         </form>
       </section>
+      {/* end of LLM written Code */}
 
       <section className='rounded-lg border border-black/10 p-4'>
         <h2 className='mb-3 text-lg font-medium'>Balance</h2>
