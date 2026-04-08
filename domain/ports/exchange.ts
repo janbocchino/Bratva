@@ -3,7 +3,7 @@ import type { E } from '@/lib/shared/imports';
 import type { Order, OrderStatus, Side, Transaction } from '../aggregates/exchange';
 import type { PortError } from '../errors';
 import type { MarketId } from '../values/exchange';
-import type { Cent, Units } from '../values/currencies';
+import type { QuoteAmount, TokenAmount } from '../values/currencies';
 import type { Nonce, UserId } from '../values/user';
 
 // ── Order ────────────────────────────────────────────────────────────
@@ -12,9 +12,9 @@ export type CreateOrderParams = {
   marketId: MarketId;
   userId: UserId;
   side: Side;
-  price: Cent | Units;
-  quantity: number;
-  stopLoss: Cent | Units;
+  price: QuoteAmount;
+  quantity: TokenAmount;
+  stopLoss: QuoteAmount;
   marketSequenceNumber: number;
   nonce: Nonce;
   expiresAt: Date;
@@ -22,7 +22,7 @@ export type CreateOrderParams = {
 
 export type UpdateOrderFillsParams = {
   orderId: number;
-  filled: number;
+  filled: TokenAmount;
   status: OrderStatus;
 };
 
@@ -44,8 +44,8 @@ export type CreateTransactionParams = {
   takerOrderId: number;
   makerUserId: number | null;
   takerUserId: number;
-  price: Cent;
-  quantity: number;
+  price: QuoteAmount;
+  quantity: TokenAmount;
   side: Side;
   source: 'book' | 'amm';
 };
@@ -54,9 +54,7 @@ export interface TransactionWriteRepo<D> {
   createTransactions(o: CreateTransactionParams[]): E.Effect<void, PortError, D>;
 }
 
-// beginning of LLM written Code, Model: gpt-5.3-codex
 export interface TransactionReadRepo<D> {
   listByUserId(userId: UserId): E.Effect<Transaction[], PortError, D>;
 }
-// end of LLM written Code
 // end of LLM written Code

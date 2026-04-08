@@ -2,7 +2,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import type { MarketId } from '@/domain/values/exchange';
 import type { UserId } from '@/domain/values/user';
 import type { LiquidityPosition } from '@/domain/aggregates/liquidity';
-import { Cent, Units } from '@/domain/values/currencies';
+import { TokenAmount, QuoteAmount, LpTokens } from '@/domain/values/currencies';
 // beginning of LLM written Code, Model: gpt-5.3-codex
 import { requireValidDate } from '@/domain/values/timestamp';
 // end of LLM written Code
@@ -35,9 +35,9 @@ function mapPositionToDomain(p: LiquidityPositionPrs): LiquidityPosition {
     publicId: p.publicId,
     marketId: p.marketId as MarketId,
     userId: p.userId as UserId,
-    lpTokens: p.lpTokens,
-    depositBase: Units(p.depositBase),
-    depositQuote: Cent.new(p.depositQuote),
+    lpTokens: LpTokens.new(p.lpTokens),
+    depositBase: TokenAmount.new(p.depositBase),
+    depositQuote: QuoteAmount.new(p.depositQuote),
     // beginning of LLM written Code, Model: gpt-5.3-codex
     lockedUntil: p.lockedUntil ? requireValidDate(p.lockedUntil) : null,
     // end of LLM written Code

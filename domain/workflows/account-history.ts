@@ -1,4 +1,4 @@
-// beginning of LLM written Code, Model: gpt-5.3-codex
+// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 /*
 Decision questionnaire
 - How should timestamps be normalized?
@@ -13,21 +13,17 @@ import type {
   AccountHistoryEntry,
   LegacyHistoryEntry,
 } from '@/domain/aggregates/account-history';
-import type { UserLedger } from '@/domain/aggregates/ledger';
+import type { UserLedger, LedgerUnits } from '@/domain/aggregates/ledger';
 import type { LiquidityPosition } from '@/domain/aggregates/liquidity';
 import type { Market } from '@/domain/aggregates/market';
 import type { Transaction } from '@/domain/aggregates/exchange';
 import type { AssetId } from '@/domain/values/asset';
-import { Cent } from '@/domain/values/currencies';
-// beginning of LLM written Code, Model: gpt-5.3-codex
+import { QuoteAmount } from '@/domain/values/currencies';
 import { normalizeTimestamp as sharedNormalizeTimestamp } from '@/domain/values/timestamp';
-// end of LLM written Code
 import type { UserId } from '@/domain/values/user';
 
 const epochIso = new Date(0).toISOString();
-// beginning of LLM written Code, Model: gpt-5.3-codex
 export const normalizeTimestamp = sharedNormalizeTimestamp;
-// end of LLM written Code
 
 const historyTimestamp = (value: unknown): { occurredAtIso: string; hasAccurateTimestamp: boolean } => {
   const date = normalizeTimestamp(value);
@@ -43,7 +39,7 @@ const timestampBucket = (value: unknown): number | null => {
 type LedgerSignature = {
   drCr: 'dr' | 'cr';
   assetId: AssetId;
-  units: 'cent' | 'unit';
+  units: LedgerUnits;
   amount: bigint;
   createdAt: unknown;
 };
@@ -101,7 +97,7 @@ export const composeAccountHistory = (input: {
       const key = ledgerSignatureKey({
         drCr: 'dr',
         assetId: isBid ? market.quoteAssetId : market.baseAssetId,
-        units: isBid ? 'cent' : 'unit',
+        units: 'scaled_unit',
         amount: isBid ? BigInt(trade.price) * BigInt(trade.quantity) : BigInt(trade.quantity),
         createdAt: trade.createdAt,
       });
@@ -113,7 +109,7 @@ export const composeAccountHistory = (input: {
       const key = ledgerSignatureKey({
         drCr: 'cr',
         assetId: makerReceivesQuote ? market.quoteAssetId : market.baseAssetId,
-        units: makerReceivesQuote ? 'cent' : 'unit',
+        units: 'scaled_unit',
         amount: makerReceivesQuote
           ? BigInt(trade.price) * BigInt(trade.quantity)
           : BigInt(trade.quantity),
@@ -139,7 +135,7 @@ export const composeAccountHistory = (input: {
       continue;
     }
 
-    const spentQuote = Cent.new(BigInt(position.depositQuote) * 2n);
+    const spentQuote = QuoteAmount.new(BigInt(position.depositQuote) * 2n);
     historyEntries.push({
       id: `liquidity-${position.id}`,
       category: 'liquidityProvided',
@@ -157,7 +153,7 @@ export const composeAccountHistory = (input: {
       const key = ledgerSignatureKey({
         drCr: 'dr',
         assetId: input.usdAssetId,
-        units: 'cent',
+        units: 'scaled_unit',
         amount: BigInt(spentQuote),
         createdAt: position.createdAt,
       });

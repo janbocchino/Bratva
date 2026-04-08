@@ -6,7 +6,7 @@ import type {
 } from '@/domain/ports/ledger';
 import { E, Fn } from '@/lib/shared/imports';
 import { Db } from '../db';
-import { ledgerEntries, ledgerEntriesWithBalance } from '../schema';
+import { ledgerEntries } from '../schema';
 import { ledgerEntryMapper } from './mapper';
 
 const errMapper =
@@ -23,9 +23,9 @@ export const ledgerReadRepo: LedgerReadRepoDomain<Db> = {
           try: () =>
             db
               .select()
-              .from(ledgerEntriesWithBalance)
-              .where(eq(ledgerEntriesWithBalance.userId, userId))
-              .orderBy(asc(ledgerEntriesWithBalance.createdAt)),
+              .from(ledgerEntries)
+              .where(eq(ledgerEntries.userId, userId))
+              .orderBy(asc(ledgerEntries.createdAt)),
           catch: errMapper(InfraError),
         }),
       ),

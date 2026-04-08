@@ -1,4 +1,4 @@
-// beginning of LLM written Code, Model: GPT-5.4
+// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 import type { Market } from '@/domain/aggregates/market';
 import { selectMarketDisplayPrice } from '@/domain/workflows/price';
 import type { AssetId } from '@/domain/values/asset';

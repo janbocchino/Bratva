@@ -1,7 +1,5 @@
-// beginning of LLM written Code, Model: Gemini
-import { E, Fn } from '@/lib/shared/imports';
-// end of LLM written Code
-import type { Cent, Units } from '../values/currencies';
+// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
+import type { QuoteAmount, TokenAmount } from '../values/currencies';
 import type {
   OrderId,
   OrderPublicId,
@@ -22,10 +20,10 @@ export type Order = {
   marketId: MarketId;
   userId: UserId;
   kind: Side;
-  price: Cent | Units;
-  quantity: number;
-  filled: number;
-  stopLoss: Cent | Units;
+  price: QuoteAmount;
+  quantity: TokenAmount;
+  filled: TokenAmount;
+  stopLoss: QuoteAmount;
   marketSequenceNumber: MarketSequenceNumber;
   nonce: Nonce;
   status: OrderStatus;
@@ -36,7 +34,6 @@ export type Order = {
   canceledAt: Date;
 };
 
-// beginning of LLM written Code, Model: Gemini
 export const Order = {
   cancel: (o: Order, canceledAt: Date): Order => ({
     ...o,
@@ -45,7 +42,6 @@ export const Order = {
     status: 'cancelled' as OrderStatus,
   }),
 };
-// end of LLM written Code
 
 export type OrderBook = {
   bid: Order[];
@@ -59,9 +55,10 @@ export type Transaction = {
   takerOrderId: OrderId;
   makerUserId: UserId | null;
   takerUserId: UserId;
-  price: Cent;
-  quantity: number;
+  price: QuoteAmount;
+  quantity: TokenAmount;
   side: Side;
   source: 'book' | 'amm';
   createdAt: Date;
 };
+// end of LLM written Code

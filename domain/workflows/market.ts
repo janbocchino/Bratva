@@ -1,6 +1,7 @@
-// beginning of LLM written Code, Model: Claude
+// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 import { E } from '@/lib/shared/imports';
 import type { Market } from '../aggregates/market';
+import type { LpTokens } from '../values/currencies';
 import { IllegalMarketTransitionError } from '../errors';
 import type { ProvideLiquidityResult, WithdrawLiquidityResult } from './liquidity';
 
@@ -24,7 +25,7 @@ const withUpdatedAt = (market: Market, updatedAt: Date): Market => ({
 });
 
 export const isPoolEmpty = (market: Pick<Market, 'ammPool' | 'totalLpTokens'>): boolean =>
-  market.totalLpTokens === 0n ||
+  BigInt(market.totalLpTokens) === 0n ||
   (BigInt(market.ammPool.reserveBase) === 0n && BigInt(market.ammPool.reserveQuote) === 0n);
 
 const canTransition = (market: Market, event: MarketEvent): boolean => {

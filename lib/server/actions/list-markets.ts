@@ -1,5 +1,7 @@
 'use server';
 
+import { QuoteAmount, SCALE } from '@/domain/values/currencies';
+import { mulDivDown } from '@/domain/values/fixed-point';
 // beginning of LLM written Code, Model: gpt-5.3-codex
 /*
 Decision questionnaire
@@ -9,7 +11,6 @@ Decision questionnaire
 */
 // end of LLM written Code
 import { E } from '@/lib/shared/imports';
-import { Cent } from '@/domain/values/currencies';
 import { Db, db } from '../db';
 import { assetReadRepo } from '../ports/asset';
 import { marketReadRepo } from '../ports/market';
@@ -25,7 +26,8 @@ export type ExploreMarketRow = {
   quoteAssetName: string;
   quoteAssetTicker: string;
   status: 'closed' | 'pending' | 'active';
-  displayPriceCents: string;
+  /** 18-decimal fixed-point quote amount as a decimal string (same encoding as `QuoteAmount`). */
+  displayPriceScaled: string;
 };
 
 export async function listMarkets(): Promise<readonly ExploreMarketRow[]> {
@@ -52,10 +54,16 @@ export async function listMarkets(): Promise<readonly ExploreMarketRow[]> {
       const displayPrice =
         market.status === 'closed'
           ? market.modelPrice
-          : latestTradePrice?.price ??
+          : (latestTradePrice?.price ??
             (market.ammPool.reserveBase > 0n && market.ammPool.reserveQuote > 0n
-              ? Cent.new(market.ammPool.reserveQuote / market.ammPool.reserveBase)
-              : market.modelPrice);
+              ? QuoteAmount.new(
+                  mulDivDown(
+                    BigInt(market.ammPool.reserveQuote),
+                    SCALE,
+                    BigInt(market.ammPool.reserveBase),
+                  ),
+                )
+              : market.modelPrice));
       // end of LLM written Code
 
       return {
@@ -66,7 +74,7 @@ export async function listMarkets(): Promise<readonly ExploreMarketRow[]> {
         quoteAssetName: quoteAsset.name,
         quoteAssetTicker: quoteAsset.ticker,
         status: market.status,
-        displayPriceCents: displayPrice.toString(),
+        displayPriceScaled: displayPrice.toString(),
       };
     }),
   );
@@ -79,7 +87,7 @@ export async function listMarkets(): Promise<readonly ExploreMarketRow[]> {
     quoteAssetName: market.quoteAssetName,
     quoteAssetTicker: market.quoteAssetTicker,
     status: market.status,
-    displayPriceCents: market.displayPriceCents,
+    displayPriceScaled: market.displayPriceScaled,
   }));
 }
 // end of LLM written Code

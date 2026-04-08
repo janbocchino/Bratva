@@ -2,7 +2,13 @@
 // beginning of LLM written Code, Model: gpt-5.3-codex
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { formatQuoteAmount } from '@/domain/values/format-fixed-point';
 import { formatActionError } from '@/lib/client/format-action-error';
+import {
+  ONE_QUOTE_SCALED_STRING,
+  formatUsdFromScaledQuote,
+  scaledQuoteToApproximateNumberForChart,
+} from '@/lib/client/format-scaled-usd';
 import type { AccountSnapshot } from '@/lib/server/actions/get-account';
 import { getAccount } from '@/lib/server/actions/get-account';
 import type { MarketPriceSeriesPoint } from '@/lib/server/actions/get-market-price-series';
@@ -49,9 +55,14 @@ export default function ExploreMarketPage() {
   const [isTradeSubmitting, setIsTradeSubmitting] = useState(false);
 
   const isTradeDisabled = useMemo(() => market?.status === 'closed', [market?.status]);
-  const latestTradePrice = useMemo(
-    () => priceSeries[priceSeries.length - 1]?.priceCents ?? '100',
+  /** Wire: scaled integer string; input field expects a decimal for `parseFixedPoint`. */
+  const latestPriceScaled = useMemo(
+    () => priceSeries[priceSeries.length - 1]?.priceScaled ?? ONE_QUOTE_SCALED_STRING,
     [priceSeries],
+  );
+  const defaultTradePriceInput = useMemo(
+    () => formatQuoteAmount(BigInt(latestPriceScaled), 8),
+    [latestPriceScaled],
   );
 
   const refreshPageData = useCallback(async () => {
@@ -82,8 +93,8 @@ export default function ExploreMarketPage() {
 
   useEffect(() => {
     if (!tradePanelOpen || tradePriceDirty) return;
-    setTradePrice(latestTradePrice);
-  }, [latestTradePrice, tradePanelOpen, tradePriceDirty]);
+    setTradePrice(defaultTradePriceInput);
+  }, [defaultTradePriceInput, tradePanelOpen, tradePriceDirty]);
 
   const handleProvideLiquidity = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -113,9 +124,8 @@ export default function ExploreMarketPage() {
       return;
     }
 
-    const quantity = Number.parseInt(tradeQuantity, 10);
-    if (!Number.isInteger(quantity) || quantity <= 0) {
-      setTradeStatus('Quantity must be a positive integer.');
+    if (tradeQuantity.trim() === '' || Number(tradeQuantity) <= 0) {
+      setTradeStatus('Quantity must be > 0.');
       return;
     }
 
@@ -127,9 +137,10 @@ export default function ExploreMarketPage() {
         marketId: market.id,
         side: tradeSide,
         price: tradePrice,
-        quantity,
+        quantity: tradeQuantity,
         stopLoss: tradeStopLoss.trim() === '' ? undefined : tradeStopLoss,
-        expiresAt: tradeExpiresAt.trim() === '' ? undefined : new Date(tradeExpiresAt).toISOString(),
+        expiresAt:
+          tradeExpiresAt.trim() === '' ? undefined : new Date(tradeExpiresAt).toISOString(),
       });
       await refreshPageData();
       setTradeStatus(
@@ -186,15 +197,14 @@ export default function ExploreMarketPage() {
         <h2 className='text-lg font-medium'>Price series</h2>
         {/* beginning of LLM written Code, Model: GPT-5.2-Codex */}
         {priceSeries.length === 0 ? (
-          <p className='text-sm text-black/70'>
-            No price history yet for this market.
-          </p>
+          <p className='text-sm text-black/70'>No price history yet for this market.</p>
         ) : (
           (() => {
             const points = priceSeries;
-            const prices = points
-              .map((p) => Number(p.priceCents))
-              .filter((n) => Number.isFinite(n));
+            const prices = points.map((p) => scaledQuoteToApproximateNumberForChart(p.priceScaled));
+            const scaledBigints = points.map((p) => BigInt(p.priceScaled));
+            const minScaled = scaledBigints.reduce((a, b) => (a < b ? a : b));
+            const maxScaled = scaledBigints.reduce((a, b) => (a > b ? a : b));
             const min = Math.min(...prices);
             const max = Math.max(...prices);
             const w = 640;
@@ -206,27 +216,34 @@ export default function ExploreMarketPage() {
             const svgPoints = isSingle
               ? ''
               : points
-                  .map((p, i) => {
+                  .map((_, i) => {
                     const x = pad + i * step;
-                    const y = pad + (1 - (Number(p.priceCents) - min) / span) * (h - pad * 2);
+                    const y = pad + (1 - (prices[i] - min) / span) * (h - pad * 2);
                     return `${x.toFixed(2)},${y.toFixed(2)}`;
                   })
                   .join(' ');
             const singleX = w / 2;
-            const singleY =
-              pad +
-              (1 - (Number(points[0].priceCents) - min) / span) * (h - pad * 2);
+            const singleY = pad + (1 - (prices[0] - min) / span) * (h - pad * 2);
 
             const latest = points[points.length - 1];
             return (
               <div className='flex flex-col gap-3'>
                 <div className='flex flex-wrap items-baseline gap-x-6 gap-y-1'>
                   <p className='text-sm text-black/70'>
-                    Latest: <span className='font-medium text-black'>{latest.priceCents}</span>¢
+                    Latest:{' '}
+                    <span className='font-medium text-black'>
+                      {formatUsdFromScaledQuote(latest.priceScaled)}
+                    </span>
                   </p>
                   <p className='text-sm text-black/70'>
-                    Range: <span className='font-medium text-black'>{min}</span>¢ –{' '}
-                    <span className='font-medium text-black'>{max}</span>¢
+                    Range:{' '}
+                    <span className='font-medium text-black'>
+                      {formatUsdFromScaledQuote(minScaled)}
+                    </span>{' '}
+                    –{' '}
+                    <span className='font-medium text-black'>
+                      {formatUsdFromScaledQuote(maxScaled)}
+                    </span>
                   </p>
                   <p className='text-xs text-black/50'>
                     {new Date(latest.createdAtIso).toLocaleString()}
@@ -242,13 +259,7 @@ export default function ExploreMarketPage() {
                     aria-label='Price series sparkline'
                   >
                     {isSingle ? (
-                      <circle
-                        cx={singleX}
-                        cy={singleY}
-                        r={4}
-                        fill='black'
-                        fillOpacity={0.9}
-                      />
+                      <circle cx={singleX} cy={singleY} r={4} fill='black' fillOpacity={0.9} />
                     ) : (
                       <polyline
                         points={svgPoints}
@@ -271,7 +282,9 @@ export default function ExploreMarketPage() {
                         key={p.createdAtIso}
                         className='flex items-baseline justify-between rounded border border-black/10 px-3 py-2'
                       >
-                        <span className='text-sm font-medium'>{p.priceCents}¢</span>
+                        <span className='text-sm font-medium'>
+                          {formatUsdFromScaledQuote(p.priceScaled)}
+                        </span>
                         <span className='text-xs text-black/60'>
                           {new Date(p.createdAtIso).toLocaleString()}
                         </span>
@@ -367,7 +380,7 @@ export default function ExploreMarketPage() {
                   className='rounded border border-black/20 px-3 py-2 text-sm'
                   type='text'
                   value={tradePrice}
-                  placeholder={latestTradePrice}
+                  placeholder={defaultTradePriceInput}
                   onChange={(event) => {
                     setTradePriceDirty(true);
                     setTradePrice(event.target.value);
@@ -382,9 +395,7 @@ export default function ExploreMarketPage() {
                 <input
                   id='trade-quantity'
                   className='rounded border border-black/20 px-3 py-2 text-sm'
-                  type='number'
-                  min={1}
-                  step={1}
+                  type='text'
                   value={tradeQuantity}
                   onChange={(event) => setTradeQuantity(event.target.value)}
                   disabled={snapshot === null || isTradeDisabled || isTradeSubmitting}

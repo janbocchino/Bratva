@@ -1,9 +1,9 @@
-// beginning of LLM written Code, Model: Claude
+// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 /// <reference types="jest" />
 import { E } from '@/lib/shared/imports';
 import type { Market } from '../aggregates/market';
 import { transitionMarket } from '../workflows/market';
-import { Cent, Units } from '../values/currencies';
+import { TokenAmount, QuoteAmount, LpTokens, SCALE } from '../values/currencies';
 import { MarketId, MarketPublicId, MarketSequenceNumber } from '../values/market';
 import type { AssetId } from '../values/asset';
 
@@ -16,11 +16,11 @@ const mkMarket = (overrides: Partial<Market> = {}): Market => ({
   quoteAssetId: 2 as AssetId,
   sequenceNumber: MarketSequenceNumber(0),
   ammPool: {
-    reserveBase: Units(0n),
-    reserveQuote: Cent.new(0n),
+    reserveBase: TokenAmount.new(0n),
+    reserveQuote: QuoteAmount.new(0n),
   },
-  modelPrice: Cent.new(1_000n),
-  totalLpTokens: 0n,
+  modelPrice: QuoteAmount.new(1_000n * SCALE),
+  totalLpTokens: LpTokens.new(0n),
   status: 'closed',
   wasPreviouslyActive: false,
   createdAt: now,
@@ -38,10 +38,11 @@ describe('market workflow transitions', () => {
         _tag: 'LiquidityProvided',
         occurredAt: now,
         result: {
-          lpTokensMinted: 5n,
-          newReserveBase: 5n,
-          newReserveQuote: 2_000n,
-          newTotalLpTokens: 5n,
+          lpTokensMinted: LpTokens.new(5n * SCALE),
+          lpDust: 0n,
+          newReserveBase: 5n * SCALE,
+          newReserveQuote: 2_000n * SCALE,
+          newTotalLpTokens: LpTokens.new(5n * SCALE),
           lockedUntil: null,
           shouldActivateMarket: false,
         },
@@ -58,10 +59,11 @@ describe('market workflow transitions', () => {
         _tag: 'LiquidityProvided',
         occurredAt: now,
         result: {
-          lpTokensMinted: 10n,
-          newReserveBase: 50n,
-          newReserveQuote: 50_000n,
-          newTotalLpTokens: 10n,
+          lpTokensMinted: LpTokens.new(10n * SCALE),
+          lpDust: 0n,
+          newReserveBase: 50n * SCALE,
+          newReserveQuote: 50_000n * SCALE,
+          newTotalLpTokens: LpTokens.new(10n * SCALE),
           lockedUntil: null,
           shouldActivateMarket: true,
         },
@@ -81,10 +83,11 @@ describe('market workflow transitions', () => {
         _tag: 'LiquidityProvided',
         occurredAt: now,
         result: {
-          lpTokensMinted: 10n,
-          newReserveBase: 50n,
-          newReserveQuote: 50_000n,
-          newTotalLpTokens: 10n,
+          lpTokensMinted: LpTokens.new(10n * SCALE),
+          lpDust: 0n,
+          newReserveBase: 50n * SCALE,
+          newReserveQuote: 50_000n * SCALE,
+          newTotalLpTokens: LpTokens.new(10n * SCALE),
           lockedUntil: null,
           shouldActivateMarket: true,
         },
@@ -93,7 +96,7 @@ describe('market workflow transitions', () => {
 
     expect(transitioned.status).toBe('active');
     expect(transitioned.wasPreviouslyActive).toBe(true);
-    expect(transitioned.totalLpTokens).toBe(10n);
+    expect(transitioned.totalLpTokens).toBe(LpTokens.new(10n * SCALE));
   });
 
   // ── Active → Pending ──────────────────────────────────────────────
@@ -102,8 +105,8 @@ describe('market workflow transitions', () => {
     const market = mkMarket({
       status: 'active',
       wasPreviouslyActive: true,
-      ammPool: { reserveBase: Units(100n), reserveQuote: Cent.new(100_000n) },
-      totalLpTokens: 100n,
+      ammPool: { reserveBase: TokenAmount.new(100n * SCALE), reserveQuote: QuoteAmount.new(100_000n * SCALE) },
+      totalLpTokens: LpTokens.new(100n * SCALE),
     });
 
     const transitioned = E.runSync(
@@ -111,11 +114,11 @@ describe('market workflow transitions', () => {
         _tag: 'LiquidityWithdrawn',
         occurredAt: now,
         result: {
-          shareBase: 99n,
-          shareQuote: 99_000n,
-          newReserveBase: 1n,
-          newReserveQuote: 1_000n,
-          newTotalLpTokens: 1n,
+          shareBase: { amount: 99n * SCALE, dust: 0n },
+          shareQuote: { amount: 99_000n * SCALE, dust: 0n },
+          newReserveBase: 1n * SCALE,
+          newReserveQuote: 1_000n * SCALE,
+          newTotalLpTokens: LpTokens.new(1n * SCALE),
           shouldDeactivateMarket: true,
         },
       }),
@@ -130,9 +133,9 @@ describe('market workflow transitions', () => {
     const market = mkMarket({
       status: 'active',
       wasPreviouslyActive: true,
-      modelPrice: Cent.new(2_500n),
-      ammPool: { reserveBase: Units(50n), reserveQuote: Cent.new(125_000n) },
-      totalLpTokens: 100n,
+      modelPrice: QuoteAmount.new(2_500n * SCALE),
+      ammPool: { reserveBase: TokenAmount.new(50n * SCALE), reserveQuote: QuoteAmount.new(125_000n * SCALE) },
+      totalLpTokens: LpTokens.new(100n * SCALE),
     });
 
     const transitioned = E.runSync(
@@ -140,25 +143,25 @@ describe('market workflow transitions', () => {
         _tag: 'LiquidityWithdrawn',
         occurredAt: now,
         result: {
-          shareBase: 50n,
-          shareQuote: 125_000n,
+          shareBase: { amount: 50n * SCALE, dust: 0n },
+          shareQuote: { amount: 125_000n * SCALE, dust: 0n },
           newReserveBase: 0n,
           newReserveQuote: 0n,
-          newTotalLpTokens: 0n,
+          newTotalLpTokens: LpTokens.new(0n),
           shouldDeactivateMarket: true,
         },
       }),
     );
 
     expect(transitioned.status).toBe('closed');
-    expect(transitioned.modelPrice).toBe(Cent.new(2_500n));
+    expect(transitioned.modelPrice).toBe(QuoteAmount.new(2_500n * SCALE));
   });
 
   it('closes pending market when pool becomes empty', () => {
     const market = mkMarket({
       status: 'pending',
-      ammPool: { reserveBase: Units(5n), reserveQuote: Cent.new(2_000n) },
-      totalLpTokens: 10n,
+      ammPool: { reserveBase: TokenAmount.new(5n * SCALE), reserveQuote: QuoteAmount.new(2_000n * SCALE) },
+      totalLpTokens: LpTokens.new(10n * SCALE),
     });
 
     const transitioned = E.runSync(
@@ -166,11 +169,11 @@ describe('market workflow transitions', () => {
         _tag: 'LiquidityWithdrawn',
         occurredAt: now,
         result: {
-          shareBase: 5n,
-          shareQuote: 2_000n,
+          shareBase: { amount: 5n * SCALE, dust: 0n },
+          shareQuote: { amount: 2_000n * SCALE, dust: 0n },
           newReserveBase: 0n,
           newReserveQuote: 0n,
-          newTotalLpTokens: 0n,
+          newTotalLpTokens: LpTokens.new(0n),
           shouldDeactivateMarket: false,
         },
       }),
@@ -190,11 +193,11 @@ describe('market workflow transitions', () => {
           _tag: 'LiquidityWithdrawn',
           occurredAt: now,
           result: {
-            shareBase: 5n,
-            shareQuote: 5_000n,
+            shareBase: { amount: 5n * SCALE, dust: 0n },
+            shareQuote: { amount: 5_000n * SCALE, dust: 0n },
             newReserveBase: 0n,
             newReserveQuote: 0n,
-            newTotalLpTokens: 0n,
+            newTotalLpTokens: LpTokens.new(0n),
             shouldDeactivateMarket: false,
           },
         }),

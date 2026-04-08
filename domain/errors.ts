@@ -104,3 +104,16 @@ export class ParseError extends Data.TaggedError('ParseError')<{
   input: unknown;
 }> {}
 // end of LLM written Code
+
+// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
+export class DustOverflowError extends Data.TaggedError('DustOverflowError')<{
+  operation: string;
+  dust: bigint;
+  threshold: bigint;
+}> {}
+
+export class FixedPointParseError extends Data.TaggedError('FixedPointParseError')<{
+  input: string;
+  reason: string;
+}> {}
+// end of LLM written Code

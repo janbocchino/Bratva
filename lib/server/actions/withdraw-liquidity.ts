@@ -6,7 +6,8 @@ import { creditUserBalance } from '@/domain/workflows/ledger';
 import { executeWithdraw } from '@/domain/workflows/liquidity';
 import { transitionMarket } from '@/domain/workflows/market';
 import { PositionOwnershipError } from '@/domain/errors';
-import { Cent, Units } from '@/domain/values/currencies';
+import { TokenAmount, QuoteAmount } from '@/domain/values/currencies';
+import { PROTOCOL_USER_ID } from '@/domain/values/protocol';
 import { Db, db } from '../db';
 import { ledgerWriteRepo } from '../ports/ledger';
 import { userReadRepo } from '../ports/user';
@@ -38,18 +39,14 @@ export async function withdrawLiquidityAction(p: { userId: number; positionId: n
         E.flatMap((market) => {
           const now = new Date();
 
-          // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
           return Fn.pipe(
             executeWithdraw({ market, position, currentTimestamp: now }),
             E.flatMap((result) => {
-              // beginning of LLM written Code, Model: gpt-5.3-codex
               const marketTransition = transitionMarket(market, {
                 _tag: 'LiquidityWithdrawn',
                 result,
                 occurredAt: now,
               });
-              // end of LLM written Code
-              // end of LLM written Code
               const baseAsset = assetReadRepo.getAsset({ id: market.baseAssetId });
               const quoteAsset = assetReadRepo.getAsset({ id: market.quoteAssetId });
 
@@ -61,28 +58,43 @@ export async function withdrawLiquidityAction(p: { userId: number; positionId: n
                     E.flatMap((nextMarket) => {
                       const effects: E.Effect<void, any, Db>[] = [];
 
-                      if (result.shareBase > 0n) {
+                      if (result.shareBase.amount > 0n) {
                         effects.push(
                           Fn.pipe(
                             creditUserBalance({
                               userId: user.id,
                               assetId: baseAsset.id,
-                              amount: Units(result.shareBase),
-                              units: 'unit',
+                              amount: TokenAmount.new(result.shareBase.amount),
+                              units: 'scaled_unit',
                             }),
                             E.flatMap(ledgerWriteRepo.createEntry),
                           ),
                         );
                       }
 
-                      if (result.shareQuote > 0n) {
+                      if (result.shareQuote.amount > 0n) {
                         effects.push(
                           Fn.pipe(
                             creditUserBalance({
                               userId: user.id,
                               assetId: quoteAsset.id,
-                              amount: Cent.new(result.shareQuote),
-                              units: 'cent',
+                              amount: QuoteAmount.new(result.shareQuote.amount),
+                              units: 'scaled_unit',
+                            }),
+                            E.flatMap(ledgerWriteRepo.createEntry),
+                          ),
+                        );
+                      }
+
+                      const totalDust = result.shareBase.dust + result.shareQuote.dust;
+                      if (totalDust > 0n) {
+                        effects.push(
+                          Fn.pipe(
+                            creditUserBalance({
+                              userId: PROTOCOL_USER_ID,
+                              assetId: quoteAsset.id,
+                              amount: QuoteAmount.new(totalDust),
+                              units: 'scaled_unit',
                             }),
                             E.flatMap(ledgerWriteRepo.createEntry),
                           ),
@@ -99,9 +111,7 @@ export async function withdrawLiquidityAction(p: { userId: number; positionId: n
                             ammReserveQuote: nextMarket.ammPool.reserveQuote,
                             totalLpTokens: nextMarket.totalLpTokens,
                             status: nextMarket.status,
-                            // beginning of LLM written Code, Model: gpt-5.3-codex
                             wasPreviouslyActive: nextMarket.wasPreviouslyActive,
-                            // end of LLM written Code
                           }),
                         ),
                         E.map(() => result),

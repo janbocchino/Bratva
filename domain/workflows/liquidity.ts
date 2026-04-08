@@ -1,26 +1,28 @@
+// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 import type { Market } from '../aggregates/market';
-import type { Cent, Units } from '../values/currencies';
+import { SCALE, type TokenAmount, type QuoteAmount, type LpTokens } from '../values/currencies';
 import { E, Fn } from '@/lib/shared/imports';
 import type { LiquidityPosition } from '../aggregates/liquidity';
 import { LiquidityValidationError, LiquidityLockError, MarketClosedError } from '../errors';
 import { BigInt as BigIntEffect, Option } from 'effect';
+import { settledMulDiv, type SettledAmount } from '../values/settlement';
 
-export const MIN_LIQUIDITY_CENTS = 10_000n; // $100 in cents
+/** Notional pool value is `2 * reserveQuote` when quote/base are 50/50 in USD; threshold is $100 scaled. */
+export const MIN_LIQUIDITY_AMOUNT = 100n * SCALE;
 export const LOCK_DURATION_MS = 15 * 24 * 60 * 60 * 1000; // 15 days
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-const poolValueCents = (reserveQuote: bigint) => 2n * reserveQuote;
+const poolValueQuote = (reserveQuote: bigint) => 2n * reserveQuote;
 const meetsThreshold = (reserveQuote: bigint) =>
-  poolValueCents(reserveQuote) >= MIN_LIQUIDITY_CENTS;
+  poolValueQuote(reserveQuote) >= MIN_LIQUIDITY_AMOUNT;
 
 // ── Validation (called from action layer) ────────────────────────────
 
-// beginning of LLM written Code, Model: Claude
 export function validateLiquidityParams(p: {
   market: Market;
-  amountBase: Units;
-  amountQuote: Cent;
+  amountBase: TokenAmount;
+  amountQuote: QuoteAmount;
 }): E.Effect<void, LiquidityValidationError> {
   if (p.amountBase <= 0n)
     return E.fail(new LiquidityValidationError({ cause: 'Base amount must be > 0' }));
@@ -28,7 +30,6 @@ export function validateLiquidityParams(p: {
     return E.fail(new LiquidityValidationError({ cause: 'Quote amount must be > 0' }));
   return E.void;
 }
-// end of LLM written Code
 
 export function validateDepositRatio(
   amountBase: bigint,
@@ -49,8 +50,7 @@ export function validateDepositRatio(
   return E.void;
 }
 
-// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
-export const validateProvide = (p: { market: Market; amountBase: Units; amountQuote: Cent }) =>
+export const validateProvide = (p: { market: Market; amountBase: TokenAmount; amountQuote: QuoteAmount }) =>
   Fn.pipe(
     validateLiquidityParams(p),
     E.flatMap(() =>
@@ -62,9 +62,12 @@ export const validateProvide = (p: { market: Market; amountBase: Units; amountQu
       ),
     ),
   );
-// end of LLM written Code
 
 // ── Pure computation ─────────────────────────────────────────────────
+
+export type CalcLpTokensResult = {
+  lpTokens: SettledAmount<LpTokens>;
+};
 
 export function calcLpTokens(p: {
   amountBase: bigint;
@@ -72,37 +75,46 @@ export function calcLpTokens(p: {
   reserveBase: bigint;
   reserveQuote: bigint;
   totalLpSupply: bigint;
-}): bigint {
+}): CalcLpTokensResult {
   const isEmptyPool = p.reserveBase === 0n && p.reserveQuote === 0n;
 
-  return isEmptyPool
-    ? Fn.pipe(
-        BigIntEffect.sqrt(p.amountBase * p.amountQuote),
-        Option.getOrElse(() => 0n),
-      )
-    : BigIntEffect.min(
-        (p.amountBase * p.totalLpSupply) / p.reserveBase,
-        (p.amountQuote * p.totalLpSupply) / p.reserveQuote,
-      );
+  if (isEmptyPool) {
+    const sqrtResult = Fn.pipe(
+      BigIntEffect.sqrt(p.amountBase * p.amountQuote),
+      Option.getOrElse(() => 0n),
+    );
+    return {
+      lpTokens: { amount: sqrtResult as LpTokens, dust: 0n },
+    };
+  }
+
+  const fromBase = settledMulDiv(p.amountBase, p.totalLpSupply, p.reserveBase);
+  const fromQuote = settledMulDiv(p.amountQuote, p.totalLpSupply, p.reserveQuote);
+
+  const binding = fromBase.amount <= fromQuote.amount ? fromBase : fromQuote;
+
+  return {
+    lpTokens: { amount: binding.amount as LpTokens, dust: binding.dust },
+  };
 }
 
 export type ProvideLiquidityInput = {
   market: Market;
-  amountBase: Units;
-  amountQuote: Cent;
+  amountBase: TokenAmount;
+  amountQuote: QuoteAmount;
   currentTimestamp: Date;
 };
 
 export type ProvideLiquidityResult = {
-  lpTokensMinted: bigint;
+  lpTokensMinted: LpTokens;
+  lpDust: bigint;
   newReserveBase: bigint;
   newReserveQuote: bigint;
-  newTotalLpTokens: bigint;
+  newTotalLpTokens: LpTokens;
   lockedUntil: Date | null;
   shouldActivateMarket: boolean;
 };
 
-// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 export const provideLiquidity = (input: ProvideLiquidityInput): ProvideLiquidityResult =>
   Fn.pipe(
     {
@@ -111,37 +123,34 @@ export const provideLiquidity = (input: ProvideLiquidityInput): ProvideLiquidity
       rBase: BigInt(input.market.ammPool.reserveBase),
       rQuote: BigInt(input.market.ammPool.reserveQuote),
     },
-    (ctx) => ({
-      ...ctx,
-      lpTokensMinted: calcLpTokens({
+    (ctx) => {
+      const lpResult = calcLpTokens({
         amountBase: ctx.base,
         amountQuote: ctx.quote,
         reserveBase: ctx.rBase,
         reserveQuote: ctx.rQuote,
-        totalLpSupply: input.market.totalLpTokens,
-      }),
-      newReserveBase: ctx.rBase + ctx.base,
-      newReserveQuote: ctx.rQuote + ctx.quote,
-    }),
-    (ctx) => ({
-      lpTokensMinted: ctx.lpTokensMinted,
-      newReserveBase: ctx.newReserveBase,
-      newReserveQuote: ctx.newReserveQuote,
-      newTotalLpTokens: input.market.totalLpTokens + ctx.lpTokensMinted,
-      // beginning of LLM written Code, Model: Claude
-      lockedUntil:
-        input.market.status === 'active'
-          ? new Date(input.currentTimestamp.getTime() + LOCK_DURATION_MS)
-          : null,
-      shouldActivateMarket:
-        (input.market.status === 'closed' || input.market.status === 'pending') &&
-        meetsThreshold(ctx.newReserveQuote),
-      // end of LLM written Code
-    }),
-  );
-// end of LLM written Code
+        totalLpSupply: BigInt(input.market.totalLpTokens),
+      });
 
-// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
+      const newReserveBase = ctx.rBase + ctx.base;
+      const newReserveQuote = ctx.rQuote + ctx.quote;
+
+      return {
+        lpTokensMinted: lpResult.lpTokens.amount,
+        lpDust: lpResult.lpTokens.dust,
+        newReserveBase,
+        newReserveQuote,
+        newTotalLpTokens: (BigInt(input.market.totalLpTokens) + BigInt(lpResult.lpTokens.amount)) as LpTokens,
+        lockedUntil:
+          input.market.status === 'active'
+            ? new Date(input.currentTimestamp.getTime() + LOCK_DURATION_MS)
+            : null,
+        shouldActivateMarket:
+          (input.market.status === 'closed' || input.market.status === 'pending') &&
+          meetsThreshold(newReserveQuote),
+      };
+    },
+  );
 
 // ── Withdraw liquidity ───────────────────────────────────────────────
 
@@ -152,11 +161,11 @@ export type WithdrawLiquidityInput = {
 };
 
 export type WithdrawLiquidityResult = {
-  shareBase: bigint;
-  shareQuote: bigint;
+  shareBase: SettledAmount;
+  shareQuote: SettledAmount;
   newReserveBase: bigint;
   newReserveQuote: bigint;
-  newTotalLpTokens: bigint;
+  newTotalLpTokens: LpTokens;
   shouldDeactivateMarket: boolean;
 };
 
@@ -176,7 +185,7 @@ export function validateWithdrawLiquidity(
         cause: `Position locked until ${input.position.lockedUntil.toISOString()}`,
       }),
     );
-  if (input.market.totalLpTokens === 0n)
+  if (BigInt(input.market.totalLpTokens) === 0n)
     return E.fail(new LiquidityValidationError({ cause: 'No LP tokens in pool' }));
   return E.void;
 }
@@ -186,23 +195,23 @@ export const withdrawLiquidity = (input: WithdrawLiquidityInput): WithdrawLiquid
     {
       rBase: BigInt(input.market.ammPool.reserveBase),
       rQuote: BigInt(input.market.ammPool.reserveQuote),
-      totalLp: input.market.totalLpTokens,
-      posLp: input.position.lpTokens,
+      totalLp: BigInt(input.market.totalLpTokens),
+      posLp: BigInt(input.position.lpTokens),
     },
-    (ctx) => ({
-      ...ctx,
-      shareBase: (ctx.posLp * ctx.rBase) / ctx.totalLp,
-      shareQuote: (ctx.posLp * ctx.rQuote) / ctx.totalLp,
-    }),
-    (ctx) => ({
-      shareBase: ctx.shareBase,
-      shareQuote: ctx.shareQuote,
-      newReserveBase: ctx.rBase - ctx.shareBase,
-      newReserveQuote: ctx.rQuote - ctx.shareQuote,
-      newTotalLpTokens: ctx.totalLp - ctx.posLp,
-      shouldDeactivateMarket:
-        input.market.status === 'active' && !meetsThreshold(ctx.rQuote - ctx.shareQuote),
-    }),
+    (ctx) => {
+      const shareBase = settledMulDiv(ctx.posLp, ctx.rBase, ctx.totalLp);
+      const shareQuote = settledMulDiv(ctx.posLp, ctx.rQuote, ctx.totalLp);
+
+      return {
+        shareBase,
+        shareQuote,
+        newReserveBase: ctx.rBase - shareBase.amount,
+        newReserveQuote: ctx.rQuote - shareQuote.amount,
+        newTotalLpTokens: (ctx.totalLp - ctx.posLp) as LpTokens,
+        shouldDeactivateMarket:
+          input.market.status === 'active' && !meetsThreshold(ctx.rQuote - shareQuote.amount),
+      };
+    },
   );
 
 export const executeWithdraw = (input: WithdrawLiquidityInput) =>

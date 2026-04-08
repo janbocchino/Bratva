@@ -1,10 +1,11 @@
+// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 /// <reference types="jest" />
 import { E, O } from '@/lib/shared/imports';
 import * as Cause from 'effect/Cause';
 import { creditUserBalance, debitUserBalance } from '../workflows/ledger';
 import { UserId } from '../values/user';
 import { AssetId } from '../values/asset';
-import { Cent, Units } from '../values/currencies';
+import { TokenAmount, QuoteAmount, SCALE } from '../values/currencies';
 import { AddBalanceValidationError, InsufficientBalanceError } from '../errors';
 
 describe('creditUserBalance', () => {
@@ -13,8 +14,8 @@ describe('creditUserBalance', () => {
   const units = 'cent' as const;
 
   describe('success', () => {
-    it('returns CreateLedgerEntryParams with drCr "cr" when amount > 0 (Cent)', async () => {
-      const amount = Cent.new(100n);
+    it('returns CreateLedgerEntryParams with drCr "cr" when amount > 0 (QuoteAmount)', async () => {
+      const amount = QuoteAmount.new(100n * SCALE);
 
       const result = await E.runPromise(creditUserBalance({ userId, assetId, amount, units }));
 
@@ -27,8 +28,8 @@ describe('creditUserBalance', () => {
       });
     });
 
-    it('returns CreateLedgerEntryParams when amount > 0 (bigint Units)', async () => {
-      const amount = Units(50n);
+    it('returns CreateLedgerEntryParams when amount > 0 (TokenAmount)', async () => {
+      const amount = TokenAmount.new(50n * SCALE);
 
       const result = await E.runPromise(
         creditUserBalance({ userId, assetId, amount, units: 'unit' }),
@@ -45,7 +46,7 @@ describe('creditUserBalance', () => {
       const effect = creditUserBalance({
         userId,
         assetId,
-        amount: Cent.new(0n),
+        amount: QuoteAmount.zero,
         units,
       });
 
@@ -67,7 +68,7 @@ describe('creditUserBalance', () => {
       const effect = creditUserBalance({
         userId,
         assetId,
-        amount: Cent.new(-10n),
+        amount: QuoteAmount.new(-10n),
         units,
       });
 
@@ -90,11 +91,11 @@ describe('debitUserBalance', () => {
   const units = 'cent' as const;
 
   describe('success', () => {
-    it('returns CreateLedgerEntryParams with drCr "dr" when amount > 0 (Cent)', async () => {
-      const amount = Cent.new(100n);
+    it('returns CreateLedgerEntryParams with drCr "dr" when amount > 0 (QuoteAmount)', async () => {
+      const amount = QuoteAmount.new(100n * SCALE);
 
       const result = await E.runPromise(
-        debitUserBalance({ userId, assetId, amount, units, currentBalance: Cent.new(500n) }),
+        debitUserBalance({ userId, assetId, amount, units, currentBalance: QuoteAmount.new(500n * SCALE) }),
       );
 
       expect(result).toEqual({
@@ -106,11 +107,11 @@ describe('debitUserBalance', () => {
       });
     });
 
-    it('returns CreateLedgerEntryParams when amount > 0 (bigint Units)', async () => {
-      const amount = Units(50n);
+    it('returns CreateLedgerEntryParams when amount > 0 (TokenAmount)', async () => {
+      const amount = TokenAmount.new(50n * SCALE);
 
       const result = await E.runPromise(
-        debitUserBalance({ userId, assetId, amount, units: 'unit', currentBalance: Units(100n) }),
+        debitUserBalance({ userId, assetId, amount, units: 'unit', currentBalance: TokenAmount.new(100n * SCALE) }),
       );
 
       expect(result.drCr).toBe('dr');
@@ -124,9 +125,9 @@ describe('debitUserBalance', () => {
       const effect = debitUserBalance({
         userId,
         assetId,
-        amount: Cent.new(0n),
+        amount: QuoteAmount.zero,
         units,
-        currentBalance: Cent.new(500n),
+        currentBalance: QuoteAmount.new(500n * SCALE),
       });
 
       const exit = await E.runPromiseExit(effect);
@@ -147,9 +148,9 @@ describe('debitUserBalance', () => {
       const effect = debitUserBalance({
         userId,
         assetId,
-        amount: Cent.new(-10n),
+        amount: QuoteAmount.new(-10n),
         units,
-        currentBalance: Cent.new(500n),
+        currentBalance: QuoteAmount.new(500n * SCALE),
       });
 
       const exit = await E.runPromiseExit(effect);
@@ -167,9 +168,9 @@ describe('debitUserBalance', () => {
       const effect = debitUserBalance({
         userId,
         assetId,
-        amount: Cent.new(200n),
+        amount: QuoteAmount.new(200n * SCALE),
         units,
-        currentBalance: Cent.new(100n),
+        currentBalance: QuoteAmount.new(100n * SCALE),
       });
 
       const exit = await E.runPromiseExit(effect);
@@ -189,10 +190,10 @@ describe('debitUserBalance', () => {
 
   describe('edge cases', () => {
     it('succeeds when currentBalance equals amount (exact withdrawal)', async () => {
-      const amount = Cent.new(100n);
+      const amount = QuoteAmount.new(100n * SCALE);
 
       const result = await E.runPromise(
-        debitUserBalance({ userId, assetId, amount, units, currentBalance: Cent.new(100n) }),
+        debitUserBalance({ userId, assetId, amount, units, currentBalance: QuoteAmount.new(100n * SCALE) }),
       );
 
       expect(result).toEqual({
@@ -205,3 +206,4 @@ describe('debitUserBalance', () => {
     });
   });
 });
+// end of LLM written Code

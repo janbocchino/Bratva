@@ -4,12 +4,13 @@
 import { E, Fn } from '@/lib/shared/imports';
 import { Db, db } from '../db';
 import { marketReadRepo } from '../ports/market';
-import { runServerDomainEffect } from '../run-server-domain-effect';
 import { priceSeriesReadRepo } from '../ports/price-series';
+import { runServerDomainEffect } from '../run-server-domain-effect';
 
 export type MarketPriceSeriesPoint = {
   createdAtIso: string;
-  priceCents: string;
+  /** 18-decimal fixed-point price as a decimal string (same encoding as `QuoteAmount`). */
+  priceScaled: string;
 };
 
 export async function getMarketPriceSeries(input: {
@@ -27,7 +28,7 @@ export async function getMarketPriceSeries(input: {
         (row) =>
           ({
             createdAtIso: row.createdAt.toISOString(),
-            priceCents: row.price.toString(),
+            priceScaled: row.price.toString(),
           }) satisfies MarketPriceSeriesPoint,
       ),
     ),
@@ -36,4 +37,3 @@ export async function getMarketPriceSeries(input: {
   return await runServerDomainEffect(pipeline.pipe(E.provideService(Db, db)));
 }
 // end of LLM written Code
-

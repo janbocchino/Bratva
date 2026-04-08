@@ -1,14 +1,16 @@
+// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 import type { Market } from '../aggregates/market';
-import { Cent } from '../values/currencies';
+import { QuoteAmount, SCALE } from '../values/currencies';
+import { mulDivDown } from '../values/fixed-point';
 
-// beginning of LLM written Code, Model: gpt-5.3-codex
-export const selectMarketDisplayPrice = (market: Market): Cent => {
+export const selectMarketDisplayPrice = (market: Market): QuoteAmount => {
   if (market.status === 'closed') return market.modelPrice;
 
   const reserveBase = BigInt(market.ammPool.reserveBase);
   const reserveQuote = BigInt(market.ammPool.reserveQuote);
 
   if (reserveBase <= 0n || reserveQuote <= 0n) return market.modelPrice;
-  return Cent.new(reserveQuote / reserveBase);
+  // Both reserves are SCALE-scaled; spot quote/base needs one SCALE factor kept in the result.
+  return QuoteAmount.new(mulDivDown(reserveQuote, SCALE, reserveBase));
 };
 // end of LLM written Code

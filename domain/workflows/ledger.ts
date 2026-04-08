@@ -1,14 +1,16 @@
+// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 import { E } from '@/lib/shared/imports';
 import type { AssetId } from '../values/asset';
-import type { Cent, Units } from '../values/currencies';
+import type { TokenAmount, QuoteAmount } from '../values/currencies';
 import type { UserId } from '../values/user';
 import { AddBalanceValidationError, InsufficientBalanceError } from '../errors';
-import type { CreateLedgerEntryParams, LedgerUnits } from '../ports/ledger';
+import type { CreateLedgerEntryParams } from '../ports/ledger';
+import type { LedgerUnits } from '../aggregates/ledger';
 
 export function creditUserBalance(p: {
   userId: UserId;
   assetId: AssetId;
-  amount: Cent | Units;
+  amount: TokenAmount | QuoteAmount;
   units: LedgerUnits;
 }): E.Effect<CreateLedgerEntryParams, AddBalanceValidationError> {
   if (p.amount <= 0n) {
@@ -27,9 +29,9 @@ export function creditUserBalance(p: {
 export function debitUserBalance(p: {
   userId: UserId;
   assetId: AssetId;
-  amount: Cent | Units;
+  amount: TokenAmount | QuoteAmount;
   units: LedgerUnits;
-  currentBalance: Cent | Units;
+  currentBalance: TokenAmount | QuoteAmount;
 }): E.Effect<CreateLedgerEntryParams, AddBalanceValidationError | InsufficientBalanceError> {
   if (p.amount <= 0n) {
     return E.fail(new AddBalanceValidationError({ cause: 'Amount must be > 0' }));
@@ -46,3 +48,4 @@ export function debitUserBalance(p: {
     units: p.units,
   } satisfies CreateLedgerEntryParams);
 }
+// end of LLM written Code

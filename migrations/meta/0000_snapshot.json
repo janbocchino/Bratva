@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "41300711-2bf3-463b-a0cf-d0ec27816927",
+  "id": "3ed26358-caff-4569-a3de-f85b7102c3b9",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -600,18 +600,18 @@
         },
         "quantity": {
           "name": "quantity",
-          "type": "integer",
+          "type": "blob",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "filled": {
           "name": "filled",
-          "type": "integer",
+          "type": "blob",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 0
+          "default": "0"
         },
         "stop_loss": {
           "name": "stop_loss",
@@ -865,7 +865,7 @@
         },
         "quantity": {
           "name": "quantity",
-          "type": "integer",
+          "type": "blob",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false

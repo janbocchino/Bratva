@@ -1,14 +1,13 @@
+// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 import type { AssetId } from '../values/asset';
-import type { Cent, Units } from '../values/currencies';
+import type { QuoteAmount, TokenAmount, LpTokens } from '../values/currencies';
 import type { MarketId, MarketPublicId, MarketSequenceNumber } from '../values/market';
 
-// beginning of LLM written Code, Model: Claude
 export type MarketStatus = 'closed' | 'pending' | 'active';
-// end of LLM written Code
 
 export type AmmPool = {
-  reserveBase: Units;
-  reserveQuote: Cent;
+  reserveBase: TokenAmount;
+  reserveQuote: QuoteAmount;
 };
 
 export const AmmPool = {
@@ -22,12 +21,11 @@ export type Market = {
   quoteAssetId: AssetId;
   sequenceNumber: MarketSequenceNumber;
   ammPool: AmmPool;
-  modelPrice: Cent;
-  totalLpTokens: bigint;
+  modelPrice: QuoteAmount;
+  totalLpTokens: LpTokens;
   status: MarketStatus;
-  // beginning of LLM written Code, Model: Claude
   wasPreviouslyActive: boolean;
-  // end of LLM written Code
   createdAt: Date;
   updatedAt: Date;
 };
+// end of LLM written Code

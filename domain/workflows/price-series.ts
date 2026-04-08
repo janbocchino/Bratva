@@ -1,4 +1,4 @@
-// beginning of LLM written Code, Model: gpt-5.3-codex
+// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 /*
 Decision questionnaire
 - How should USD compatibility be enforced in V1?

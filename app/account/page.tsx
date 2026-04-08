@@ -2,13 +2,50 @@
 
 import { useEffect, useState } from 'react';
 import type { AccountHistoryEntry } from '@/domain/aggregates/account-history';
+import type { LedgerUnits } from '@/domain/aggregates/ledger';
+import type { AssetId } from '@/domain/values/asset';
+import { formatTokenAmount } from '@/domain/values/format-fixed-point';
 import { UserDisplayName, UserEmail } from '@/domain/values/user';
 import { formatActionError } from '@/lib/client/format-action-error';
+import { formatUsdFromScaledQuote } from '@/lib/client/format-scaled-usd';
 import { addBalance } from '@/lib/server/actions/add-balance';
 import { createUser } from '@/lib/server/actions/create-user';
 import type { AccountSnapshot } from '@/lib/server/actions/get-account';
 import { getAccount } from '@/lib/server/actions/get-account';
 import { withdrawBalance } from '@/lib/server/actions/withdraw-balance';
+
+// beginning of LLM written Code, Model: Claude Opus 4.5
+const asBigInt = (amount: bigint | string): bigint =>
+  typeof amount === 'bigint' ? amount : BigInt(amount);
+
+const isUsdLedgerAsset = (assetId: AssetId | number, usdAssetId: AssetId | null): boolean =>
+  usdAssetId !== null && Number(assetId) === Number(usdAssetId);
+
+/** USD quote rows use `scaled_unit` in the DB; base tokens use `scaled_unit` too — disambiguate by asset id. */
+const formatLedgerAmount = (
+  amount: bigint | string,
+  units: LedgerUnits,
+  assetId: AssetId | number,
+  usdAssetId: AssetId | null,
+): string => {
+  const raw = asBigInt(amount);
+  if (units === 'cent' || isUsdLedgerAsset(assetId, usdAssetId)) {
+    return formatUsdFromScaledQuote(raw);
+  }
+  return formatTokenAmount(raw);
+};
+
+const ledgerUnitsLabel = (
+  units: LedgerUnits,
+  assetId: AssetId | number,
+  usdAssetId: AssetId | null,
+): string => {
+  if (isUsdLedgerAsset(assetId, usdAssetId)) return 'USD';
+  if (units === 'scaled_unit') return 'Token (scaled)';
+  if (units === 'cent') return 'USD (legacy)';
+  return 'Unit';
+};
+// end of LLM written Code
 
 // beginning of LLM written Code, Model: gpt-5.3-codex-low
 export default function AccountPage() {
@@ -123,7 +160,10 @@ export default function AccountPage() {
           <h1 className='text-3xl font-semibold tracking-tight'>Account</h1>
           <p className='text-sm text-black/70'>Create an account to start funding and trading.</p>
         </header>
-        <form onSubmit={handleCreateUser} className='flex w-full max-w-md flex-col gap-3 rounded-lg border border-black/10 p-4'>
+        <form
+          onSubmit={handleCreateUser}
+          className='flex w-full max-w-md flex-col gap-3 rounded-lg border border-black/10 p-4'
+        >
           <h2 className='text-lg font-medium'>Create Account</h2>
           <input
             className='rounded border border-black/20 px-3 py-2'
@@ -141,7 +181,11 @@ export default function AccountPage() {
             onChange={(event) => setEmail(event.target.value)}
             required
           />
-          <button className='rounded border border-black/20 px-3 py-2 text-sm font-medium' type='submit' disabled={isCreating}>
+          <button
+            className='rounded border border-black/20 px-3 py-2 text-sm font-medium'
+            type='submit'
+            disabled={isCreating}
+          >
             {isCreating ? 'Creating...' : 'Create Account'}
           </button>
           {createStatus ? <p className='text-sm text-black/70'>{createStatus}</p> : null}
@@ -217,10 +261,22 @@ export default function AccountPage() {
             </thead>
             <tbody>
               {snapshot.ledger.summary.map((balance) => (
-                <tr key={`${balance.assetId}-${balance.units}`} className='border-b border-black/10 last:border-b-0'>
+                <tr
+                  key={`${balance.assetId}-${balance.units}`}
+                  className='border-b border-black/10 last:border-b-0'
+                >
                   <td className='px-3 py-2'>{balance.assetId}</td>
-                  <td className='px-3 py-2 uppercase'>{balance.units}</td>
-                  <td className='px-3 py-2 font-mono'>{balance.balance.toString()}</td>
+                  <td className='px-3 py-2 text-black/80'>
+                    {ledgerUnitsLabel(balance.units, balance.assetId, snapshot.usdAssetId)}
+                  </td>
+                  <td className='px-3 py-2 font-mono'>
+                    {formatLedgerAmount(
+                      balance.balance as bigint | string,
+                      balance.units,
+                      balance.assetId,
+                      snapshot.usdAssetId,
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -238,16 +294,26 @@ export default function AccountPage() {
               {historyByCategory?.balanceEdit.map((entry) => {
                 if (entry.category !== 'balanceEdit') return null;
                 return (
-                  <li key={entry.id} className='flex items-center justify-between rounded border border-black/10 px-3 py-2'>
+                  <li
+                    key={entry.id}
+                    className='flex items-center justify-between rounded border border-black/10 px-3 py-2'
+                  >
                     <div>
                       <p className='font-medium'>{entry.actionLabel}</p>
                       <p className='text-xs text-black/60'>
-                        asset {entry.assetId} | {entry.units} | {historyDateLabel(entry)}
+                        asset {entry.assetId} |{' '}
+                        {ledgerUnitsLabel(entry.units, entry.assetId, snapshot.usdAssetId)} |{' '}
+                        {historyDateLabel(entry)}
                       </p>
                     </div>
                     <p className='font-mono text-xs'>
                       {entry.drCr === 'cr' ? '+' : '-'}
-                      {entry.amount.toString()}
+                      {formatLedgerAmount(
+                        entry.amount as bigint | string,
+                        entry.units,
+                        entry.assetId,
+                        snapshot.usdAssetId,
+                      )}
                     </p>
                   </li>
                 );
@@ -267,10 +333,13 @@ export default function AccountPage() {
                   <li key={entry.id} className='rounded border border-black/10 px-3 py-2'>
                     <p className='font-medium'>{entry.actionLabel}</p>
                     <p className='text-xs text-black/60'>
-                      market {entry.marketPublicId} | base {entry.baseAssetId} / quote {entry.quoteAssetId}
+                      market {entry.marketPublicId} | base {entry.baseAssetId} / quote{' '}
+                      {entry.quoteAssetId}
                     </p>
                     <p className='text-xs text-black/60'>
-                      side {entry.side} | source {entry.source} | qty {entry.quantity} | price {entry.price.toString()}
+                      side {entry.side} | source {entry.source} | qty{' '}
+                      {formatTokenAmount(asBigInt(entry.quantity))} | price{' '}
+                      {formatUsdFromScaledQuote(asBigInt(entry.price))}
                     </p>
                     <p className='text-xs text-black/60'>{historyDateLabel(entry)}</p>
                   </li>
@@ -291,10 +360,13 @@ export default function AccountPage() {
                   <li key={entry.id} className='rounded border border-black/10 px-3 py-2'>
                     <p className='font-medium'>{entry.actionLabel}</p>
                     <p className='text-xs text-black/60'>
-                      market {entry.marketPublicId} | base {entry.baseAssetId} / quote {entry.quoteAssetId}
+                      market {entry.marketPublicId} | base {entry.baseAssetId} / quote{' '}
+                      {entry.quoteAssetId}
                     </p>
                     <p className='text-xs text-black/60'>
-                      spent quote {entry.spentQuote.toString()} | provided base {entry.providedBase.toString()} | provided quote {entry.providedQuote.toString()}
+                      spent quote {formatUsdFromScaledQuote(asBigInt(entry.spentQuote))} | provided
+                      base {formatTokenAmount(asBigInt(entry.providedBase))} | provided quote{' '}
+                      {formatUsdFromScaledQuote(asBigInt(entry.providedQuote))}
                     </p>
                     <p className='text-xs text-black/60'>{historyDateLabel(entry)}</p>
                   </li>

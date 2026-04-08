@@ -1,3 +1,4 @@
+// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 /// <reference types="jest" />
 import { E } from '@/lib/shared/imports';
 import {
@@ -5,20 +6,14 @@ import {
   validateLiquidityParams,
   validateDepositRatio,
   calcLpTokens,
-  // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
-  MIN_LIQUIDITY_CENTS,
-  // end of LLM written Code
+  MIN_LIQUIDITY_AMOUNT,
   LOCK_DURATION_MS,
-  // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
   withdrawLiquidity,
   validateWithdrawLiquidity,
-  // end of LLM written Code
 } from '../workflows/liquidity';
 import type { Market } from '../aggregates/market';
-// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 import type { LiquidityPosition } from '../aggregates/liquidity';
-// end of LLM written Code
-import { Cent, Units } from '../values/currencies';
+import { TokenAmount, QuoteAmount, LpTokens, SCALE } from '../values/currencies';
 import { MarketId, MarketPublicId, MarketSequenceNumber } from '../values/exchange';
 import type { AssetId } from '../values/asset';
 
@@ -31,17 +26,13 @@ const mkMarket = (overrides: Partial<Market> = {}): Market => ({
   quoteAssetId: 2 as AssetId,
   sequenceNumber: MarketSequenceNumber(0),
   ammPool: {
-    reserveBase: Units(0n),
-    reserveQuote: Cent.new(0n),
+    reserveBase: TokenAmount.new(0n),
+    reserveQuote: QuoteAmount.new(0n),
   },
-  modelPrice: Cent.new(1000n),
-  totalLpTokens: 0n,
-  // beginning of LLM written Code, Model: Claude
+  modelPrice: QuoteAmount.new(1000n * SCALE),
+  totalLpTokens: LpTokens.new(0n),
   status: 'closed',
-  // end of LLM written Code
-  // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
   wasPreviouslyActive: false,
-  // end of LLM written Code
   createdAt: now,
   updatedAt: now,
   ...overrides,
@@ -54,71 +45,70 @@ describe('provideLiquidity', () => {
   it('first deposit: LP tokens = sqrt(base * quote)', () => {
     const result = provideLiquidity({
       market: mkMarket(),
-      amountBase: Units(5n),
-      amountQuote: Cent.new(5000n),
+      amountBase: TokenAmount.new(5n * SCALE),
+      amountQuote: QuoteAmount.new(5000n * SCALE),
       currentTimestamp: now,
     });
 
-    expect(result.lpTokensMinted).toBe(158n);
-    expect(result.newReserveBase).toBe(5n);
-    expect(result.newReserveQuote).toBe(5000n);
-    expect(result.newTotalLpTokens).toBe(158n);
+    expect(result.lpTokensMinted).toBe(LpTokens.new(158113883008418966599n));
+    expect(result.newReserveBase).toBe(5n * SCALE);
+    expect(result.newReserveQuote).toBe(5000n * SCALE);
+    expect(result.newTotalLpTokens).toBe(LpTokens.new(158113883008418966599n));
   });
 
   it('subsequent deposit: LP tokens proportional via min formula', () => {
     const market = mkMarket({
       status: 'active',
-      ammPool: { reserveBase: Units(10n), reserveQuote: Cent.new(10000n) },
-      totalLpTokens: 316n,
+      ammPool: { reserveBase: TokenAmount.new(10n * SCALE), reserveQuote: QuoteAmount.new(10000n * SCALE) },
+      totalLpTokens: LpTokens.new(316n * SCALE),
     });
 
     const result = provideLiquidity({
       market,
-      amountBase: Units(5n),
-      amountQuote: Cent.new(5000n),
+      amountBase: TokenAmount.new(5n * SCALE),
+      amountQuote: QuoteAmount.new(5000n * SCALE),
       currentTimestamp: now,
     });
 
-    expect(result.lpTokensMinted).toBe(158n);
-    expect(result.newReserveBase).toBe(15n);
-    expect(result.newReserveQuote).toBe(15000n);
-    expect(result.newTotalLpTokens).toBe(474n);
+    expect(result.lpTokensMinted).toBe(LpTokens.new(158n * SCALE));
+    expect(result.newReserveBase).toBe(15n * SCALE);
+    expect(result.newReserveQuote).toBe(15000n * SCALE);
+    expect(result.newTotalLpTokens).toBe(LpTokens.new(474n * SCALE));
   });
 
   it('lockedUntil is null for pending market', () => {
     const result = provideLiquidity({
       market: mkMarket({ status: 'pending' }),
-      amountBase: Units(5n),
-      amountQuote: Cent.new(5000n),
+      amountBase: TokenAmount.new(5n * SCALE),
+      amountQuote: QuoteAmount.new(5000n * SCALE),
       currentTimestamp: now,
     });
 
     expect(result.lockedUntil).toBeNull();
   });
 
-  // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
   it('lockedUntil is now + 15d for active market', () => {
     const result = provideLiquidity({
       market: mkMarket({
         status: 'active',
-        ammPool: { reserveBase: Units(10n), reserveQuote: Cent.new(10000n) },
-        totalLpTokens: 316n,
+        ammPool: { reserveBase: TokenAmount.new(10n * SCALE), reserveQuote: QuoteAmount.new(10000n * SCALE) },
+        totalLpTokens: LpTokens.new(316n * SCALE),
         wasPreviouslyActive: true,
       }),
-      amountBase: Units(5n),
-      amountQuote: Cent.new(5000n),
+      amountBase: TokenAmount.new(5n * SCALE),
+      amountQuote: QuoteAmount.new(5000n * SCALE),
       currentTimestamp: now,
     });
 
     expect(result.lockedUntil!.getTime()).toBe(now.getTime() + LOCK_DURATION_MS);
   });
 
-  it('shouldActivateMarket when total pool value crosses $100 (MIN_LIQUIDITY_CENTS)', () => {
-    const quoteNeeded = MIN_LIQUIDITY_CENTS / 2n; // $50 per side = $100 total
+  it('shouldActivateMarket when total pool value crosses $100 (MIN_LIQUIDITY_AMOUNT)', () => {
+    const quoteNeeded = MIN_LIQUIDITY_AMOUNT / 2n;
     const result = provideLiquidity({
       market: mkMarket({ status: 'pending' }),
-      amountBase: Units(5n),
-      amountQuote: Cent.new(quoteNeeded),
+      amountBase: TokenAmount.new(5n * SCALE),
+      amountQuote: QuoteAmount.new(quoteNeeded),
       currentTimestamp: now,
     });
 
@@ -126,11 +116,11 @@ describe('provideLiquidity', () => {
   });
 
   it('does not activate if below $100 threshold', () => {
-    const quoteJustBelow = MIN_LIQUIDITY_CENTS / 2n - 1n;
+    const quoteJustBelow = MIN_LIQUIDITY_AMOUNT / 2n - 1n;
     const result = provideLiquidity({
       market: mkMarket({ status: 'pending' }),
-      amountBase: Units(4n),
-      amountQuote: Cent.new(quoteJustBelow),
+      amountBase: TokenAmount.new(4n * SCALE),
+      amountQuote: QuoteAmount.new(quoteJustBelow),
       currentTimestamp: now,
     });
 
@@ -142,28 +132,26 @@ describe('provideLiquidity', () => {
       market: mkMarket({
         status: 'active',
         ammPool: {
-          reserveBase: Units(10n),
-          reserveQuote: Cent.new(MIN_LIQUIDITY_CENTS),
+          reserveBase: TokenAmount.new(10n * SCALE),
+          reserveQuote: QuoteAmount.new(MIN_LIQUIDITY_AMOUNT),
         },
-        totalLpTokens: 316n,
+        totalLpTokens: LpTokens.new(316n * SCALE),
         wasPreviouslyActive: true,
       }),
-      amountBase: Units(50n),
-      amountQuote: Cent.new(50000n),
+      amountBase: TokenAmount.new(50n * SCALE),
+      amountQuote: QuoteAmount.new(50000n * SCALE),
       currentTimestamp: now,
     });
 
     expect(result.shouldActivateMarket).toBe(false);
   });
-  // end of LLM written Code
 
-  // beginning of LLM written Code, Model: Claude
   it('shouldActivateMarket when total pool value crosses $100 from closed status', () => {
-    const quoteNeeded = MIN_LIQUIDITY_CENTS / 2n;
+    const quoteNeeded = MIN_LIQUIDITY_AMOUNT / 2n;
     const result = provideLiquidity({
       market: mkMarket({ status: 'closed' }),
-      amountBase: Units(5n),
-      amountQuote: Cent.new(quoteNeeded),
+      amountBase: TokenAmount.new(5n * SCALE),
+      amountQuote: QuoteAmount.new(quoteNeeded),
       currentTimestamp: now,
     });
 
@@ -171,42 +159,39 @@ describe('provideLiquidity', () => {
   });
 
   it('does not activate a closed market below threshold', () => {
-    const quoteJustBelow = MIN_LIQUIDITY_CENTS / 2n - 1n;
+    const quoteJustBelow = MIN_LIQUIDITY_AMOUNT / 2n - 1n;
     const result = provideLiquidity({
       market: mkMarket({ status: 'closed' }),
-      amountBase: Units(4n),
-      amountQuote: Cent.new(quoteJustBelow),
+      amountBase: TokenAmount.new(4n * SCALE),
+      amountQuote: QuoteAmount.new(quoteJustBelow),
       currentTimestamp: now,
     });
 
     expect(result.shouldActivateMarket).toBe(false);
   });
-  // end of LLM written Code
 });
 
 /* ------------------------------------------------------------------ */
 /*  Validation (Effect-based)                                          */
 /* ------------------------------------------------------------------ */
 describe('validateLiquidityParams', () => {
-  // beginning of LLM written Code, Model: Claude
   it('allows LP add on closed market (LP add is the entry point)', () => {
     const exit = E.runSyncExit(
       validateLiquidityParams({
         market: mkMarket({ status: 'closed' }),
-        amountBase: Units(5n),
-        amountQuote: Cent.new(5000n),
+        amountBase: TokenAmount.new(5n * SCALE),
+        amountQuote: QuoteAmount.new(5000n * SCALE),
       }),
     );
     expect(exit._tag).toBe('Success');
   });
-  // end of LLM written Code
 
   it('rejects zero base amount', () => {
     const exit = E.runSyncExit(
       validateLiquidityParams({
         market: mkMarket(),
-        amountBase: Units(0n),
-        amountQuote: Cent.new(5000n),
+        amountBase: TokenAmount.new(0n),
+        amountQuote: QuoteAmount.new(5000n * SCALE),
       }),
     );
     expect(exit._tag).toBe('Failure');
@@ -216,8 +201,8 @@ describe('validateLiquidityParams', () => {
     const exit = E.runSyncExit(
       validateLiquidityParams({
         market: mkMarket(),
-        amountBase: Units(5n),
-        amountQuote: Cent.new(0n),
+        amountBase: TokenAmount.new(5n * SCALE),
+        amountQuote: QuoteAmount.new(0n),
       }),
     );
     expect(exit._tag).toBe('Failure');
@@ -226,17 +211,17 @@ describe('validateLiquidityParams', () => {
 
 describe('validateDepositRatio', () => {
   it('passes for empty pool', () => {
-    const exit = E.runSyncExit(validateDepositRatio(5n, 2000n, 0n, 0n));
+    const exit = E.runSyncExit(validateDepositRatio(5n * SCALE, 2000n * SCALE, 0n, 0n));
     expect(exit._tag).toBe('Success');
   });
 
   it('rejects bad ratio for non-empty pool', () => {
-    const exit = E.runSyncExit(validateDepositRatio(5n, 2000n, 10n, 10000n));
+    const exit = E.runSyncExit(validateDepositRatio(5n * SCALE, 2000n * SCALE, 10n * SCALE, 10000n * SCALE));
     expect(exit._tag).toBe('Failure');
   });
 
   it('passes matching ratio', () => {
-    const exit = E.runSyncExit(validateDepositRatio(5n, 5000n, 10n, 10000n));
+    const exit = E.runSyncExit(validateDepositRatio(5n * SCALE, 5000n * SCALE, 10n * SCALE, 10000n * SCALE));
     expect(exit._tag).toBe('Success');
   });
 });
@@ -246,31 +231,27 @@ describe('validateDepositRatio', () => {
 /* ------------------------------------------------------------------ */
 describe('calcLpTokens', () => {
   it('first deposit: sqrt(base * quote)', () => {
-    expect(
-      calcLpTokens({
-        amountBase: 5n,
-        amountQuote: 5000n,
-        reserveBase: 0n,
-        reserveQuote: 0n,
-        totalLpSupply: 0n,
-      }),
-    ).toBe(158n);
+    const result = calcLpTokens({
+      amountBase: 5n * SCALE,
+      amountQuote: 5000n * SCALE,
+      reserveBase: 0n,
+      reserveQuote: 0n,
+      totalLpSupply: 0n,
+    });
+    expect(result.lpTokens.amount).toBe(LpTokens.new(158113883008418966599n));
   });
 
   it('subsequent deposit: proportional', () => {
-    expect(
-      calcLpTokens({
-        amountBase: 5n,
-        amountQuote: 5000n,
-        reserveBase: 10n,
-        reserveQuote: 10000n,
-        totalLpSupply: 316n,
-      }),
-    ).toBe(158n);
+    const result = calcLpTokens({
+      amountBase: 5n * SCALE,
+      amountQuote: 5000n * SCALE,
+      reserveBase: 10n * SCALE,
+      reserveQuote: 10000n * SCALE,
+      totalLpSupply: 316n * SCALE,
+    });
+    expect(result.lpTokens.amount).toBe(LpTokens.new(158n * SCALE));
   });
 });
-
-// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 
 /* ------------------------------------------------------------------ */
 /*  withdrawLiquidity (pure)                                           */
@@ -281,9 +262,9 @@ const mkPosition = (overrides: Partial<LiquidityPosition> = {}): LiquidityPositi
   publicId: 'pos-1',
   marketId: MarketId(1),
   userId: 1 as any,
-  lpTokens: 158n,
-  depositBase: Units(5n),
-  depositQuote: Cent.new(5000n),
+  lpTokens: LpTokens.new(158n * SCALE),
+  depositBase: TokenAmount.new(5n * SCALE),
+  depositQuote: QuoteAmount.new(5000n * SCALE),
   lockedUntil: null,
   status: 'active',
   createdAt: now,
@@ -295,29 +276,30 @@ describe('withdrawLiquidity', () => {
   it('computes pro-rata share of reserves', () => {
     const market = mkMarket({
       status: 'active',
-      ammPool: { reserveBase: Units(10n), reserveQuote: Cent.new(10000n) },
-      totalLpTokens: 316n,
+      ammPool: { reserveBase: TokenAmount.new(10n * SCALE), reserveQuote: QuoteAmount.new(10000n * SCALE) },
+      totalLpTokens: LpTokens.new(316n * SCALE),
       wasPreviouslyActive: true,
     });
-    const position = mkPosition({ lpTokens: 158n });
+    const position = mkPosition({ lpTokens: LpTokens.new(158n * SCALE) });
 
     const result = withdrawLiquidity({ market, position, currentTimestamp: now });
 
-    expect(result.shareBase).toBe(5n);
-    expect(result.shareQuote).toBe(5000n);
-    expect(result.newReserveBase).toBe(5n);
-    expect(result.newReserveQuote).toBe(5000n);
-    expect(result.newTotalLpTokens).toBe(158n);
+    expect(result.shareBase.amount).toBe(5n * SCALE);
+    expect(result.shareQuote.amount).toBe(5000n * SCALE);
+    expect(result.newReserveBase).toBe(5n * SCALE);
+    expect(result.newReserveQuote).toBe(5000n * SCALE);
+    expect(result.newTotalLpTokens).toBe(LpTokens.new(158n * SCALE));
   });
 
   it('shouldDeactivateMarket when reserves drop below $100', () => {
+    // Pool ~$120 notional (2×60 quote); withdrawing 1/3 of LP removes 20 quote → 40 left → 2×40 < $100 threshold.
     const market = mkMarket({
       status: 'active',
-      ammPool: { reserveBase: Units(6n), reserveQuote: Cent.new(6000n) },
-      totalLpTokens: 316n,
+      ammPool: { reserveBase: TokenAmount.new(10n * SCALE), reserveQuote: QuoteAmount.new(60n * SCALE) },
+      totalLpTokens: LpTokens.new(300n * SCALE),
       wasPreviouslyActive: true,
     });
-    const position = mkPosition({ lpTokens: 158n });
+    const position = mkPosition({ lpTokens: LpTokens.new(100n * SCALE) });
 
     const result = withdrawLiquidity({ market, position, currentTimestamp: now });
 
@@ -327,11 +309,11 @@ describe('withdrawLiquidity', () => {
   it('does not deactivate when remaining reserves >= $100', () => {
     const market = mkMarket({
       status: 'active',
-      ammPool: { reserveBase: Units(20n), reserveQuote: Cent.new(20000n) },
-      totalLpTokens: 632n,
+      ammPool: { reserveBase: TokenAmount.new(20n * SCALE), reserveQuote: QuoteAmount.new(20000n * SCALE) },
+      totalLpTokens: LpTokens.new(632n * SCALE),
       wasPreviouslyActive: true,
     });
-    const position = mkPosition({ lpTokens: 158n });
+    const position = mkPosition({ lpTokens: LpTokens.new(158n * SCALE) });
 
     const result = withdrawLiquidity({ market, position, currentTimestamp: now });
 
@@ -362,8 +344,8 @@ describe('validateWithdrawLiquidity', () => {
   it('allows unlocked active position', () => {
     const market = mkMarket({
       status: 'active',
-      totalLpTokens: 316n,
-      ammPool: { reserveBase: Units(10n), reserveQuote: Cent.new(10000n) },
+      totalLpTokens: LpTokens.new(316n * SCALE),
+      ammPool: { reserveBase: TokenAmount.new(10n * SCALE), reserveQuote: QuoteAmount.new(10000n * SCALE) },
       wasPreviouslyActive: true,
     });
     const pastDate = new Date(now.getTime() - 86400000);
@@ -394,10 +376,10 @@ describe('validateOrderParams – token-holder gating', () => {
     const market = mkMarket({
       status: 'active',
       wasPreviouslyActive: true,
-      ammPool: { reserveBase: Units(10n), reserveQuote: Cent.new(10000n) },
+      ammPool: { reserveBase: TokenAmount.new(10n * SCALE), reserveQuote: QuoteAmount.new(10000n * SCALE) },
     });
     const exit = E.runSyncExit(
-      validateOrderParams({ market, price: Cent.new(100n), quantity: 1, side: 'bid' }),
+      validateOrderParams({ market, price: QuoteAmount.new(100n * SCALE), quantity: TokenAmount.new(1n * SCALE), side: 'bid' }),
     );
     expect(exit._tag).toBe('Success');
   });
@@ -405,7 +387,7 @@ describe('validateOrderParams – token-holder gating', () => {
   it('rejects orders on fresh pending market', () => {
     const market = mkMarket({ status: 'pending', wasPreviouslyActive: false });
     const exit = E.runSyncExit(
-      validateOrderParams({ market, price: Cent.new(100n), quantity: 1, side: 'bid' }),
+      validateOrderParams({ market, price: QuoteAmount.new(100n * SCALE), quantity: TokenAmount.new(1n * SCALE), side: 'bid' }),
     );
     expect(exit._tag).toBe('Failure');
   });
@@ -415,10 +397,10 @@ describe('validateOrderParams – token-holder gating', () => {
     const exit = E.runSyncExit(
       validateOrderParams({
         market,
-        price: Cent.new(100n),
-        quantity: 1,
+        price: QuoteAmount.new(100n * SCALE),
+        quantity: TokenAmount.new(1n * SCALE),
         side: 'bid',
-        userLedgerSummary: [{ assetId: 1 as AssetId, balance: Units(5n), units: 'unit' }],
+        userLedgerSummary: [{ assetId: 1 as AssetId, balance: TokenAmount.new(5n * SCALE), units: 'unit' }],
       }),
     );
     expect(exit._tag).toBe('Success');
@@ -429,10 +411,10 @@ describe('validateOrderParams – token-holder gating', () => {
     const exit = E.runSyncExit(
       validateOrderParams({
         market,
-        price: Cent.new(100n),
-        quantity: 1,
+        price: QuoteAmount.new(100n * SCALE),
+        quantity: TokenAmount.new(1n * SCALE),
         side: 'bid',
-        userLedgerSummary: [{ assetId: 2 as AssetId, balance: Cent.new(5000n), units: 'cent' }],
+        userLedgerSummary: [{ assetId: 2 as AssetId, balance: QuoteAmount.new(5000n * SCALE), units: 'cent' }],
       }),
     );
     expect(exit._tag).toBe('Failure');
@@ -443,10 +425,10 @@ describe('validateOrderParams – token-holder gating', () => {
     const exit = E.runSyncExit(
       validateOrderParams({
         market,
-        price: Cent.new(100n),
-        quantity: 1,
+        price: QuoteAmount.new(100n * SCALE),
+        quantity: TokenAmount.new(1n * SCALE),
         side: 'bid',
-        userLedgerSummary: [{ assetId: 1 as AssetId, balance: Units(0n), units: 'unit' }],
+        userLedgerSummary: [{ assetId: 1 as AssetId, balance: TokenAmount.new(0n), units: 'unit' }],
       }),
     );
     expect(exit._tag).toBe('Failure');

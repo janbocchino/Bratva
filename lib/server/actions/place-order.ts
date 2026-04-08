@@ -12,8 +12,11 @@ import {
   buildAmmOrder,
   filterNonceEligible,
 } from '@/domain/workflows/exchange';
+import { settleTradeMatch } from '@/domain/workflows/trade-settlement';
 import { mapTransactionsToUsdPriceSeriesPoints } from '@/domain/workflows/price-series';
-import { Cent, Units } from '@/domain/values/currencies';
+import { TokenAmount, QuoteAmount } from '@/domain/values/currencies';
+import { PROTOCOL_USER_ID } from '@/domain/values/protocol';
+import { parseFixedPoint } from '@/domain/values/parse-fixed-point';
 import { type } from 'arktype';
 import {
   applyAmmFillToPool,
@@ -35,30 +38,28 @@ Decision questionnaire
 - How should settlement learn about matches?
   - [x] Consume explicit match summaries from the matcher and persist cumulative fills.
   - [ ] Diff mutated order books after the fact.
-- How should optional trade inputs be persisted?
-  - [x] Normalize blank `stopLoss` and `expiresAt` in the action so storage shape stays unchanged.
-  - [ ] Make DB/domain fields nullable.
+- How should trade settlement rounding work?
+  - [x] Use settleTradeMatch from domain workflow. Buyer pays mulDivUp (ceiling),
+        seller receives mulDivDown (floor). Dust goes to protocol user.
+  - [ ] Inline rounding logic in the action (leaks domain logic into orchestration).
 */
-
-const parsePrice = type('string.numeric.parse').pipe(Math.trunc).pipe(BigInt);
-const parseQuantity = type('number.integer > 0');
 
 export async function placeOrder(p: {
   userId: number;
   marketId: number;
   side: 'bid' | 'ask';
   price: string;
-  quantity: number;
+  quantity: string;
   stopLoss?: string;
   expiresAt?: string;
 }): Promise<Order> {
   const price = E.try({
-    try: () => Cent.new(parsePrice.assert(p.price)),
+    try: () => QuoteAmount.new(parseFixedPoint(p.price)),
     catch: () => new Error('Invalid price'),
   });
 
   const quantity = E.try({
-    try: () => parseQuantity.assert(p.quantity),
+    try: () => TokenAmount.new(parseFixedPoint(p.quantity)),
     catch: () => new Error('Invalid quantity'),
   });
 
@@ -103,7 +104,6 @@ export async function placeOrder(p: {
       const { price, quantity, stopLoss, expiresAt, market, user, currentLedger, usdAsset } = ctx;
 
       return Fn.pipe(
-        // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
         validateOrderParams({
           market,
           price,
@@ -111,16 +111,13 @@ export async function placeOrder(p: {
           side: p.side,
           userLedgerSummary: currentLedger.summary,
         }),
-        // end of LLM written Code
 
-        // Load order book and run matching
         E.flatMap(() => orderReadRepo.getOpenOrdersByMarketId(market.id)),
         E.flatMap((openOrders) => {
           const counterSide = p.side === 'bid' ? 'ask' : 'bid';
           const ammOrder = buildAmmOrder(market.ammPool, market, counterSide);
 
           return Fn.pipe(
-            // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
             orderWriteRepo.createOrder({
               marketId: market.id,
               userId: user.id,
@@ -146,7 +143,6 @@ export async function placeOrder(p: {
                 bid: eligibleOrders.filter((o) => o.kind === 'bid'),
                 ask: eligibleOrders.filter((o) => o.kind === 'ask'),
               };
-              // end of LLM written Code
 
               const incomingDomainOrder: Order = {
                 ...createdOrder,
@@ -164,28 +160,30 @@ export async function placeOrder(p: {
                 ammOrder,
               });
               const settledIncomingOrder = processedOrder.taker;
-              const ammFilled =
-                processedOrder.matches.find((match) => match.source === 'amm')?.matchedQuantity ?? 0;
+              const ammFilled = processedOrder.matches
+                .filter((m) => m.source === 'amm')
+                .reduce((sum, m) => sum + BigInt(m.matchedQuantity), 0n);
 
               const orderFillUpdates: UpdateOrderFillsParams[] = [];
               const txnParams: CreateTransactionParams[] = [];
               const settlementEffects: E.Effect<void, any, Db>[] = [];
+              let totalDust = 0n;
 
               for (const match of processedOrder.matches.filter((entry) => entry.source === 'book')) {
-                if (match.matchedQuantity <= 0) continue;
+                if (BigInt(match.matchedQuantity) <= 0n) continue;
 
                 const before = match.before;
-                const totalFilled = before.filled + match.matchedQuantity;
+                const totalFilled = BigInt(before.filled) + BigInt(match.matchedQuantity);
                 const newStatus: OrderStatus =
-                  totalFilled >= before.quantity
+                  totalFilled >= BigInt(before.quantity)
                     ? 'filled'
-                    : totalFilled > 0
+                    : totalFilled > 0n
                       ? 'open'
                       : before.status;
 
                 orderFillUpdates.push({
                   orderId: before.id,
-                  filled: totalFilled,
+                  filled: TokenAmount.new(totalFilled),
                   status: newStatus,
                 });
 
@@ -195,20 +193,24 @@ export async function placeOrder(p: {
                   takerOrderId: createdOrder.id,
                   makerUserId: before.userId,
                   takerUserId: user.id,
-                  price: Cent.new(BigInt(before.price)),
+                  price: QuoteAmount.new(BigInt(before.price)),
                   quantity: match.matchedQuantity,
                   side: p.side,
                   source: 'book',
                 });
 
-                // Credit maker with proceeds
+                const settlement = settleTradeMatch({
+                  price: QuoteAmount.new(BigInt(before.price)),
+                  quantity: match.matchedQuantity,
+                });
+
+                totalDust += settlement.cost.dust;
+
                 const makerCreditAssetId =
                   p.side === 'bid' ? market.quoteAssetId : market.baseAssetId;
                 const makerCreditAmount =
-                  p.side === 'bid'
-                    ? Cent.new(BigInt(before.price) * BigInt(match.matchedQuantity))
-                    : Units(BigInt(match.matchedQuantity));
-                const makerCreditUnits = p.side === 'bid' ? ('cent' as const) : ('unit' as const);
+                  p.side === 'bid' ? settlement.proceeds.amount : match.matchedQuantity;
+                const makerCreditUnits = p.side === 'bid' ? ('scaled_unit' as const) : ('scaled_unit' as const);
 
                 settlementEffects.push(
                   Fn.pipe(
@@ -223,56 +225,76 @@ export async function placeOrder(p: {
                 );
               }
 
-              // AMM fill transaction + settlement
-              if (ammFilled > 0) {
+              if (ammFilled > 0n) {
                 txnParams.push({
                   marketId: market.id,
                   makerOrderId: null,
                   takerOrderId: createdOrder.id,
                   makerUserId: null,
                   takerUserId: user.id,
-                  price: Cent.new(BigInt(ammOrder.price)),
-                  quantity: ammFilled,
+                  price: QuoteAmount.new(BigInt(ammOrder.price)),
+                  quantity: TokenAmount.new(ammFilled),
                   side: p.side,
                   source: 'amm',
                 });
+
+                const ammSettlement = settleTradeMatch({
+                  price: QuoteAmount.new(BigInt(ammOrder.price)),
+                  quantity: TokenAmount.new(ammFilled),
+                });
+                totalDust += ammSettlement.cost.dust;
               }
 
-              // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
-              if (settledIncomingOrder.filled > 0) {
+              if (BigInt(settledIncomingOrder.filled) > 0n) {
                 const isBid = p.side === 'bid';
                 const takerDebitAssetId = isBid ? market.quoteAssetId : market.baseAssetId;
 
                 let takerDebitTotal = 0n;
                 for (const txn of txnParams) {
+                  const matchSettlement = settleTradeMatch({
+                    price: txn.price,
+                    quantity: txn.quantity,
+                  });
                   takerDebitTotal += isBid
-                    ? BigInt(txn.price) * BigInt(txn.quantity)
+                    ? BigInt(matchSettlement.cost.amount)
                     : BigInt(txn.quantity);
                 }
 
                 const assetSummary = currentLedger.summary.find(
                   (s) => s.assetId === takerDebitAssetId,
                 );
-                const currentBalance = assetSummary ? assetSummary.balance : (0n as Cent);
+                const currentBalance = assetSummary ? assetSummary.balance : QuoteAmount.zero;
 
                 settlementEffects.push(
                   Fn.pipe(
                     debitUserBalance({
                       userId: user.id,
                       assetId: takerDebitAssetId,
-                      amount: isBid ? Cent.new(takerDebitTotal) : Units(takerDebitTotal),
-                      units: isBid ? ('cent' as const) : ('unit' as const),
+                      amount: isBid ? QuoteAmount.new(takerDebitTotal) : TokenAmount.new(takerDebitTotal),
+                      units: 'scaled_unit',
                       currentBalance,
                     }),
                     E.flatMap(ledgerWriteRepo.createEntry),
                   ),
                 );
               }
-              // end of LLM written Code
 
-              // Update order status for incoming order
+              if (totalDust > 0n) {
+                settlementEffects.push(
+                  Fn.pipe(
+                    creditUserBalance({
+                      userId: PROTOCOL_USER_ID,
+                      assetId: market.quoteAssetId,
+                      amount: QuoteAmount.new(totalDust),
+                      units: 'scaled_unit',
+                    }),
+                    E.flatMap(ledgerWriteRepo.createEntry),
+                  ),
+                );
+              }
+
               const incomingStatus: OrderStatus =
-                settledIncomingOrder.filled >= quantity ? 'filled' : 'open';
+                BigInt(settledIncomingOrder.filled) >= BigInt(quantity) ? 'filled' : 'open';
 
               const incomingFillUpdate: UpdateOrderFillsParams = {
                 orderId: createdOrder.id,
@@ -306,7 +328,7 @@ export async function placeOrder(p: {
                   orderWriteRepo.updateOrderFills([incomingFillUpdate, ...orderFillUpdates]),
                   persistTransactionsAndPriceSeries,
                   E.all(settlementEffects),
-                  ammFilled > 0
+                  ammFilled > 0n
                     ? (() => {
                         const nextPool = applyAmmFillToPool({
                           side: p.side,

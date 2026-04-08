@@ -11,11 +11,9 @@ import type {
   CreateTransactionParams,
   UpdateOrderFillsParams,
 } from '@/domain/ports/exchange';
-import { Cent } from '@/domain/values/currencies';
+import { QuoteAmount, TokenAmount } from '@/domain/values/currencies';
 import { MarketId, OrderId, TransactionId } from '@/domain/values/exchange';
-// beginning of LLM written Code, Model: gpt-5.3-codex
 import { requireValidDate } from '@/domain/values/timestamp';
-// end of LLM written Code
 import { UserId } from '@/domain/values/user';
 import { A, E, Fn } from '@/lib/shared/imports';
 import { Db } from '../db';
@@ -28,7 +26,6 @@ const errMapper =
   (cause: unknown) =>
     new PortError({ cause: new WrappedError({ cause }) });
 
-// beginning of LLM written Code, Model: gpt-5.3-codex
 const transactionToDomain = (row: TransactionPrs): Transaction => ({
   id: TransactionId(row.id),
   marketId: MarketId(row.marketId),
@@ -36,15 +33,12 @@ const transactionToDomain = (row: TransactionPrs): Transaction => ({
   takerOrderId: OrderId(row.takerOrderId),
   makerUserId: row.makerUserId === null ? null : UserId(row.makerUserId),
   takerUserId: UserId(row.takerUserId),
-  price: Cent.new(row.price),
-  quantity: row.quantity,
+  price: QuoteAmount.new(row.price),
+  quantity: TokenAmount.new(row.quantity),
   side: row.side,
   source: row.source,
-  // beginning of LLM written Code, Model: gpt-5.3-codex
   createdAt: requireValidDate(row.createdAt),
-  // end of LLM written Code
 });
-// end of LLM written Code
 
 // ── Order ────────────────────────────────────────────────────────────
 
@@ -66,7 +60,6 @@ export const orderReadRepo: OrderReadRepoDomain<Db> = {
       E.map((rows) => rows.map(orderMapper.toDomain)),
     ),
 
-  // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
   getOrderById: (orderId) =>
     Fn.pipe(
       E.serviceOptional(Db),
@@ -80,7 +73,6 @@ export const orderReadRepo: OrderReadRepoDomain<Db> = {
       E.flatMap((rows) => Fn.pipe(A.head(rows), E.mapError(errMapper(OrderNotFoundError)))),
       E.map(orderMapper.toDomain),
     ),
-  // end of LLM written Code
 };
 
 export const orderWriteRepo: OrderWriteRepoDomain<Db> = {
@@ -99,6 +91,9 @@ export const orderWriteRepo: OrderWriteRepoDomain<Db> = {
                 side: o.side,
                 price: o.price,
                 quantity: o.quantity,
+                // beginning of LLM written Code, Model: Claude Opus 4.5
+                filled: 0n,
+                // end of LLM written Code
                 stopLoss: o.stopLoss,
                 marketSequenceNumber: o.marketSequenceNumber,
                 nonce: o.nonce,
@@ -162,7 +157,6 @@ export const transactionWriteRepo: TransactionWriteRepoDomain<Db> = {
     ),
 };
 
-// beginning of LLM written Code, Model: gpt-5.3-codex
 export const transactionReadRepo: TransactionReadRepoDomain<Db> = {
   listByUserId: (userId) =>
     Fn.pipe(
@@ -184,5 +178,4 @@ export const transactionReadRepo: TransactionReadRepoDomain<Db> = {
       E.map((rows) => rows.map(transactionToDomain)),
     ),
 };
-// end of LLM written Code
 // end of LLM written Code

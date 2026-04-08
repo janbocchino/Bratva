@@ -1,20 +1,16 @@
+// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 'use server';
 
-// beginning of LLM written Code, Model: gpt-5.3-codex
-/*
-Decision questionnaire
-- Should LP quote math depend on `price_series`?
-  - [x] No, LP quote remains reserve/model-status derived through `selectMarketDisplayPrice`.
-  - [ ] Yes, derive LP quote from latest `price_series`.
-*/
-// end of LLM written Code
 import { E, Fn } from '@/lib/shared/imports';
 import type { UserLedger } from '@/domain/aggregates/ledger';
-import { debitUserBalance } from '@/domain/workflows/ledger';
+import { debitUserBalance, creditUserBalance } from '@/domain/workflows/ledger';
 import { provideLiquidity, validateProvide, LOCK_DURATION_MS } from '@/domain/workflows/liquidity';
 import { transitionMarket } from '@/domain/workflows/market';
 import { selectMarketDisplayPrice } from '@/domain/workflows/price';
-import { Cent, Units } from '@/domain/values/currencies';
+import { TokenAmount, QuoteAmount, SCALE } from '@/domain/values/currencies';
+import { mulDivDown } from '@/domain/values/fixed-point';
+import { PROTOCOL_USER_ID } from '@/domain/values/protocol';
+import { parseFixedPoint } from '@/domain/values/parse-fixed-point';
 import { Db, db } from '../db';
 import { buildLiquidityPriceSeriesPoint } from './provide-liquidity.shared';
 import { assetReadRepo } from '../ports/asset';
@@ -31,12 +27,8 @@ export async function provideLiquidityAction(p: {
   marketPublicId: string;
   amountDollars: string;
 }) {
-  const cents = E.try({
-    try: () =>
-      type('string.numeric.parse |> number > 0')
-        .pipe((n) => n * 100)
-        .pipe(BigInt)
-        .assert(p.amountDollars),
+  const quoteAmount = E.try({
+    try: () => QuoteAmount.new(parseFixedPoint(p.amountDollars)),
     catch: () => new Error('Invalid amountDollars'),
   });
 
@@ -66,58 +58,47 @@ export async function provideLiquidityAction(p: {
   );
 
   const result = Fn.pipe(
-    E.all({ cents, user, usdAsset, market, currentLedger }),
-    E.flatMap(({ cents, user, usdAsset, market, currentLedger }) => {
-      // beginning of LLM written Code, Model: gpt-5.3-codex
-      // Compute split using status-based market display price.
+    E.all({ quoteAmount, user, usdAsset, market, currentLedger }),
+    E.flatMap(({ quoteAmount, user, usdAsset, market, currentLedger }) => {
       const price = BigInt(selectMarketDisplayPrice(market));
       if (price <= 0n) return E.fail(new Error('Market price must be > 0'));
-      // end of LLM written Code
-      const quoteAmount = cents / 2n;
-      const baseAmount = quoteAmount / price;
+      const halfQuote = BigInt(quoteAmount) / 2n;
+      const baseAmount = TokenAmount.new(mulDivDown(halfQuote, SCALE, price));
+      const depositQuote = QuoteAmount.new(halfQuote);
 
       return Fn.pipe(
-        // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
         validateProvide({
           market,
-          amountBase: Units(baseAmount),
-          amountQuote: Cent.new(quoteAmount),
+          amountBase: baseAmount,
+          amountQuote: depositQuote,
         }),
-        // end of LLM written Code
-        // Debit USD
         E.flatMap(() => {
           const usdSummary = currentLedger.summary.find((s) => s.assetId === usdAsset.id);
-          const balanceCents = usdSummary ? usdSummary.balance : (0n as Cent);
+          const balanceQuote = usdSummary ? usdSummary.balance : QuoteAmount.zero;
           return debitUserBalance({
             userId: user.id,
             assetId: usdAsset.id,
-            amount: Cent.new(cents),
-            units: 'cent',
-            currentBalance: balanceCents,
+            amount: quoteAmount,
+            units: 'scaled_unit',
+            currentBalance: balanceQuote,
           });
         }),
         E.flatMap(ledgerWriteRepo.createEntry),
-        // Pure computation
-        // beginning of LLM written Code, Model: Gemini
         E.map(() => {
           const now = new Date();
           return provideLiquidity({
             market,
-            amountBase: Units(baseAmount),
-            amountQuote: Cent.new(quoteAmount),
+            amountBase: baseAmount,
+            amountQuote: depositQuote,
             currentTimestamp: now,
           });
         }),
-        // end of LLM written Code
-        // Persist
         E.flatMap((lpResult) =>
           Fn.pipe(
             transitionMarket(market, {
-              // beginning of LLM written Code, Model: gpt-5.3-codex
               _tag: 'LiquidityProvided',
               result: lpResult,
               occurredAt: lpResult.lockedUntil ?? new Date(),
-              // end of LLM written Code
             }),
             E.flatMap((nextMarket) =>
               Fn.pipe(
@@ -126,7 +107,7 @@ export async function provideLiquidityAction(p: {
                   userId: user.id,
                   lpTokens: lpResult.lpTokensMinted,
                   depositBase: baseAmount,
-                  depositQuote: quoteAmount,
+                  depositQuote: depositQuote,
                   lockedUntil: lpResult.lockedUntil,
                 }),
                 E.flatMap(() =>
@@ -136,13 +117,10 @@ export async function provideLiquidityAction(p: {
                     ammReserveQuote: nextMarket.ammPool.reserveQuote,
                     totalLpTokens: nextMarket.totalLpTokens,
                     status: nextMarket.status,
-                    // beginning of LLM written Code, Model: gpt-5.3-codex
                     wasPreviouslyActive: nextMarket.wasPreviouslyActive,
-                    // end of LLM written Code
                   }),
                 ),
                 E.flatMap(() =>
-                  // beginning of LLM written Code, Model: GPT-5.4
                   Fn.pipe(
                     priceSeriesWriteRepo.insertPriceSeriesBatch(
                       [buildLiquidityPriceSeriesPoint({
@@ -153,12 +131,23 @@ export async function provideLiquidityAction(p: {
                     ),
                     E.asVoid,
                   ),
-                  // end of LLM written Code
                 ),
                 E.flatMap(() => {
-                  // beginning of LLM written Code, Model: gpt-5.3-codex
+                  if (lpResult.lpDust > 0n) {
+                    return Fn.pipe(
+                      creditUserBalance({
+                        userId: PROTOCOL_USER_ID,
+                        assetId: usdAsset.id,
+                        amount: QuoteAmount.new(lpResult.lpDust),
+                        units: 'scaled_unit',
+                      }),
+                      E.flatMap(ledgerWriteRepo.createEntry),
+                    );
+                  }
+                  return E.void;
+                }),
+                E.flatMap(() => {
                   const didActivate = market.status !== 'active' && nextMarket.status === 'active';
-                  // end of LLM written Code
                   if (didActivate) {
                     const lockedUntil = new Date(Date.now() + LOCK_DURATION_MS);
                     return liquidityMarketWriteRepo.activatePendingPositions(
@@ -179,3 +168,4 @@ export async function provideLiquidityAction(p: {
 
   return await runServerDomainEffect(result.pipe(E.provideService(Db, db)));
 }
+// end of LLM written Code

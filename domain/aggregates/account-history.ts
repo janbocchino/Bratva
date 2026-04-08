@@ -1,4 +1,4 @@
-// beginning of LLM written Code, Model: gpt-5.3-codex
+// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 /*
 Decision questionnaire
 - How to add account history without schema changes?
@@ -9,7 +9,8 @@ Decision questionnaire
   - [ ] Infer action labels for every row.
 */
 import type { AssetId } from '../values/asset';
-import type { Cent, Units } from '../values/currencies';
+import type { TokenAmount, QuoteAmount } from '../values/currencies';
+import type { LedgerUnits } from '../aggregates/ledger';
 import type { MarketPublicId } from '../values/market';
 import type { UserId } from '../values/user';
 
@@ -30,8 +31,8 @@ export type BalanceEditHistoryEntry = AccountHistoryEntryBase & {
     | 'Balance increased'
     | 'Balance decreased';
   assetId: AssetId;
-  amount: Cent | Units;
-  units: 'cent' | 'unit';
+  amount: TokenAmount | QuoteAmount;
+  units: LedgerUnits;
   drCr: 'dr' | 'cr';
 };
 
@@ -43,8 +44,8 @@ export type TradeHistoryEntry = AccountHistoryEntryBase & {
   quoteAssetId: AssetId;
   side: 'bid' | 'ask';
   source: 'book' | 'amm';
-  price: Cent;
-  quantity: number;
+  price: QuoteAmount;
+  quantity: TokenAmount;
 };
 
 export type LiquidityProvidedHistoryEntry = AccountHistoryEntryBase & {
@@ -53,9 +54,9 @@ export type LiquidityProvidedHistoryEntry = AccountHistoryEntryBase & {
   marketPublicId: MarketPublicId;
   baseAssetId: AssetId;
   quoteAssetId: AssetId;
-  spentQuote: Cent;
-  providedBase: Units;
-  providedQuote: Cent;
+  spentQuote: QuoteAmount;
+  providedBase: TokenAmount;
+  providedQuote: QuoteAmount;
 };
 
 export type LegacyHistoryEntry = AccountHistoryEntryBase & {

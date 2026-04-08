@@ -1,8 +1,8 @@
+// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 /// <reference types="jest" />
-// beginning of LLM written Code, Model: gpt-5.3-codex
 import { composeAccountHistory, normalizeTimestamp } from '../workflows/account-history';
 import { AssetId } from '../values/asset';
-import { Cent, Units } from '../values/currencies';
+import { TokenAmount, QuoteAmount, LpTokens, SCALE } from '../values/currencies';
 import { MarketId, MarketPublicId, MarketSequenceNumber } from '../values/market';
 import { TransactionId, OrderId } from '../values/exchange';
 import { UserId } from '../values/user';
@@ -46,11 +46,11 @@ describe('composeAccountHistory', () => {
     quoteAssetId,
     sequenceNumber: MarketSequenceNumber(1),
     ammPool: {
-      reserveBase: Units(1000n),
-      reserveQuote: Cent.new(100000n),
+      reserveBase: TokenAmount.new(1000n * SCALE),
+      reserveQuote: QuoteAmount.new(100000n * SCALE),
     },
-    modelPrice: Cent.new(100n),
-    totalLpTokens: 10n,
+    modelPrice: QuoteAmount.new(100n * SCALE),
+    totalLpTokens: LpTokens.new(10n * SCALE),
     status: 'active' as const,
     wasPreviouslyActive: true,
     createdAt: occurredAt,
@@ -58,14 +58,18 @@ describe('composeAccountHistory', () => {
   };
 
   it('maps trade rows to semantic trade history and de-duplicates matching ledger rows', () => {
+    const tradePrice = QuoteAmount.new(100n * SCALE);
+    const tradeQty = TokenAmount.new(3n * SCALE);
+    const deDupAmount = BigInt(tradePrice) * BigInt(tradeQty);
+
     const result = composeAccountHistory({
       userId,
       ledger: [
         {
           assetId: quoteAssetId,
           drCr: 'dr',
-          amount: Cent.new(300n),
-          units: 'cent',
+          amount: QuoteAmount.new(deDupAmount),
+          units: 'scaled_unit',
           createdAt: occurredAt,
         },
       ],
@@ -77,8 +81,8 @@ describe('composeAccountHistory', () => {
           takerOrderId: OrderId(6),
           makerUserId: UserId(2),
           takerUserId: userId,
-          price: Cent.new(100n),
-          quantity: 3,
+          price: tradePrice,
+          quantity: tradeQty,
           side: 'bid',
           source: 'book',
           createdAt: occurredAt,
@@ -94,14 +98,17 @@ describe('composeAccountHistory', () => {
   });
 
   it('maps liquidity rows with spent/provided amounts and de-duplicates corresponding ledger debit', () => {
+    const depositQuote = QuoteAmount.new(500n * SCALE);
+    const spentQuoteValue = BigInt(depositQuote) * 2n;
+
     const result = composeAccountHistory({
       userId,
       ledger: [
         {
           assetId: usdAssetId,
           drCr: 'dr',
-          amount: Cent.new(1000n),
-          units: 'cent',
+          amount: QuoteAmount.new(spentQuoteValue),
+          units: 'scaled_unit',
           createdAt: occurredAt,
         },
       ],
@@ -112,9 +119,9 @@ describe('composeAccountHistory', () => {
           publicId: 'lp-33',
           marketId,
           userId,
-          lpTokens: 10n,
-          depositBase: Units(5n),
-          depositQuote: Cent.new(500n),
+          lpTokens: LpTokens.new(10n * SCALE),
+          depositBase: TokenAmount.new(5n * SCALE),
+          depositQuote,
           lockedUntil: null,
           status: 'active',
           createdAt: occurredAt,
@@ -129,9 +136,9 @@ describe('composeAccountHistory', () => {
     expect(liquidityEntry).toBeDefined();
     if (!liquidityEntry || liquidityEntry.category !== 'liquidityProvided') return;
 
-    expect(liquidityEntry.spentQuote.toString()).toBe('1000');
-    expect(liquidityEntry.providedBase.toString()).toBe('5');
-    expect(liquidityEntry.providedQuote.toString()).toBe('500');
+    expect(liquidityEntry.spentQuote.toString()).toBe(spentQuoteValue.toString());
+    expect(liquidityEntry.providedBase.toString()).toBe((5n * SCALE).toString());
+    expect(liquidityEntry.providedQuote.toString()).toBe((500n * SCALE).toString());
     expect(result.entries.some((entry) => entry.category === 'balanceEdit')).toBe(false);
   });
 
@@ -142,8 +149,8 @@ describe('composeAccountHistory', () => {
         {
           assetId: quoteAssetId,
           drCr: 'cr',
-          amount: Cent.new(10n),
-          units: 'cent',
+          amount: QuoteAmount.new(10n * SCALE),
+          units: 'scaled_unit',
           createdAt: 'bad-date' as unknown as Date,
         },
       ],

@@ -1,6 +1,7 @@
 // beginning of LLM written Code, Model: gpt-5.3-codex
 'use server';
 
+import type { InsertModelPriceParams } from '@/domain/ports/market';
 // beginning of LLM written Code, Model: gpt-5.3-codex
 /*
 Decision questionnaire
@@ -10,15 +11,14 @@ Decision questionnaire
 */
 // end of LLM written Code
 import { AssetId } from '@/domain/values/asset';
-import { Cent } from '@/domain/values/currencies';
+import { UsdCents, quoteAmountFromUsdCents } from '@/domain/values/usd-cents';
+import { E, Fn } from '@/lib/shared/imports';
 import { Db, db } from '../db';
 import { ModelPriceInputBatch, toLatestRowByTicker } from '../model-price-ingest';
 import { assetReadRepo } from '../ports/asset';
-import { fetchModelPricesFromFastApi } from '../ports/model-price-feed';
 import { marketWriteRepo } from '../ports/market';
-import { E, Fn } from '@/lib/shared/imports';
+import { fetchModelPricesFromFastApi } from '../ports/model-price-feed';
 import { runServerDomainEffect } from '../run-server-domain-effect';
-import type { InsertModelPriceParams } from '@/domain/ports/market';
 
 const resolveAssetIdByTicker = async (ticker: string): Promise<number> =>
   await runServerDomainEffect(
@@ -41,11 +41,13 @@ export async function ingestModelPricesBatch(rawPayload: unknown): Promise<{
 
   for (const row of latestRows.values()) {
     const assetId = await resolveAssetIdByTicker(row.assetTicker);
+    // beginning of LLM written Code, Model: Claude Opus 4.5
     inserts.push({
       baseAssetId: AssetId(assetId),
-      price: Cent.new(BigInt(row.priceCents)),
+      price: quoteAmountFromUsdCents(UsdCents.fromInteger(row.priceCents)),
       createdAt,
     });
+    // end of LLM written Code
   }
 
   const updatedMarkets = await runServerDomainEffect(

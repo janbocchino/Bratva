@@ -15,7 +15,7 @@ import type {
   UpdateMarketParams,
 } from '@/domain/ports/market';
 import { AssetId } from '@/domain/values/asset';
-import { Cent, Units } from '@/domain/values/currencies';
+import { TokenAmount, QuoteAmount, LpTokens } from '@/domain/values/currencies';
 import { MarketId, MarketPublicId, MarketSequenceNumber } from '@/domain/values/exchange';
 import { requireValidDate } from '@/domain/values/timestamp';
 import { A, E, Fn } from '@/lib/shared/imports';
@@ -56,11 +56,11 @@ const toDomainMarket = (row: typeof markets.$inferSelect, modelPriceValue: bigin
   quoteAssetId: AssetId(row.quoteAssetId),
   sequenceNumber: MarketSequenceNumber(row.sequenceNumber),
   ammPool: {
-    reserveBase: Units(row.ammReserveBase),
-    reserveQuote: Cent.new(row.ammReserveQuote),
+    reserveBase: TokenAmount.new(row.ammReserveBase),
+    reserveQuote: QuoteAmount.new(row.ammReserveQuote),
   },
-  modelPrice: Cent.new(modelPriceValue),
-  totalLpTokens: row.totalLpTokens,
+  modelPrice: QuoteAmount.new(modelPriceValue),
+  totalLpTokens: LpTokens.new(row.totalLpTokens),
   status: row.status,
   wasPreviouslyActive: row.wasPreviouslyActive,
   createdAt: requireValidDate(row.createdAt),
@@ -233,7 +233,7 @@ export const marketReadRepo: MarketReadRepoDomain<Db> = {
       E.serviceOptional(Db),
       E.mapError(errMapper(InfraNotFoundError)),
       E.flatMap((db) => fetchLatestModelPriceByMarketId(db, marketId)),
-      E.map((price) => (price === null ? null : Cent.new(price))),
+      E.map((price) => (price === null ? null : QuoteAmount.new(price))),
     ),
 };
 

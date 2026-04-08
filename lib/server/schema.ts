@@ -1,6 +1,32 @@
 import { sql } from 'drizzle-orm';
-import { blob, index, integer, sqliteTable, text, uniqueIndex, sqliteView } from 'drizzle-orm/sqlite-core';
+import { customType, index, integer, sqliteTable, text, uniqueIndex, sqliteView } from 'drizzle-orm/sqlite-core';
 import { v4 as uuidv4 } from 'uuid';
+
+// beginning of LLM written Code, Model: Claude Opus 4.5
+/**
+ * UTF-8 decimal blob encoding (same as drizzle `blob({ mode: 'bigint' })`), plus legacy SQLite
+ * INTEGER cells (e.g. `DEFAULT 0`) which drizzle would pass to `Buffer.from(number)` and throw.
+ */
+export const scaledBigintBlob = customType<{ data: bigint; driverData: unknown }>({
+  dataType() {
+    return 'blob';
+  },
+  fromDriver(value: unknown): bigint {
+    if (value === null || value === undefined) return 0n;
+    if (typeof value === 'bigint') return value;
+    if (typeof value === 'number') return BigInt(Math.trunc(value));
+    if (typeof value === 'string') return BigInt(value);
+    if (typeof Buffer !== 'undefined' && Buffer.isBuffer(value)) return BigInt(value.toString('utf8'));
+    if (value instanceof Uint8Array)
+      return BigInt(Buffer.from(value.buffer, value.byteOffset, value.byteLength).toString('utf8'));
+    if (value instanceof ArrayBuffer) return BigInt(Buffer.from(value).toString('utf8'));
+    throw new TypeError(`scaledBigintBlob: unexpected driver value type ${typeof value}`);
+  },
+  toDriver(value: bigint): Buffer {
+    return Buffer.from(value.toString(), 'utf8');
+  },
+});
+// end of LLM written Code
 
 // beginning of LLM written Code, Model: gpt-5.3-codex
 /*
@@ -76,7 +102,7 @@ export const priceSeries = sqliteTable(
     assetId: integer('asset_id')
       .notNull()
       .references(() => assets.id),
-    price: blob('price', { mode: 'bigint' }).notNull(),
+    price: scaledBigintBlob('price').notNull(),
     // beginning of LLM written Code, Model: gpt-5.3-codex
     createdAt: integer('created_at', { mode: 'timestamp_ms' })
       .notNull()
@@ -103,8 +129,8 @@ export const ledgerEntries = sqliteTable(
       .notNull()
       .references(() => assets.id),
     drCr: text('dr_cr', { enum: ['dr', 'cr'] }).notNull(),
-    amount: blob('amount', { mode: 'bigint' }).notNull(),
-    units: text('unit', { enum: ['cent', 'unit'] }).notNull(),
+    amount: scaledBigintBlob('amount').notNull(),
+    units: text('unit', { enum: ['cent', 'unit', 'scaled_unit'] }).notNull(),
     // beginning of LLM written Code, Model: gpt-5.3-codex
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(unixepoch() * 1000)`),
     // end of LLM written Code
@@ -147,8 +173,8 @@ export const ledgerEntriesWithBalance = sqliteView('ledger_entries_with_balance'
     .notNull()
     .references(() => assets.id),
   drCr: text('dr_cr', { enum: ['dr', 'cr'] }).notNull(),
-  amount: blob('amount', { mode: 'bigint' }).notNull(),
-  units: text('unit', { enum: ['cent', 'unit'] }).notNull(),
+  amount: scaledBigintBlob('amount').notNull(),
+  units: text('unit', { enum: ['cent', 'unit', 'scaled_unit'] }).notNull(),
   // beginning of LLM written Code, Model: gpt-5.3-codex
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   // end of LLM written Code
@@ -188,9 +214,9 @@ export const markets = sqliteTable(
       .notNull()
       .references(() => assets.id),
     sequenceNumber: integer('sequence_number').notNull().default(0),
-    ammReserveBase: blob('amm_reserve_base', { mode: 'bigint' }).notNull(),
-    ammReserveQuote: blob('amm_reserve_quote', { mode: 'bigint' }).notNull(),
-    totalLpTokens: blob('total_lp_tokens', { mode: 'bigint' }).notNull().default(sql`0`),
+    ammReserveBase: scaledBigintBlob('amm_reserve_base').notNull(),
+    ammReserveQuote: scaledBigintBlob('amm_reserve_quote').notNull(),
+    totalLpTokens: scaledBigintBlob('total_lp_tokens').notNull().$defaultFn(() => 0n),
     status: text('status', {
       // beginning of LLM written Code, Model: Claude
       enum: ['closed', 'pending', 'active'],
@@ -224,7 +250,7 @@ export const modelPrice = sqliteTable(
     marketId: integer('market_id')
       .notNull()
       .references(() => markets.id),
-    price: blob('price', { mode: 'bigint' }).notNull(),
+    price: scaledBigintBlob('price').notNull(),
     createdAt: integer('created_at', { mode: 'timestamp_ms' })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -253,9 +279,9 @@ export const liquidityPositions = sqliteTable(
     userId: integer('user_id')
       .notNull()
       .references(() => users.id),
-    lpTokens: blob('lp_tokens', { mode: 'bigint' }).notNull(),
-    depositBase: blob('deposit_base', { mode: 'bigint' }).notNull(),
-    depositQuote: blob('deposit_quote', { mode: 'bigint' }).notNull(),
+    lpTokens: scaledBigintBlob('lp_tokens').notNull(),
+    depositBase: scaledBigintBlob('deposit_base').notNull(),
+    depositQuote: scaledBigintBlob('deposit_quote').notNull(),
     // beginning of LLM written Code, Model: gpt-5.3-codex
     lockedUntil: integer('locked_until', { mode: 'timestamp_ms' }),
     // end of LLM written Code
@@ -288,10 +314,10 @@ export const orders = sqliteTable(
       .notNull()
       .references(() => users.id),
     side: text('side', { enum: ['bid', 'ask'] }).notNull(),
-    price: blob('price', { mode: 'bigint' }).notNull(),
-    quantity: integer('quantity').notNull(),
-    filled: integer('filled').notNull().default(0),
-    stopLoss: blob('stop_loss', { mode: 'bigint' }).notNull(),
+    price: scaledBigintBlob('price').notNull(),
+    quantity: scaledBigintBlob('quantity').notNull(),
+    filled: scaledBigintBlob('filled').notNull().$defaultFn(() => 0n),
+    stopLoss: scaledBigintBlob('stop_loss').notNull(),
     marketSequenceNumber: integer('market_sequence_number').notNull(),
     nonce: integer('nonce').notNull().default(0),
     status: text('status', {
@@ -329,8 +355,8 @@ export const transactions = sqliteTable(
     takerUserId: integer('taker_user_id')
       .notNull()
       .references(() => users.id),
-    price: blob('price', { mode: 'bigint' }).notNull(),
-    quantity: integer('quantity').notNull(),
+    price: scaledBigintBlob('price').notNull(),
+    quantity: scaledBigintBlob('quantity').notNull(),
     side: text('side', { enum: ['bid', 'ask'] }).notNull(),
     source: text('source', { enum: ['book', 'amm'] }).notNull(),
     // beginning of LLM written Code, Model: gpt-5.3-codex

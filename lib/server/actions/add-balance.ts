@@ -1,12 +1,13 @@
+// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 'use server';
 
 import { E, Fn } from '@/lib/shared/imports';
 import type { UserLedger } from '@/domain/aggregates/ledger';
 import { creditUserBalance } from '@/domain/workflows/ledger';
-import { Cent } from '@/domain/values/currencies';
+import { QuoteAmount } from '@/domain/values/currencies';
+import { parseFixedPoint } from '@/domain/values/parse-fixed-point';
 import { Db, db } from '../db';
 import { assetReadRepo } from '../ports/asset';
-import { type } from 'arktype';
 import { ledgerReadRepo, ledgerWriteRepo } from '../ports/ledger';
 import { userReadRepo } from '../ports/user';
 import { runServerDomainEffect } from '../run-server-domain-effect';
@@ -15,12 +16,8 @@ export async function addBalance(p: {
   userId: number;
   amountDollars: string;
 }): Promise<UserLedger> {
-  const cents = E.try({
-    try: () =>
-      type('string.numeric.parse |> number > 0')
-        .pipe((n) => n * 100)
-        .pipe(BigInt)
-        .assert(p.amountDollars),
+  const amount = E.try({
+    try: () => QuoteAmount.new(parseFixedPoint(p.amountDollars)),
     catch: () => new Error('Invalid amountDollars'),
   });
 
@@ -32,13 +29,13 @@ export async function addBalance(p: {
   const usdAsset = Fn.pipe(assetReadRepo.getAsset({ ticker: 'usd' }));
 
   const ledger = Fn.pipe(
-    E.all({ cents, user, usdAsset }),
-    E.flatMap(({ cents, user, usdAsset }) =>
+    E.all({ amount, user, usdAsset }),
+    E.flatMap(({ amount, user, usdAsset }) =>
       creditUserBalance({
         userId: user.id,
         assetId: usdAsset.id,
-        amount: Cent.new(cents),
-        units: 'cent',
+        amount,
+        units: 'scaled_unit',
       }),
     ),
     E.flatMap(ledgerWriteRepo.createEntry),
@@ -48,3 +45,4 @@ export async function addBalance(p: {
 
   return await runServerDomainEffect(ledger.pipe(E.provideService(Db, db)));
 }
+// end of LLM written Code

@@ -10,7 +10,7 @@ import type { E } from '@/lib/shared/imports';
 import type { Market } from '../aggregates/market';
 import type { PortError } from '../errors';
 import type { AssetId } from '../values/asset';
-import type { Cent } from '../values/currencies';
+import type { QuoteAmount } from '../values/currencies';
 import type { MarketId } from '../values/market';
 
 // ── Market ───────────────────────────────────────────────────────────
@@ -24,11 +24,9 @@ export const GetMarketParams = type({
 export type GetMarketParams = typeof GetMarketParams.infer;
 
 export interface MarketReadRepo<D> {
-  // beginning of LLM written Code, Model: gpt-5.3-codex-low
   getMarket(o: GetMarketParams): E.Effect<Market, PortError, D>;
   listMarkets(): E.Effect<readonly Market[], PortError, D>;
-  getLatestModelPriceByMarketId(marketId: MarketId): E.Effect<Cent | null, PortError, D>;
-  // end of LLM written Code
+  getLatestModelPriceByMarketId(marketId: MarketId): E.Effect<QuoteAmount | null, PortError, D>;
 }
 
 export type UpdateMarketParams = {
@@ -38,20 +36,16 @@ export type UpdateMarketParams = {
   ammReserveQuote: bigint;
 };
 
-// beginning of LLM written Code, Model: gpt-5.3-codex
 export type InsertModelPriceParams = {
   baseAssetId: AssetId;
-  price: Cent;
+  price: QuoteAmount;
   createdAt: Date;
 };
-// end of LLM written Code
 
 export interface MarketWriteRepo<D> {
   updateMarketAfterMatch(o: UpdateMarketParams): E.Effect<void, PortError, D>;
-  // beginning of LLM written Code, Model: gpt-5.3-codex
   insertModelPrices(
     rows: readonly InsertModelPriceParams[],
   ): E.Effect<number, PortError, D>;
-  // end of LLM written Code
 }
 // end of LLM written Code

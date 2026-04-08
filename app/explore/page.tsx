@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { formatUsdFromScaledQuote } from '@/lib/client/format-scaled-usd';
 import { refreshModelPricesFromFastApi } from '@/lib/server/actions/ingest-model-prices';
 import type { ExploreMarketRow } from '@/lib/server/actions/list-markets';
 import { listMarkets } from '@/lib/server/actions/list-markets';
@@ -13,16 +14,7 @@ Decision questionnaire
   - [ ] Inline row expansion.
 */
 const formatTicker = (ticker: string): string => ticker.toUpperCase();
-
-const formatUsdFromCents = (valueCents: string): string => {
-  const cents = BigInt(valueCents);
-  const sign = cents < 0n ? '-' : '';
-  const absoluteCents = cents < 0n ? cents * -1n : cents;
-  const dollars = absoluteCents / 100n;
-  const remainderCents = (absoluteCents % 100n).toString().padStart(2, '0');
-  const groupedDollars = dollars.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return `${sign}$${groupedDollars}.${remainderCents}`;
-};
+// end of LLM written Code
 
 const formatMarketLabel = (market: ExploreMarketRow): string => {
   const base = `${market.baseAssetName} (${formatTicker(market.baseAssetTicker)})`;
@@ -104,7 +96,7 @@ export default function ExplorePage() {
                   </a>
                 </td>
                 <td className='px-4 py-3 font-mono'>
-                  {formatUsdFromCents(market.displayPriceCents)}
+                  {formatUsdFromScaledQuote(market.displayPriceScaled)}
                 </td>
                 <td className='px-4 py-3'>
                   <span className='rounded border border-black/15 px-2 py-1 text-xs uppercase tracking-wide'>

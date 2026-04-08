@@ -1,3 +1,4 @@
+// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 import type { Asset } from '@/domain/aggregates/asset';
 import type { Market } from '@/domain/aggregates/market';
 import type { Order, OrderStatus } from '@/domain/aggregates/exchange';
@@ -7,7 +8,7 @@ import type { User } from '@/domain/aggregates/user';
 import { A } from '@/lib/shared/imports';
 import type { Mapper as MapperPort, ReadMapper as ReadMapperPort } from '@/domain/ports/mapper';
 import { AssetId, AssetName, AssetPublicId, AssetTicker } from '@/domain/values/asset';
-import { Cent, Units } from '@/domain/values/currencies';
+import { TokenAmount, QuoteAmount, LpTokens } from '@/domain/values/currencies';
 import {
   MarketId,
   MarketPublicId,
@@ -16,19 +17,16 @@ import {
   OrderPublicId,
 } from '@/domain/values/exchange';
 import { PriceSeriesId, PriceSeriesPublicId } from '@/domain/values/price-series';
-// beginning of LLM written Code, Model: gpt-5.3-codex
 import { requireValidDate } from '@/domain/values/timestamp';
-// end of LLM written Code
 import { Nonce, UserDisplayName, UserEmail, UserId, UserPublicId } from '@/domain/values/user';
 import type {
   AssetPrs,
-  LedgerEntryWithBalancePrs,
+  LedgerEntryPrs,
   MarketPrs,
   OrderPrs,
   PriceSeriesPrs,
   UserPrs,
 } from '../schema';
-import { type } from 'arktype';
 
 export const userMapper: MapperPort<User, UserPrs> = {
   toDomain: (p) => ({
@@ -36,10 +34,8 @@ export const userMapper: MapperPort<User, UserPrs> = {
     publicId: UserPublicId(p.publicId),
     displayName: UserDisplayName(p.displayName),
     email: UserEmail(p.email),
-    // beginning of LLM written Code, Model: gpt-5.3-codex
     createdAt: requireValidDate(p.createdAt),
     updatedAt: requireValidDate(p.updatedAt),
-    // end of LLM written Code
     nonce: Nonce(p.nonce),
   }),
   toPersistence: (d) => ({
@@ -59,10 +55,8 @@ export const assetMapper: MapperPort<Asset, AssetPrs> = {
     publicId: AssetPublicId(p.publicId),
     name: AssetName(p.name),
     ticker: AssetTicker(p.ticker),
-    // beginning of LLM written Code, Model: gpt-5.3-codex
     createdAt: requireValidDate(p.createdAt),
     updatedAt: requireValidDate(p.updatedAt),
-    // end of LLM written Code
   }),
   toPersistence: (d) => ({
     id: d.id,
@@ -79,10 +73,8 @@ export const priceSeriesMapper: MapperPort<PriceSeries, PriceSeriesPrs> = {
     id: PriceSeriesId(p.id),
     publicId: PriceSeriesPublicId(p.publicId),
     assetId: AssetId(p.assetId),
-    price: Cent.new(p.price),
-    // beginning of LLM written Code, Model: gpt-5.3-codex
+    price: QuoteAmount.new(p.price),
     createdAt: requireValidDate(p.createdAt),
-    // end of LLM written Code
   }),
   toPersistence: (d) => ({
     id: d.id,
@@ -93,51 +85,54 @@ export const priceSeriesMapper: MapperPort<PriceSeries, PriceSeriesPrs> = {
   }),
 };
 
-const balanceToBigInt = type('string.numeric.parse').pipe(Math.trunc).pipe(BigInt);
-
-// beginning of LLM written Code, Model: gpt-5.3-codex
-const parseLedgerCreatedAt = (createdAt: unknown): Date => requireValidDate(createdAt);
+// beginning of LLM written Code, Model: Claude Opus 4.5
+/*
+Ledger balances are not taken from SQL `SUM(...)::TEXT`: SQLite promotes large sums to REAL,
+then stringifies as scientific notation (e.g. 1e+29), which breaks strict numeric string parsing.
+We fold amounts in TypeScript with bigint instead.
+*/
 // end of LLM written Code
 
-export const ledgerEntryMapper: ReadMapperPort<UserLedger, LedgerEntryWithBalancePrs[]> = {
-  toDomain: (p: LedgerEntryWithBalancePrs[]): UserLedger => {
-    if (p.length === 0) {
+const parseLedgerCreatedAt = (createdAt: unknown): Date => requireValidDate(createdAt);
+
+export const ledgerEntryMapper: ReadMapperPort<UserLedger, LedgerEntryPrs[]> = {
+  toDomain: (rows: LedgerEntryPrs[]): UserLedger => {
+    if (rows.length === 0) {
       return { userId: UserId(0), summary: [], transactions: [] };
     }
 
-    const summaryMap = new Map<string, UserLedger['summary'][number]>();
-    for (const row of p) {
+    const summaryBalances = new Map<string, bigint>();
+    for (const row of rows) {
       const key = `${row.assetId}:${row.units}`;
-      if (!summaryMap.has(key)) {
-        summaryMap.set(key, {
-          assetId: AssetId(row.assetId),
-          balance:
-            row.units === 'cent'
-              ? Cent.new(balanceToBigInt.assert(row.balance))
-              : Units(balanceToBigInt.assert(row.balance)),
-          units: row.units,
-        });
-      }
+      const delta = row.drCr === 'cr' ? row.amount : -row.amount;
+      summaryBalances.set(key, (summaryBalances.get(key) ?? 0n) + delta);
     }
 
+    const summary: UserLedger['summary'] = [...summaryBalances.entries()].map(([key, balance]) => {
+      const colon = key.indexOf(':');
+      const assetId = AssetId(Number(key.slice(0, colon)));
+      const units = key.slice(colon + 1) as UserLedger['summary'][number]['units'];
+      return {
+        assetId,
+        balance: units === 'scaled_unit' ? TokenAmount.new(balance) : QuoteAmount.new(balance),
+        units,
+      };
+    });
+
     return {
-      userId: UserId(p[0].userId),
-      summary: [...summaryMap.values()],
-      transactions: p.map(({ assetId, drCr, amount, units, createdAt }) => ({
+      userId: UserId(rows[0].userId),
+      summary,
+      transactions: rows.map(({ assetId, drCr, amount, units, createdAt }) => ({
         assetId: AssetId(assetId),
-        drCr: drCr,
-        amount: units === 'cent' ? Cent.new(amount) : Units(amount),
-        units: units,
-        // beginning of LLM written Code, Model: gpt-5.3-codex
+        drCr,
+        amount: units === 'scaled_unit' ? TokenAmount.new(amount) : QuoteAmount.new(amount),
+        units,
         createdAt: parseLedgerCreatedAt(createdAt),
-        // end of LLM written Code
       })),
     };
   },
 };
-// end of LLM written Code
 
-// beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 export const marketMapper: MapperPort<Market, MarketPrs> = {
   toDomain: (p) => ({
     id: MarketId(p.id),
@@ -146,22 +141,15 @@ export const marketMapper: MapperPort<Market, MarketPrs> = {
     quoteAssetId: AssetId(p.quoteAssetId),
     sequenceNumber: MarketSequenceNumber(p.sequenceNumber),
     ammPool: {
-      reserveBase: Units(p.ammReserveBase),
-      reserveQuote: Cent.new(p.ammReserveQuote),
+      reserveBase: TokenAmount.new(p.ammReserveBase),
+      reserveQuote: QuoteAmount.new(p.ammReserveQuote),
     },
-    // beginning of LLM written Code, Model: gpt-5.3-codex
-    // `markets` no longer stores model price; read paths must hydrate this separately.
-    modelPrice: Cent.new(0n),
-    // end of LLM written Code
-    totalLpTokens: p.totalLpTokens,
+    modelPrice: QuoteAmount.new(0n),
+    totalLpTokens: LpTokens.new(p.totalLpTokens),
     status: p.status,
-    // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
     wasPreviouslyActive: p.wasPreviouslyActive,
-    // end of LLM written Code
-    // beginning of LLM written Code, Model: gpt-5.3-codex
     createdAt: requireValidDate(p.createdAt),
     updatedAt: requireValidDate(p.updatedAt),
-    // end of LLM written Code
   }),
   toPersistence: (d) => ({
     id: d.id,
@@ -173,9 +161,7 @@ export const marketMapper: MapperPort<Market, MarketPrs> = {
     ammReserveQuote: d.ammPool.reserveQuote,
     totalLpTokens: d.totalLpTokens,
     status: d.status,
-    // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
     wasPreviouslyActive: d.wasPreviouslyActive,
-    // end of LLM written Code
     createdAt: d.createdAt,
     updatedAt: d.updatedAt,
   }),
@@ -188,18 +174,16 @@ export const orderMapper: MapperPort<Order, OrderPrs> = {
     marketId: MarketId(p.marketId),
     userId: UserId(p.userId),
     kind: p.side,
-    price: Cent.new(p.price),
-    quantity: p.quantity,
-    filled: p.filled,
-    stopLoss: Cent.new(p.stopLoss),
+    price: QuoteAmount.new(p.price),
+    quantity: TokenAmount.new(p.quantity),
+    filled: TokenAmount.new(p.filled),
+    stopLoss: QuoteAmount.new(p.stopLoss),
     marketSequenceNumber: MarketSequenceNumber(p.marketSequenceNumber),
     nonce: Nonce(p.nonce),
     status: p.status as OrderStatus,
-    // beginning of LLM written Code, Model: gpt-5.3-codex
     createdAt: requireValidDate(p.createdAt),
     updatedAt: requireValidDate(p.updatedAt),
     expiresAt: requireValidDate(p.expiresAt),
-    // end of LLM written Code
     canceled: p.status === 'cancelled',
     canceledAt: p.status === 'cancelled' ? requireValidDate(p.updatedAt) : new Date(0),
   }),
