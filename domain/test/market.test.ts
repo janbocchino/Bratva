@@ -154,6 +154,7 @@ describe('market workflow transitions', () => {
     );
 
     expect(transitioned.status).toBe('closed');
+    expect(transitioned.wasPreviouslyActive).toBe(false);
     expect(transitioned.modelPrice).toBe(QuoteAmount.new(2_500n * SCALE));
   });
 
@@ -180,6 +181,81 @@ describe('market workflow transitions', () => {
     );
 
     expect(transitioned.status).toBe('closed');
+    expect(transitioned.wasPreviouslyActive).toBe(false);
+  });
+
+  it('clears wasPreviouslyActive on close so closed→pending after a full cycle is pre-launch pending', () => {
+    let m = mkMarket({ status: 'closed' });
+
+    m = E.runSync(
+      transitionMarket(m, {
+        _tag: 'LiquidityProvided',
+        occurredAt: now,
+        result: {
+          lpTokensMinted: LpTokens.new(10n * SCALE),
+          lpDust: 0n,
+          newReserveBase: 50n * SCALE,
+          newReserveQuote: 50_000n * SCALE,
+          newTotalLpTokens: LpTokens.new(10n * SCALE),
+          lockedUntil: null,
+          shouldActivateMarket: true,
+        },
+      }),
+    );
+    expect(m.status).toBe('active');
+    expect(m.wasPreviouslyActive).toBe(true);
+
+    m = E.runSync(
+      transitionMarket(m, {
+        _tag: 'LiquidityWithdrawn',
+        occurredAt: now,
+        result: {
+          shareBase: { amount: 49n * SCALE, dust: 0n },
+          shareQuote: { amount: 49_000n * SCALE, dust: 0n },
+          newReserveBase: 1n * SCALE,
+          newReserveQuote: 1_000n * SCALE,
+          newTotalLpTokens: LpTokens.new(1n * SCALE),
+          shouldDeactivateMarket: true,
+        },
+      }),
+    );
+    expect(m.status).toBe('pending');
+    expect(m.wasPreviouslyActive).toBe(true);
+
+    m = E.runSync(
+      transitionMarket(m, {
+        _tag: 'LiquidityWithdrawn',
+        occurredAt: now,
+        result: {
+          shareBase: { amount: 1n * SCALE, dust: 0n },
+          shareQuote: { amount: 1_000n * SCALE, dust: 0n },
+          newReserveBase: 0n,
+          newReserveQuote: 0n,
+          newTotalLpTokens: LpTokens.new(0n),
+          shouldDeactivateMarket: false,
+        },
+      }),
+    );
+    expect(m.status).toBe('closed');
+    expect(m.wasPreviouslyActive).toBe(false);
+
+    m = E.runSync(
+      transitionMarket(m, {
+        _tag: 'LiquidityProvided',
+        occurredAt: now,
+        result: {
+          lpTokensMinted: LpTokens.new(5n * SCALE),
+          lpDust: 0n,
+          newReserveBase: 5n * SCALE,
+          newReserveQuote: 2_000n * SCALE,
+          newTotalLpTokens: LpTokens.new(5n * SCALE),
+          lockedUntil: null,
+          shouldActivateMarket: false,
+        },
+      }),
+    );
+    expect(m.status).toBe('pending');
+    expect(m.wasPreviouslyActive).toBe(false);
   });
 
   // ── Rejected transitions ──────────────────────────────────────────

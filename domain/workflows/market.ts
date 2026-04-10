@@ -87,10 +87,13 @@ const applyWithdrawResult = (
   );
 
   if (isPoolEmpty(nextMarket)) {
+    // beginning of LLM written Code, Model: Claude Sonnet 4.5
     return {
       ...nextMarket,
       status: 'closed' as const,
+      wasPreviouslyActive: false,
     };
+    // end of LLM written Code
   }
 
   if (market.status === 'active' && event.result.shouldDeactivateMarket) {
