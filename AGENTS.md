@@ -10,6 +10,7 @@
 - Don't write duplicate code
 - Use best possible implementations; if there is a library (e.g. effect) to enhance code and make it shorter, ask for permission to use
 - Use "bun test" for testing with Jest
+- Use "bun fmt" for biome lint
 
 
 # AGENTS.md

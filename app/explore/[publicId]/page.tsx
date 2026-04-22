@@ -1,16 +1,24 @@
 'use client';
 // beginning of LLM written Code, Model: gpt-5.3-codex
 import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { MarketPriceChart } from '@/components/explore/market-price-chart';
 import { formatQuoteAmount } from '@/domain/values/format-fixed-point';
 import { formatActionError } from '@/lib/client/format-action-error';
+import { ONE_QUOTE_SCALED_STRING, formatUsdFromScaledQuote } from '@/lib/client/format-scaled-usd';
 import {
-  ONE_QUOTE_SCALED_STRING,
-  formatUsdFromScaledQuote,
-  scaledQuoteToApproximateNumberForChart,
-} from '@/lib/client/format-scaled-usd';
+  CHART_LIVE_BUFFER_MS,
+  MAX_LIVE_CHART_SAMPLES,
+  type ChartPoint,
+  type ChartTimespan,
+  filterPointsByTimespan,
+  mergeServerAndLiveSecondPoints,
+  shouldUseModelPriceChart,
+} from '@/lib/client/market-chart-timespan';
 import type { AccountSnapshot } from '@/lib/server/actions/get-account';
 import { getAccount } from '@/lib/server/actions/get-account';
+import type { MarketModelPriceSeriesPoint } from '@/lib/server/actions/get-market-model-price-series';
+import { getMarketModelPriceSeries } from '@/lib/server/actions/get-market-model-price-series';
 import type { MarketPriceSeriesPoint } from '@/lib/server/actions/get-market-price-series';
 import { getMarketPriceSeries } from '@/lib/server/actions/get-market-price-series';
 import type { ExploreMarketRow } from '@/lib/server/actions/list-markets';
@@ -30,13 +38,24 @@ Decision questionnaire
 
 type TradeSide = 'bid' | 'ask';
 
+const SERIES_FULL_REFRESH_MS = 15_000;
+
 export default function ExploreMarketPage() {
   const params = useParams<{ publicId: string }>();
   const publicId = params.publicId;
 
   const [snapshot, setSnapshot] = useState<AccountSnapshot | null>(null);
   const [market, setMarket] = useState<ExploreMarketRow | null>(null);
-  const [priceSeries, setPriceSeries] = useState<readonly MarketPriceSeriesPoint[]>([]);
+  const [modelSeries, setModelSeries] = useState<readonly MarketModelPriceSeriesPoint[]>([]);
+  const [tradeSeries, setTradeSeries] = useState<readonly MarketPriceSeriesPoint[]>([]);
+  const [chartTimespan, setChartTimespan] = useState<ChartTimespan>('1d');
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  /** Client-sampled 1 Hz series (last known price); merged with server rows for dense lines in 1d/1w/1m. */
+  const [liveSecondPoints, setLiveSecondPoints] = useState<ChartPoint[]>([]);
+  const modelSeriesRef = useRef(modelSeries);
+  const tradeSeriesRef = useRef(tradeSeries);
+  modelSeriesRef.current = modelSeries;
+  tradeSeriesRef.current = tradeSeries;
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string>('');
 
@@ -55,11 +74,56 @@ export default function ExploreMarketPage() {
   const [isTradeSubmitting, setIsTradeSubmitting] = useState(false);
 
   const isTradeDisabled = useMemo(() => market?.status === 'closed', [market?.status]);
-  /** Wire: scaled integer string; input field expects a decimal for `parseFixedPoint`. */
-  const latestPriceScaled = useMemo(
-    () => priceSeries[priceSeries.length - 1]?.priceScaled ?? ONE_QUOTE_SCALED_STRING,
-    [priceSeries],
+
+  const useModelChart = useMemo(
+    () => market !== null && shouldUseModelPriceChart(market.status, market.wasPreviouslyActive),
+    [market],
   );
+
+  /** Wire: scaled integer string; input field expects a decimal for `parseFixedPoint`. */
+  const latestPriceScaled = useMemo(() => {
+    if (market === null) return ONE_QUOTE_SCALED_STRING;
+    if (useModelChart) {
+      return (
+        modelSeries[modelSeries.length - 1]?.priceScaled ??
+        market.displayPriceScaled ??
+        ONE_QUOTE_SCALED_STRING
+      );
+    }
+    return (
+      tradeSeries[tradeSeries.length - 1]?.priceScaled ??
+      market.displayPriceScaled ??
+      ONE_QUOTE_SCALED_STRING
+    );
+  }, [market, useModelChart, modelSeries, tradeSeries]);
+
+  const chartRows = useMemo((): ChartPoint[] => {
+    if (market === null) return [];
+    const serverPts: ChartPoint[] = (useModelChart ? modelSeries : tradeSeries)
+      .map((p) => ({
+        tMs: Date.parse(p.createdAtIso),
+        priceScaled: p.priceScaled,
+      }))
+      .filter((p) => Number.isFinite(p.tMs));
+    const merged = mergeServerAndLiveSecondPoints(serverPts, liveSecondPoints);
+    return filterPointsByTimespan(merged, nowMs, chartTimespan);
+  }, [market, useModelChart, modelSeries, tradeSeries, liveSecondPoints, chartTimespan, nowMs]);
+
+  const chartStats = useMemo(() => {
+    if (chartRows.length === 0) return null;
+    const scaled = chartRows.map((r) => BigInt(r.priceScaled));
+    const minScaled = scaled.reduce((a, b) => (a < b ? a : b));
+    const maxScaled = scaled.reduce((a, b) => (a > b ? a : b));
+    const latest = chartRows[chartRows.length - 1];
+    return { minScaled, maxScaled, latest };
+  }, [chartRows]);
+
+  const tablePoints = useMemo(():
+    | readonly MarketPriceSeriesPoint[]
+    | readonly MarketModelPriceSeriesPoint[] => {
+    if (market === null) return [];
+    return useModelChart ? modelSeries : tradeSeries;
+  }, [market, useModelChart, modelSeries, tradeSeries]);
   const defaultTradePriceInput = useMemo(
     () => formatQuoteAmount(BigInt(latestPriceScaled), 8),
     [latestPriceScaled],
@@ -70,22 +134,85 @@ export default function ExploreMarketPage() {
     setIsLoading(true);
     setLoadError('');
     try {
-      const [account, markets, series] = await Promise.all([
-        getAccount(),
-        listMarkets(),
-        getMarketPriceSeries({ marketPublicId: publicId, limit: 250 }),
-      ]);
+      const [account, markets] = await Promise.all([getAccount(), listMarkets()]);
       const selected = markets.find((item) => item.publicId === publicId) ?? null;
       setSnapshot(account);
       setMarket(selected);
-      setPriceSeries(series);
-      if (selected === null) setLoadError('Market not found.');
+      if (selected === null) {
+        setLoadError('Market not found.');
+        setModelSeries([]);
+        setTradeSeries([]);
+      } else if (shouldUseModelPriceChart(selected.status, selected.wasPreviouslyActive)) {
+        const series = await getMarketModelPriceSeries({
+          marketPublicId: publicId,
+          limit: 2_000,
+        });
+        setModelSeries(series);
+        setTradeSeries([]);
+      } else {
+        const series = await getMarketPriceSeries({ marketPublicId: publicId, limit: 2_000 });
+        setTradeSeries(series);
+        setModelSeries([]);
+      }
     } catch (error) {
       setLoadError(formatActionError(error, 'Failed to load market.'));
     } finally {
       setIsLoading(false);
     }
   }, [publicId]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clear 1 Hz buffer when route or model vs trade chart switches
+  useEffect(() => {
+    setLiveSecondPoints([]);
+  }, [publicId, useModelChart]);
+
+  useEffect(() => {
+    if (!publicId || publicId.length === 0 || market === null) return;
+    const tick = () => {
+      const t = Date.now();
+      setNowMs(t);
+      const lastScaled = useModelChart
+        ? modelSeriesRef.current[modelSeriesRef.current.length - 1]?.priceScaled
+        : tradeSeriesRef.current[tradeSeriesRef.current.length - 1]?.priceScaled;
+      const priceScaled = lastScaled ?? market.displayPriceScaled ?? ONE_QUOTE_SCALED_STRING;
+      setLiveSecondPoints((prev) => {
+        const next =
+          prev.length === 0
+            ? [
+                { tMs: t - 1_000, priceScaled },
+                { tMs: t, priceScaled },
+              ]
+            : [...prev, { tMs: t, priceScaled }];
+        const cutoff = t - CHART_LIVE_BUFFER_MS;
+        return next.filter((p) => p.tMs >= cutoff).slice(-MAX_LIVE_CHART_SAMPLES);
+      });
+    };
+    tick();
+    const id = setInterval(tick, 1_000);
+    return () => clearInterval(id);
+  }, [publicId, market, useModelChart]);
+
+  useEffect(() => {
+    if (!publicId || publicId.length === 0 || market === null) return;
+    const fullRefresh = async () => {
+      try {
+        if (shouldUseModelPriceChart(market.status, market.wasPreviouslyActive)) {
+          const series = await getMarketModelPriceSeries({
+            marketPublicId: publicId,
+            limit: 2_000,
+          });
+          setModelSeries(series);
+        } else {
+          const series = await getMarketPriceSeries({ marketPublicId: publicId, limit: 2_000 });
+          setTradeSeries(series);
+        }
+      } catch {
+        /* keep prior series; poll errors are non-fatal */
+      }
+    };
+    const id = setInterval(() => void fullRefresh(), SERIES_FULL_REFRESH_MS);
+    return () => clearInterval(id);
+  }, [publicId, market]);
 
   useEffect(() => {
     void refreshPageData();
@@ -195,106 +322,62 @@ export default function ExploreMarketPage() {
 
       <section className='flex flex-col gap-3 rounded-lg border border-black/10 p-4'>
         <h2 className='text-lg font-medium'>Price series</h2>
-        {/* beginning of LLM written Code, Model: GPT-5.2-Codex */}
-        {priceSeries.length === 0 ? (
-          <p className='text-sm text-black/70'>No price history yet for this market.</p>
-        ) : (
-          (() => {
-            const points = priceSeries;
-            const prices = points.map((p) => scaledQuoteToApproximateNumberForChart(p.priceScaled));
-            const scaledBigints = points.map((p) => BigInt(p.priceScaled));
-            const minScaled = scaledBigints.reduce((a, b) => (a < b ? a : b));
-            const maxScaled = scaledBigints.reduce((a, b) => (a > b ? a : b));
-            const min = Math.min(...prices);
-            const max = Math.max(...prices);
-            const w = 640;
-            const h = 160;
-            const pad = 8;
-            const span = Math.max(1, max - min);
-            const step = (w - pad * 2) / Math.max(1, points.length - 1);
-            const isSingle = points.length === 1;
-            const svgPoints = isSingle
-              ? ''
-              : points
-                  .map((_, i) => {
-                    const x = pad + i * step;
-                    const y = pad + (1 - (prices[i] - min) / span) * (h - pad * 2);
-                    return `${x.toFixed(2)},${y.toFixed(2)}`;
-                  })
-                  .join(' ');
-            const singleX = w / 2;
-            const singleY = pad + (1 - (prices[0] - min) / span) * (h - pad * 2);
-
-            const latest = points[points.length - 1];
-            return (
-              <div className='flex flex-col gap-3'>
-                <div className='flex flex-wrap items-baseline gap-x-6 gap-y-1'>
-                  <p className='text-sm text-black/70'>
-                    Latest:{' '}
-                    <span className='font-medium text-black'>
-                      {formatUsdFromScaledQuote(latest.priceScaled)}
-                    </span>
-                  </p>
-                  <p className='text-sm text-black/70'>
-                    Range:{' '}
-                    <span className='font-medium text-black'>
-                      {formatUsdFromScaledQuote(minScaled)}
-                    </span>{' '}
-                    –{' '}
-                    <span className='font-medium text-black'>
-                      {formatUsdFromScaledQuote(maxScaled)}
-                    </span>
-                  </p>
-                  <p className='text-xs text-black/50'>
-                    {new Date(latest.createdAtIso).toLocaleString()}
-                  </p>
+        {/* beginning of LLM written Code, Model: Claude Opus 4.5 */}
+        <MarketPriceChart
+          variant={useModelChart ? 'model' : 'trade'}
+          rows={chartRows}
+          timespan={chartTimespan}
+          windowEndMs={nowMs}
+          onTimespanChange={setChartTimespan}
+          emptyMessage={
+            useModelChart
+              ? 'No model price history yet for this market.'
+              : 'No trade price history yet for this market.'
+          }
+        />
+        {chartStats ? (
+          <div className='flex flex-wrap items-baseline gap-x-6 gap-y-1'>
+            <p className='text-sm text-black/70'>
+              Latest (window):{' '}
+              <span className='font-medium text-black'>
+                {formatUsdFromScaledQuote(chartStats.latest.priceScaled)}
+              </span>
+            </p>
+            <p className='text-sm text-black/70'>
+              Range (window):{' '}
+              <span className='font-medium text-black'>
+                {formatUsdFromScaledQuote(chartStats.minScaled)}
+              </span>{' '}
+              –{' '}
+              <span className='font-medium text-black'>
+                {formatUsdFromScaledQuote(chartStats.maxScaled)}
+              </span>
+            </p>
+            <p className='text-xs text-black/50'>
+              {new Date(chartStats.latest.tMs).toLocaleString()}
+            </p>
+          </div>
+        ) : null}
+        {tablePoints.length > 0 ? (
+          <div className='grid gap-2 sm:grid-cols-2'>
+            {[...tablePoints]
+              .slice(-10)
+              .reverse()
+              .map((p) => (
+                <div
+                  key={p.createdAtIso}
+                  className='flex items-baseline justify-between rounded border border-black/10 px-3 py-2'
+                >
+                  <span className='text-sm font-medium'>
+                    {formatUsdFromScaledQuote(p.priceScaled)}
+                  </span>
+                  <span className='text-xs text-black/60'>
+                    {new Date(p.createdAtIso).toLocaleString()}
+                  </span>
                 </div>
-                <div className='overflow-x-auto'>
-                  <svg
-                    width={w}
-                    height={h}
-                    viewBox={`0 0 ${w} ${h}`}
-                    className='block min-w-[640px] rounded border border-black/10 bg-white'
-                    role='img'
-                    aria-label='Price series sparkline'
-                  >
-                    {isSingle ? (
-                      <circle cx={singleX} cy={singleY} r={4} fill='black' fillOpacity={0.9} />
-                    ) : (
-                      <polyline
-                        points={svgPoints}
-                        fill='none'
-                        stroke='black'
-                        strokeOpacity={0.9}
-                        strokeWidth={2}
-                        strokeLinejoin='round'
-                        strokeLinecap='round'
-                      />
-                    )}
-                  </svg>
-                </div>
-                <div className='grid gap-2 sm:grid-cols-2'>
-                  {points
-                    .slice(-10)
-                    .reverse()
-                    .map((p) => (
-                      <div
-                        key={p.createdAtIso}
-                        className='flex items-baseline justify-between rounded border border-black/10 px-3 py-2'
-                      >
-                        <span className='text-sm font-medium'>
-                          {formatUsdFromScaledQuote(p.priceScaled)}
-                        </span>
-                        <span className='text-xs text-black/60'>
-                          {new Date(p.createdAtIso).toLocaleString()}
-                        </span>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            );
-          })()
-        )}
+              ))}
+          </div>
+        ) : null}
         {/* end of LLM written Code */}
       </section>
 

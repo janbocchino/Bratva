@@ -18,13 +18,19 @@
 	},
 	"dependencies": {
 		"@libsql/client": "^0.17.0",
+		"@radix-ui/react-slot": "^1.2.4",
 		"arktype": "^2.1.29",
+		"class-variance-authority": "^0.7.1",
+		"clsx": "^2.1.1",
 		"drizzle-orm": "^0.45.1",
 		"effect": "^3.19.15",
+		"lucide-react": "^1.8.0",
 		"next": "16.1.6",
 		"react": "19.2.3",
 		"react-dom": "19.2.3",
+		"recharts": "^3.8.1",
 		"remeda": "^2.33.4",
+		"tailwind-merge": "^3.5.0",
 		"uuid": "^13.0.0"
 	},
 	"devDependencies": {

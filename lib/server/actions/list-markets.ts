@@ -26,6 +26,7 @@ export type ExploreMarketRow = {
   quoteAssetName: string;
   quoteAssetTicker: string;
   status: 'closed' | 'pending' | 'active';
+  wasPreviouslyActive: boolean;
   /** 18-decimal fixed-point quote amount as a decimal string (same encoding as `QuoteAmount`). */
   displayPriceScaled: string;
 };
@@ -74,6 +75,7 @@ export async function listMarkets(): Promise<readonly ExploreMarketRow[]> {
         quoteAssetName: quoteAsset.name,
         quoteAssetTicker: quoteAsset.ticker,
         status: market.status,
+        wasPreviouslyActive: market.wasPreviouslyActive,
         displayPriceScaled: displayPrice.toString(),
       };
     }),
@@ -87,6 +89,7 @@ export async function listMarkets(): Promise<readonly ExploreMarketRow[]> {
     quoteAssetName: market.quoteAssetName,
     quoteAssetTicker: market.quoteAssetTicker,
     status: market.status,
+    wasPreviouslyActive: market.wasPreviouslyActive,
     displayPriceScaled: market.displayPriceScaled,
   }));
 }
