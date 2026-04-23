@@ -8,11 +8,12 @@ import { formatActionError } from '@/lib/client/format-action-error';
 import { ONE_QUOTE_SCALED_STRING, formatUsdFromScaledQuote } from '@/lib/client/format-scaled-usd';
 import {
   CHART_LIVE_BUFFER_MS,
-  MAX_LIVE_CHART_SAMPLES,
+  LIVE_TICK_INTERVAL_MS,
+  MAX_LIVE_SAMPLES,
   type ChartPoint,
   type ChartTimespan,
   filterPointsByTimespan,
-  mergeServerAndLiveSecondPoints,
+  mergeServerAndLiveTickPoints,
   shouldUseModelPriceChart,
 } from '@/lib/client/market-chart-timespan';
 import type { AccountSnapshot } from '@/lib/server/actions/get-account';
@@ -50,8 +51,8 @@ export default function ExploreMarketPage() {
   const [tradeSeries, setTradeSeries] = useState<readonly MarketPriceSeriesPoint[]>([]);
   const [chartTimespan, setChartTimespan] = useState<ChartTimespan>('1d');
   const [nowMs, setNowMs] = useState(() => Date.now());
-  /** Client-sampled 1 Hz series (last known price); merged with server rows for dense lines in 1d/1w/1m. */
-  const [liveSecondPoints, setLiveSecondPoints] = useState<ChartPoint[]>([]);
+  /** Client-sampled series at `LIVE_TICK_INTERVAL_MS` (last known price); merged with server rows. */
+  const [liveTickPoints, setLiveTickPoints] = useState<ChartPoint[]>([]);
   const modelSeriesRef = useRef(modelSeries);
   const tradeSeriesRef = useRef(tradeSeries);
   modelSeriesRef.current = modelSeries;
@@ -105,18 +106,9 @@ export default function ExploreMarketPage() {
         priceScaled: p.priceScaled,
       }))
       .filter((p) => Number.isFinite(p.tMs));
-    const merged = mergeServerAndLiveSecondPoints(serverPts, liveSecondPoints);
+    const merged = mergeServerAndLiveTickPoints(serverPts, liveTickPoints);
     return filterPointsByTimespan(merged, nowMs, chartTimespan);
-  }, [market, useModelChart, modelSeries, tradeSeries, liveSecondPoints, chartTimespan, nowMs]);
-
-  const chartStats = useMemo(() => {
-    if (chartRows.length === 0) return null;
-    const scaled = chartRows.map((r) => BigInt(r.priceScaled));
-    const minScaled = scaled.reduce((a, b) => (a < b ? a : b));
-    const maxScaled = scaled.reduce((a, b) => (a > b ? a : b));
-    const latest = chartRows[chartRows.length - 1];
-    return { minScaled, maxScaled, latest };
-  }, [chartRows]);
+  }, [market, useModelChart, modelSeries, tradeSeries, liveTickPoints, chartTimespan, nowMs]);
 
   const tablePoints = useMemo(():
     | readonly MarketPriceSeriesPoint[]
@@ -161,9 +153,9 @@ export default function ExploreMarketPage() {
     }
   }, [publicId]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: clear 1 Hz buffer when route or model vs trade chart switches
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clear live buffer when route or model vs trade chart switches
   useEffect(() => {
-    setLiveSecondPoints([]);
+    setLiveTickPoints([]);
   }, [publicId, useModelChart]);
 
   useEffect(() => {
@@ -175,20 +167,20 @@ export default function ExploreMarketPage() {
         ? modelSeriesRef.current[modelSeriesRef.current.length - 1]?.priceScaled
         : tradeSeriesRef.current[tradeSeriesRef.current.length - 1]?.priceScaled;
       const priceScaled = lastScaled ?? market.displayPriceScaled ?? ONE_QUOTE_SCALED_STRING;
-      setLiveSecondPoints((prev) => {
+      setLiveTickPoints((prev) => {
         const next =
           prev.length === 0
             ? [
-                { tMs: t - 1_000, priceScaled },
+                { tMs: t - LIVE_TICK_INTERVAL_MS, priceScaled },
                 { tMs: t, priceScaled },
               ]
             : [...prev, { tMs: t, priceScaled }];
         const cutoff = t - CHART_LIVE_BUFFER_MS;
-        return next.filter((p) => p.tMs >= cutoff).slice(-MAX_LIVE_CHART_SAMPLES);
+        return next.filter((p) => p.tMs >= cutoff).slice(-MAX_LIVE_SAMPLES);
       });
     };
     tick();
-    const id = setInterval(tick, 1_000);
+    const id = setInterval(tick, LIVE_TICK_INTERVAL_MS);
     return () => clearInterval(id);
   }, [publicId, market, useModelChart]);
 
@@ -335,29 +327,6 @@ export default function ExploreMarketPage() {
               : 'No trade price history yet for this market.'
           }
         />
-        {chartStats ? (
-          <div className='flex flex-wrap items-baseline gap-x-6 gap-y-1'>
-            <p className='text-sm text-black/70'>
-              Latest (window):{' '}
-              <span className='font-medium text-black'>
-                {formatUsdFromScaledQuote(chartStats.latest.priceScaled)}
-              </span>
-            </p>
-            <p className='text-sm text-black/70'>
-              Range (window):{' '}
-              <span className='font-medium text-black'>
-                {formatUsdFromScaledQuote(chartStats.minScaled)}
-              </span>{' '}
-              –{' '}
-              <span className='font-medium text-black'>
-                {formatUsdFromScaledQuote(chartStats.maxScaled)}
-              </span>
-            </p>
-            <p className='text-xs text-black/50'>
-              {new Date(chartStats.latest.tMs).toLocaleString()}
-            </p>
-          </div>
-        ) : null}
         {tablePoints.length > 0 ? (
           <div className='grid gap-2 sm:grid-cols-2'>
             {[...tablePoints]

@@ -11,7 +11,7 @@
 
 
 `frontend`
-- charts
+- charts improvement
 - design
 - Liquidity providing should not be shown as withdraw
 

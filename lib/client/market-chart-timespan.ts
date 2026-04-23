@@ -1,32 +1,29 @@
-// beginning of LLM written Code, Model: Claude Opus 4.5
+// beginning of LLM written Code, Model: Claude Opus 4.7
 /** User-selected window; `max` = no lower bound beyond available points (per active series variant). */
 export type ChartTimespan = '1d' | '1w' | '1m' | 'max';
 
-const MS_DAY = 86_400_000;
+const MS_SECOND = 1_000;
+const MS_MINUTE = 60 * MS_SECOND;
+const MS_HOUR = 60 * MS_MINUTE;
+const MS_DAY = 24 * MS_HOUR;
 const MS_WEEK = 7 * MS_DAY;
 const MS_MONTH = 30 * MS_DAY;
 
-/** Keep ~1s live samples for chart buffer (covers max span + slack). */
+/** Live sampling cadence: append one latest-price point every 5s (user spec). */
+export const LIVE_TICK_INTERVAL_MS = 5_000;
+
+/** Keep ~40 days of live samples so re-opening older windows still has dense points. */
 export const CHART_LIVE_BUFFER_MS = 40 * MS_DAY;
 
-/** Cap live 1 Hz samples so React state stays bounded (server series covers older history). */
-export const MAX_LIVE_CHART_SAMPLES = 86_400;
+/** Hard cap on in-memory live samples (40 days / 5s). */
+export const MAX_LIVE_SAMPLES = Math.ceil(CHART_LIVE_BUFFER_MS / LIVE_TICK_INTERVAL_MS);
 
-/** Target tick count for fixed-window X-axes (avoids 86k+ DOM nodes per day of span). */
-export const CHART_X_AXIS_MAX_TICKS = 100;
-
-const NICE_AXIS_STEP_MS = [
-  1_000, 5_000, 10_000, 15_000, 30_000, 60_000, 300_000, 600_000, 900_000, 1_800_000, 3_600_000,
-  7_200_000, 10_800_000, 21_600_000, 43_200_000, MS_DAY,
-] as const;
-
-function niceAxisStepMs(spanMs: number, maxTicks: number): number {
-  const raw = Math.max(spanMs / maxTicks, 1);
-  for (const step of NICE_AXIS_STEP_MS) {
-    if (step >= raw) return step;
-  }
-  return Math.ceil(raw / MS_DAY) * MS_DAY;
-}
+export const TIMESPAN_LABEL: Record<ChartTimespan, string> = {
+  '1d': 'Day',
+  '1w': 'Week',
+  '1m': 'Month',
+  max: 'Max',
+};
 
 export function chartTimespanToStartMs(nowMs: number, span: ChartTimespan): number | null {
   if (span === 'max') return null;
@@ -59,33 +56,128 @@ export function shouldUseModelPriceChart(
   return status === 'closed' || (status === 'pending' && !wasPreviouslyActive);
 }
 
-/** Merge DB samples with client 1 Hz ticks; sort by time; drop duplicate consecutive (tMs, price). */
+/** Midnight (local time) on or after `ms`. */
+function ceilToLocalMidnight(ms: number): number {
+  const d = new Date(ms);
+  if (
+    d.getHours() === 0 &&
+    d.getMinutes() === 0 &&
+    d.getSeconds() === 0 &&
+    d.getMilliseconds() === 0
+  ) {
+    return ms;
+  }
+  d.setHours(24, 0, 0, 0);
+  return d.getTime();
+}
+
+/** First-of-month (local time) on or after `ms`. */
+function ceilToLocalMonthStart(ms: number): number {
+  const d = new Date(ms);
+  if (
+    d.getDate() === 1 &&
+    d.getHours() === 0 &&
+    d.getMinutes() === 0 &&
+    d.getSeconds() === 0 &&
+    d.getMilliseconds() === 0
+  ) {
+    return ms;
+  }
+  return new Date(d.getFullYear(), d.getMonth() + 1, 1, 0, 0, 0, 0).getTime();
+}
+
+/** Add `n` whole months to `ms`, preserving local time-of-day. */
+function addMonths(ms: number, n: number): number {
+  const d = new Date(ms);
+  return new Date(
+    d.getFullYear(),
+    d.getMonth() + n,
+    d.getDate(),
+    d.getHours(),
+    d.getMinutes(),
+    d.getSeconds(),
+    d.getMilliseconds(),
+  ).getTime();
+}
+
+/** 4-hour local slot on or after `ms` (slots at 00, 04, 08, 12, 16, 20). */
+function ceilToLocal4hSlot(ms: number): number {
+  const d = new Date(ms);
+  const slotHour = Math.ceil(d.getHours() / 4) * 4;
+  const aligned = new Date(d);
+  aligned.setHours(slotHour, 0, 0, 0);
+  if (aligned.getTime() < ms) aligned.setHours(aligned.getHours() + 4);
+  return aligned.getTime();
+}
+
+function stepByFixedMs(startMs: number, endMs: number, stepMs: number, firstMs: number): number[] {
+  const out: number[] = [];
+  for (let t = firstMs; t <= endMs; t += stepMs) {
+    if (t >= startMs) out.push(t);
+  }
+  return out;
+}
+
 /**
- * Bounded X-axis ticks using “nice” step sizes so Recharts does not render one tick per second
- * across multi-day windows.
+ * Per-span, anchored x-axis ticks. Aims for ~6–8 labels regardless of window so the
+ * axis is always readable and never "bulked" with per-second ticks.
  */
 export function buildXAxisTicks(
   startMs: number,
   endMs: number,
-  maxTicks: number = CHART_X_AXIS_MAX_TICKS,
+  span: ChartTimespan,
 ): number[] {
   if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs < startMs) return [];
   if (startMs === endMs) return [startMs];
-  const span = endMs - startMs;
-  const step = niceAxisStepMs(span, maxTicks);
-  const ticks: number[] = [];
-  const first = Math.ceil(startMs / step) * step;
-  for (let t = first; t <= endMs; t += step) {
-    ticks.push(t);
+
+  if (span === '1d') {
+    return stepByFixedMs(startMs, endMs, 4 * MS_HOUR, ceilToLocal4hSlot(startMs));
   }
-  if (ticks.length === 0) return [startMs, endMs];
-  if (ticks[0] > startMs) ticks.unshift(startMs);
-  const last = ticks[ticks.length - 1];
-  if (last !== undefined && last < endMs) ticks.push(endMs);
-  return ticks;
+  if (span === '1w') {
+    return stepByFixedMs(startMs, endMs, MS_DAY, ceilToLocalMidnight(startMs));
+  }
+  if (span === '1m') {
+    return stepByFixedMs(startMs, endMs, 5 * MS_DAY, ceilToLocalMidnight(startMs));
+  }
+
+  // max: choose step so span/step lands in ~[6, 10].
+  const spanMs = endMs - startMs;
+  if (spanMs <= 10 * MS_DAY) {
+    return stepByFixedMs(startMs, endMs, MS_DAY, ceilToLocalMidnight(startMs));
+  }
+  if (spanMs <= 10 * MS_WEEK) {
+    return stepByFixedMs(startMs, endMs, MS_WEEK, ceilToLocalMidnight(startMs));
+  }
+
+  // Monthly step; iterate with addMonths to avoid DST/month-length drift.
+  const out: number[] = [];
+  const totalMonths = Math.max(1, Math.round(spanMs / MS_MONTH));
+  const monthStep = Math.max(1, Math.ceil(totalMonths / 8));
+  let t = ceilToLocalMonthStart(startMs);
+  while (t <= endMs) {
+    if (t >= startMs) out.push(t);
+    t = addMonths(t, monthStep);
+  }
+  return out;
 }
 
-export function mergeServerAndLiveSecondPoints(
+export function formatAxisTickLabel(ms: number, span: ChartTimespan): string {
+  const d = new Date(ms);
+  if (span === '1d') {
+    return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  }
+  if (span === '1w') {
+    return d.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' });
+  }
+  if (span === '1m') {
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+  // Year boundary inside the label makes max-mode readable across years.
+  return d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
+}
+
+/** Merge DB samples with client live ticks; sort by time; drop duplicate consecutive (tMs, price). */
+export function mergeServerAndLiveTickPoints(
   serverPoints: readonly ChartPoint[],
   livePoints: readonly ChartPoint[],
 ): ChartPoint[] {

@@ -1,17 +1,21 @@
-// beginning of LLM written Code, Model: Claude Opus 4.5
+// beginning of LLM written Code, Model: Claude Opus 4.7
 /*
 Decision questionnaire
 - Where does Recharts + timespan UI live?
   - [x] `components/explore/market-price-chart.tsx` — keeps `app/explore/[publicId]/page.tsx` thinner.
   - [ ] Inline only in the page file.
+- Line vs area vs candles?
+  - [x] AreaChart with up/down gradient (SOTA feel, frontend-only).
+  - [ ] Plain LineChart (previous).
+  - [ ] OHLC candles (requires server aggregation).
 */
 'use client';
 
-import { type ComponentProps, useMemo } from 'react';
+import { useMemo } from 'react';
 import {
+  Area,
+  AreaChart,
   CartesianGrid,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -24,8 +28,10 @@ import {
 } from '@/lib/client/format-scaled-usd';
 import {
   type ChartTimespan,
+  TIMESPAN_LABEL,
   buildXAxisTicks,
   chartTimespanToStartMs,
+  formatAxisTickLabel,
 } from '@/lib/client/market-chart-timespan';
 import { cn } from '@/lib/utils';
 
@@ -34,12 +40,10 @@ export type MarketChartRow = {
   priceScaled: string;
 };
 
-const TIMESPAN_OPTIONS: { value: ChartTimespan; label: string }[] = [
-  { value: '1d', label: '1D' },
-  { value: '1w', label: '1W' },
-  { value: '1m', label: '1M' },
-  { value: 'max', label: 'Max' },
-];
+const TIMESPAN_ORDER: readonly ChartTimespan[] = ['1d', '1w', '1m', 'max'];
+
+const UP_COLOR = 'hsl(142 71% 40%)';
+const DOWN_COLOR = 'hsl(0 72% 48%)';
 
 const chartConfig = {
   price: {
@@ -47,8 +51,6 @@ const chartConfig = {
     color: 'hsl(var(--foreground))',
   },
 } satisfies ChartConfig;
-
-type XAxisTickRenderer = NonNullable<ComponentProps<typeof XAxis>['tick']>;
 
 type MarketPriceChartProps = {
   variant: 'model' | 'trade';
@@ -68,46 +70,66 @@ export function MarketPriceChart({
   onTimespanChange,
   emptyMessage,
 }: MarketPriceChartProps) {
-  const data = rows.map((r) => ({
-    tMs: r.tMs,
-    price: scaledQuoteToApproximateNumberForChart(r.priceScaled),
-    priceScaled: r.priceScaled,
-  }));
+  const data = useMemo(
+    () =>
+      rows.map((r) => ({
+        tMs: r.tMs,
+        price: scaledQuoteToApproximateNumberForChart(r.priceScaled),
+        priceScaled: r.priceScaled,
+      })),
+    [rows],
+  );
 
   const xDomain = useMemo((): [number, number] | [string, string] => {
-    if (timespan === 'max') return ['dataMin', 'dataMax'];
+    if (data.length === 0) return ['dataMin', 'dataMax'];
+    if (timespan === 'max') {
+      return [data[0]!.tMs, data[data.length - 1]!.tMs];
+    }
     const start = chartTimespanToStartMs(windowEndMs, timespan);
     if (start === null) return ['dataMin', 'dataMax'];
     return [start, windowEndMs];
-  }, [timespan, windowEndMs]);
+  }, [data, timespan, windowEndMs]);
 
-  const xAxisSpanMs = useMemo(() => {
-    if (timespan === 'max' || typeof xDomain[0] === 'string') return 0;
-    return (xDomain[1] as number) - (xDomain[0] as number);
-  }, [timespan, xDomain]);
-
-  /** Bounded tick count on fixed windows; labels throttled in `SecondResolutionTick`. */
   const xAxisTicks = useMemo(() => {
-    if (timespan === 'max' || typeof xDomain[0] === 'string') return undefined;
-    return buildXAxisTicks(xDomain[0] as number, xDomain[1] as number);
-  }, [timespan, xDomain]);
+    if (typeof xDomain[0] === 'string') return undefined;
+    return buildXAxisTicks(xDomain[0] as number, xDomain[1] as number, timespan);
+  }, [xDomain, timespan]);
 
-  const formatTickMaxMode = (ms: number) => {
-    const d = new Date(ms);
-    if (timespan === '1d' || timespan === '1w') {
-      return d.toLocaleString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
+  const stats = useMemo(() => {
+    if (data.length === 0) return null;
+    const open = data[0]!.price;
+    const last = data[data.length - 1]!.price;
+    let min = data[0]!.price;
+    let max = data[0]!.price;
+    for (const d of data) {
+      if (d.price < min) min = d.price;
+      if (d.price > max) max = d.price;
     }
-    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  };
+    const delta = open === 0 ? 0 : (last - open) / open;
+    const isUp = last >= open;
+    const latestScaled = data[data.length - 1]!.priceScaled;
+    return { open, last, min, max, delta, isUp, latestScaled, range: max - min };
+  }, [data]);
 
-  if (data.length === 0) {
+  const yTickFormatter = useMemo(() => {
+    const range = stats?.range ?? 0;
+    const maxFractionDigits = range < 0.01 ? 6 : range < 1 ? 4 : 2;
+    const fmt = new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: maxFractionDigits,
+      minimumFractionDigits: Math.min(2, maxFractionDigits),
+    });
+    return (v: number) => fmt.format(Number(v));
+  }, [stats?.range]);
+
+  const headerColor = stats?.isUp ? UP_COLOR : DOWN_COLOR;
+  const gradientId = `market-area-gradient-${variant}-${stats?.isUp ? 'up' : 'down'}`;
+
+  if (data.length === 0 || stats === null) {
     return (
       <div className='flex flex-col gap-3'>
+        <PriceHeader stats={null} color={UP_COLOR} />
         <TimespanBar timespan={timespan} onTimespanChange={onTimespanChange} />
         <p className='text-sm text-black/70'>{emptyMessage}</p>
       </div>
@@ -116,54 +138,41 @@ export function MarketPriceChart({
 
   return (
     <div className='flex flex-col gap-3'>
+      <PriceHeader stats={stats} color={headerColor} />
       <TimespanBar timespan={timespan} onTimespanChange={onTimespanChange} />
-      <ChartContainer config={chartConfig} className='h-[min(360px,50vh)] w-full min-h-[200px]'>
+      <ChartContainer config={chartConfig} className='h-[min(360px,50vh)] w-full min-h-[220px]'>
         <ResponsiveContainer width='100%' height='100%'>
-          <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid vertical={false} strokeDasharray='3 3' />
+          <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id={gradientId} x1='0' y1='0' x2='0' y2='1'>
+                <stop offset='0%' stopColor={headerColor} stopOpacity={0.35} />
+                <stop offset='100%' stopColor={headerColor} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid vertical={false} strokeDasharray='3 3' stroke='rgba(0,0,0,0.08)' />
             <XAxis
               dataKey='tMs'
               type='number'
               domain={xDomain}
-              interval={0}
-              {...(xAxisTicks
-                ? {
-                    ticks: xAxisTicks,
-                    minTickGap: 0,
-                    tick: ((tickProps) => (
-                      <SecondResolutionTick
-                        x={Number(tickProps.x)}
-                        y={Number(tickProps.y)}
-                        payload={
-                          tickProps.payload as {
-                            value?: number;
-                          }
-                        }
-                        spanMs={xAxisSpanMs}
-                        timespan={timespan}
-                      />
-                    )) as XAxisTickRenderer,
-                  }
-                : {
-                    tickFormatter: formatTickMaxMode,
-                    minTickGap: 24,
-                  })}
-              height={44}
-              stroke='rgba(0,0,0,0.35)'
+              ticks={xAxisTicks}
+              tickFormatter={(ms: number) => formatAxisTickLabel(ms, timespan)}
+              tickLine={false}
+              axisLine={false}
+              minTickGap={16}
+              height={28}
+              tick={{ fontSize: 11, fill: 'rgba(0,0,0,0.6)' }}
             />
             <YAxis
               domain={['auto', 'auto']}
-              tickFormatter={(v) =>
-                new Intl.NumberFormat(undefined, {
-                  style: 'currency',
-                  currency: 'USD',
-                  maximumFractionDigits: 6,
-                }).format(Number(v))
-              }
-              width={80}
-              stroke='rgba(0,0,0,0.35)'
+              tickFormatter={yTickFormatter}
+              tickLine={false}
+              axisLine={false}
+              width={72}
+              tick={{ fontSize: 11, fill: 'rgba(0,0,0,0.6)' }}
+              orientation='right'
             />
             <Tooltip
+              cursor={{ stroke: 'rgba(0,0,0,0.25)', strokeDasharray: '3 3', strokeWidth: 1 }}
               content={({ active, payload }) => {
                 if (!active || !payload?.[0]) return null;
                 const row = payload[0].payload as { tMs: number; priceScaled: string };
@@ -177,89 +186,71 @@ export function MarketPriceChart({
                 );
               }}
             />
-            <Line
+            <Area
               type={variant === 'trade' ? 'stepAfter' : 'monotone'}
               dataKey='price'
               name='price'
-              stroke='#171717'
+              stroke={headerColor}
               strokeWidth={2}
-              dot={false}
+              fill={`url(#${gradientId})`}
               isAnimationActive={false}
+              activeDot={{ r: 3, strokeWidth: 0, fill: headerColor }}
             />
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       </ChartContainer>
     </div>
   );
 }
 
-const MS_DAY = 86_400_000;
+type PriceStats = {
+  open: number;
+  last: number;
+  min: number;
+  max: number;
+  delta: number;
+  isUp: boolean;
+  latestScaled: string;
+  range: number;
+};
 
-function SecondResolutionTick({
-  x,
-  y,
-  payload,
-  spanMs,
-  timespan,
-}: {
-  x: number;
-  y: number;
-  payload: { value?: number };
-  spanMs: number;
-  timespan: ChartTimespan;
-}) {
-  const ms = payload.value;
-  if (ms === undefined || Number.isNaN(ms)) return null;
-  const showText = shouldShowAxisLabel(ms, spanMs);
-  const label = formatAxisTickLabel(ms, spanMs, timespan);
+function PriceHeader({ stats, color }: { stats: PriceStats | null; color: string }) {
+  if (stats === null) {
+    return (
+      <div className='flex items-baseline gap-3'>
+        <span className='text-2xl font-semibold tracking-tight text-black/40'>—</span>
+      </div>
+    );
+  }
+  const deltaPct = stats.delta * 100;
+  const deltaLabel = `${deltaPct >= 0 ? '+' : ''}${deltaPct.toFixed(2)}%`;
+  const rangeDecimals = stats.range < 0.01 ? 6 : stats.range < 1 ? 4 : 2;
   return (
-    <g transform={`translate(${x},${y})`}>
-      <line
-        x1={0}
-        x2={0}
-        y1={0}
-        y2={5}
-        stroke='rgba(0,0,0,0.28)'
-        strokeWidth={0.65}
-        vectorEffect='non-scaling-stroke'
-      />
-      {showText ? (
-        <text y={20} textAnchor='middle' className='fill-black/65' fontSize={9}>
-          {label}
-        </text>
-      ) : null}
-    </g>
+    <div className='flex flex-wrap items-baseline gap-x-4 gap-y-1'>
+      <span className='text-3xl font-semibold tracking-tight text-black'>
+        {formatUsdFromScaledQuote(stats.latestScaled, rangeDecimals)}
+      </span>
+      <span className='text-sm font-medium' style={{ color }}>
+        {deltaLabel}
+      </span>
+      <span className='text-xs text-black/50'>
+        Range{' '}
+        {new Intl.NumberFormat(undefined, {
+          style: 'currency',
+          currency: 'USD',
+          maximumFractionDigits: rangeDecimals,
+          minimumFractionDigits: Math.min(2, rangeDecimals),
+        }).format(stats.min)}{' '}
+        –{' '}
+        {new Intl.NumberFormat(undefined, {
+          style: 'currency',
+          currency: 'USD',
+          maximumFractionDigits: rangeDecimals,
+          minimumFractionDigits: Math.min(2, rangeDecimals),
+        }).format(stats.max)}
+      </span>
+    </div>
   );
-}
-
-function shouldShowAxisLabel(ms: number, spanMs: number): boolean {
-  const d = new Date(ms);
-  if (spanMs <= 20 * 60 * 1000) return d.getSeconds() === 0;
-  if (spanMs <= 7 * MS_DAY) return d.getMinutes() === 0 && d.getSeconds() === 0;
-  return d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0;
-}
-
-function formatAxisTickLabel(ms: number, spanMs: number, timespan: ChartTimespan): string {
-  const d = new Date(ms);
-  if (spanMs <= 20 * 60 * 1000) {
-    return d.toLocaleTimeString(undefined, {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-  }
-  if (spanMs <= 48 * 60 * 60 * 1000) {
-    return d.toLocaleString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  }
-  if (timespan === '1m') {
-    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  }
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 function TimespanBar({
@@ -272,19 +263,19 @@ function TimespanBar({
   return (
     <fieldset className='flex flex-wrap gap-2 border-0 p-0'>
       <legend className='sr-only'>Chart time range</legend>
-      {TIMESPAN_OPTIONS.map((opt) => (
+      {TIMESPAN_ORDER.map((value) => (
         <button
-          key={opt.value}
+          key={value}
           type='button'
           className={cn(
             'rounded border px-3 py-1.5 text-xs font-medium',
-            timespan === opt.value
+            timespan === value
               ? 'border-black bg-black text-white'
               : 'border-black/20 text-black/80',
           )}
-          onClick={() => onTimespanChange(opt.value)}
+          onClick={() => onTimespanChange(value)}
         >
-          {opt.label}
+          {TIMESPAN_LABEL[value]}
         </button>
       ))}
     </fieldset>
