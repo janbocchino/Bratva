@@ -29,6 +29,9 @@ export type UpdateOrderFillsParams = {
 export interface OrderReadRepo<D> {
   getOpenOrdersByMarketId(marketId: MarketId): E.Effect<Order[], PortError, D>;
   getOrderById(orderId: number): E.Effect<Order, PortError, D>;
+  // beginning of LLM written Code, Model: Claude Opus 4.7
+  getOpenOrdersByUserId(userId: UserId): E.Effect<Order[], PortError, D>;
+  // end of LLM written Code
 }
 
 export interface OrderWriteRepo<D> {

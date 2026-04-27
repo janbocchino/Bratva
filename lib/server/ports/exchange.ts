@@ -73,6 +73,25 @@ export const orderReadRepo: OrderReadRepoDomain<Db> = {
       E.flatMap((rows) => Fn.pipe(A.head(rows), E.mapError(errMapper(OrderNotFoundError)))),
       E.map(orderMapper.toDomain),
     ),
+
+  // beginning of LLM written Code, Model: Claude Opus 4.7
+  getOpenOrdersByUserId: (userId) =>
+    Fn.pipe(
+      E.serviceOptional(Db),
+      E.mapError(errMapper(InfraNotFoundError)),
+      E.flatMap((db) =>
+        E.tryPromise({
+          try: () =>
+            db
+              .select()
+              .from(orders)
+              .where(sql`${orders.userId} = ${userId} AND ${orders.status} = 'open'`),
+          catch: errMapper(InfraError),
+        }),
+      ),
+      E.map((rows) => rows.map(orderMapper.toDomain)),
+    ),
+  // end of LLM written Code
 };
 
 export const orderWriteRepo: OrderWriteRepoDomain<Db> = {

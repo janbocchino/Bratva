@@ -41,6 +41,40 @@ type TradeSide = 'bid' | 'ask';
 
 const SERIES_FULL_REFRESH_MS = 15_000;
 
+// beginning of LLM written Code, Model: Claude Opus 4.7
+type ActionStatus =
+  | { state: 'idle' }
+  | { state: 'submitting'; message: string }
+  | { state: 'success'; message: string }
+  | { state: 'error'; message: string };
+
+const IDLE_STATUS: ActionStatus = { state: 'idle' };
+
+const asBigInt = (v: bigint | string | number): bigint =>
+  typeof v === 'bigint' ? v : typeof v === 'number' ? BigInt(v) : BigInt(v);
+
+const formatFilledFraction = (
+  filledScaled: bigint | string | number,
+  quantityScaled: bigint | string | number,
+): string => {
+  const filled = asBigInt(filledScaled);
+  const requested = asBigInt(quantityScaled);
+  if (requested === 0n) return '0';
+  return `${formatQuoteAmount(filled, 4)} / ${formatQuoteAmount(requested, 4)}`;
+};
+
+function StatusBanner({ status }: { status: ActionStatus }) {
+  if (status.state === 'idle') return null;
+  const toneClass =
+    status.state === 'error'
+      ? 'text-red-700'
+      : status.state === 'success'
+        ? 'text-emerald-700'
+        : 'text-black/70';
+  return <p className={`text-xs ${toneClass}`}>{status.message}</p>;
+}
+// end of LLM written Code
+
 export default function ExploreMarketPage() {
   const params = useParams<{ publicId: string }>();
   const publicId = params.publicId;
@@ -61,8 +95,7 @@ export default function ExploreMarketPage() {
   const [loadError, setLoadError] = useState<string>('');
 
   const [liquidityAmountDollars, setLiquidityAmountDollars] = useState('10.00');
-  const [liquidityStatus, setLiquidityStatus] = useState('');
-  const [isLiquiditySubmitting, setIsLiquiditySubmitting] = useState(false);
+  const [liquidityStatus, setLiquidityStatus] = useState<ActionStatus>(IDLE_STATUS);
 
   const [tradePanelOpen, setTradePanelOpen] = useState(false);
   const [tradeSide, setTradeSide] = useState<TradeSide>('bid');
@@ -71,8 +104,10 @@ export default function ExploreMarketPage() {
   const [tradeQuantity, setTradeQuantity] = useState('1');
   const [tradeStopLoss, setTradeStopLoss] = useState('');
   const [tradeExpiresAt, setTradeExpiresAt] = useState('');
-  const [tradeStatus, setTradeStatus] = useState('');
-  const [isTradeSubmitting, setIsTradeSubmitting] = useState(false);
+  const [tradeStatus, setTradeStatus] = useState<ActionStatus>(IDLE_STATUS);
+
+  const isLiquiditySubmitting = liquidityStatus.state === 'submitting';
+  const isTradeSubmitting = tradeStatus.state === 'submitting';
 
   const isTradeDisabled = useMemo(() => market?.status === 'closed', [market?.status]);
 
@@ -218,8 +253,7 @@ export default function ExploreMarketPage() {
   const handleProvideLiquidity = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!snapshot || !market) return;
-    setLiquidityStatus('');
-    setIsLiquiditySubmitting(true);
+    setLiquidityStatus({ state: 'submitting', message: 'Providing liquidity...' });
     try {
       await provideLiquidityAction({
         userId: snapshot.user.id,
@@ -227,29 +261,40 @@ export default function ExploreMarketPage() {
         amountDollars: liquidityAmountDollars,
       });
       await refreshPageData();
-      setLiquidityStatus('Liquidity provided.');
+      setLiquidityStatus({
+        state: 'success',
+        message: `Liquidity provided ($${liquidityAmountDollars}).`,
+      });
     } catch (error) {
-      setLiquidityStatus(formatActionError(error, 'Failed to provide liquidity.'));
-    } finally {
-      setIsLiquiditySubmitting(false);
+      setLiquidityStatus({
+        state: 'error',
+        message: formatActionError(error, 'Failed to provide liquidity.'),
+      });
     }
   };
 
+  // beginning of LLM written Code, Model: Claude Opus 4.7
   const handlePlaceTrade = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!snapshot || !market) return;
     if (isTradeDisabled) {
-      setTradeStatus('Trading is disabled for closed markets.');
+      setTradeStatus({
+        state: 'error',
+        message: 'Trading is disabled for closed markets.',
+      });
       return;
     }
 
     if (tradeQuantity.trim() === '' || Number(tradeQuantity) <= 0) {
-      setTradeStatus('Quantity must be > 0.');
+      setTradeStatus({ state: 'error', message: 'Quantity must be > 0.' });
       return;
     }
 
-    setTradeStatus('');
-    setIsTradeSubmitting(true);
+    const sideLabel = tradeSide === 'bid' ? 'buy' : 'sell';
+    setTradeStatus({
+      state: 'submitting',
+      message: `Placing ${sideLabel} order for ${tradeQuantity} @ ${tradePrice}...`,
+    });
     try {
       const placed = await placeOrder({
         userId: snapshot.user.id,
@@ -262,15 +307,21 @@ export default function ExploreMarketPage() {
           tradeExpiresAt.trim() === '' ? undefined : new Date(tradeExpiresAt).toISOString(),
       });
       await refreshPageData();
-      setTradeStatus(
-        `Order placed (${placed.publicId}) as ${tradeSide === 'bid' ? 'buy' : 'sell'}.`,
-      );
+
+      const filledLabel = formatFilledFraction(placed.filled, placed.quantity);
+      const wasFilled = placed.status === 'filled';
+      const message = wasFilled
+        ? `${sideLabel.toUpperCase()} filled — ${filledLabel} at avg ${formatUsdFromScaledQuote(placed.price)} (order ${placed.publicId}).`
+        : `${sideLabel.toUpperCase()} order placed — ${filledLabel} matched so far (order ${placed.publicId}, status ${placed.status}).`;
+      setTradeStatus({ state: 'success', message });
     } catch (error) {
-      setTradeStatus(formatActionError(error, 'Failed to place order.'));
-    } finally {
-      setIsTradeSubmitting(false);
+      setTradeStatus({
+        state: 'error',
+        message: formatActionError(error, 'Failed to place order.'),
+      });
     }
   };
+  // end of LLM written Code
 
   if (isLoading) {
     return <section className='text-sm text-black/70'>Loading market...</section>;
@@ -396,7 +447,7 @@ export default function ExploreMarketPage() {
           >
             {isLiquiditySubmitting ? 'Providing...' : 'Submit Liquidity'}
           </button>
-          {liquidityStatus ? <p className='text-xs text-black/70'>{liquidityStatus}</p> : null}
+          <StatusBanner status={liquidityStatus} />
         </form>
 
         {tradePanelOpen ? (
@@ -491,9 +542,9 @@ export default function ExploreMarketPage() {
                     : `Submit ${tradeSide === 'bid' ? 'Buy' : 'Sell'}`}
                 </button>
               </div>
-              {tradeStatus ? (
-                <p className='text-xs text-black/70 sm:col-span-2'>{tradeStatus}</p>
-              ) : null}
+              <div className='sm:col-span-2'>
+                <StatusBanner status={tradeStatus} />
+              </div>
             </form>
           </section>
         ) : null}

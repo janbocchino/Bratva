@@ -27,3 +27,5 @@ API: uv run python -m backend.api
 
 Worker: uv run bratva-worker
 API: uv run bratva-price-api
+
+Run all: ```npm run dev:all```

@@ -9,6 +9,9 @@ import { UserDisplayName, UserEmail } from '@/domain/values/user';
 import { formatActionError } from '@/lib/client/format-action-error';
 import { formatUsdFromScaledQuote } from '@/lib/client/format-scaled-usd';
 import { addBalance } from '@/lib/server/actions/add-balance';
+// beginning of LLM written Code, Model: Claude Opus 4.7
+import { cancelOrder } from '@/lib/server/actions/cancel-order';
+// end of LLM written Code
 import { createUser } from '@/lib/server/actions/create-user';
 import type { AccountSnapshot } from '@/lib/server/actions/get-account';
 import { getAccount } from '@/lib/server/actions/get-account';
@@ -58,6 +61,10 @@ export default function AccountPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [balanceAction, setBalanceAction] = useState<'idle' | 'add' | 'withdraw'>('idle');
   const [isCreating, setIsCreating] = useState(false);
+  // beginning of LLM written Code, Model: Claude Opus 4.7
+  const [cancelingOrderId, setCancelingOrderId] = useState<number | null>(null);
+  const [cancelStatus, setCancelStatus] = useState<string>('');
+  // end of LLM written Code
 
   const refreshAccount = async () => {
     setIsLoading(true);
@@ -101,6 +108,23 @@ export default function AccountPage() {
       setStatus(formatActionError(error, 'Failed to withdraw balance.'));
     } finally {
       setBalanceAction('idle');
+    }
+  };
+  // end of LLM written Code
+
+  // beginning of LLM written Code, Model: Claude Opus 4.7
+  const handleCancelOrder = async (orderId: number, orderPublicId: string) => {
+    if (!snapshot) return;
+    setCancelingOrderId(orderId);
+    setCancelStatus('');
+    try {
+      await cancelOrder({ userId: snapshot.user.id, orderId });
+      await refreshAccount();
+      setCancelStatus(`Order ${orderPublicId} cancelled.`);
+    } catch (error) {
+      setCancelStatus(formatActionError(error, 'Failed to cancel order.'));
+    } finally {
+      setCancelingOrderId(null);
     }
   };
   // end of LLM written Code
@@ -245,6 +269,57 @@ export default function AccountPage() {
           </div>
           {status ? <p className='text-xs text-black/70'>{status}</p> : null}
         </form>
+      </section>
+      {/* end of LLM written Code */}
+
+      {/* beginning of LLM written Code, Model: Claude Opus 4.7 */}
+      <section className='rounded-lg border border-black/10 p-4'>
+        <h2 className='mb-3 text-lg font-medium'>Open orders</h2>
+        {snapshot.openOrders.length === 0 ? (
+          <p className='text-sm text-black/60'>No open orders.</p>
+        ) : (
+          <ul className='flex flex-col gap-2'>
+            {snapshot.openOrders.map((order) => {
+              const sideLabel = order.side === 'bid' ? 'Buy' : 'Sell';
+              const tickerPair =
+                order.baseAssetTicker && order.quoteAssetTicker
+                  ? `${order.baseAssetTicker.toUpperCase()} / ${order.quoteAssetTicker.toUpperCase()}`
+                  : `market ${order.marketPublicId}`;
+              const isCanceling = cancelingOrderId === order.id;
+              return (
+                <li
+                  key={order.id}
+                  className='flex flex-wrap items-center justify-between gap-3 rounded border border-black/10 px-3 py-2'
+                >
+                  <div className='flex flex-col gap-0.5'>
+                    <p className='font-medium'>
+                      {sideLabel} {tickerPair}
+                    </p>
+                    <p className='text-xs text-black/60'>
+                      id {order.publicId} | price{' '}
+                      {formatUsdFromScaledQuote(asBigInt(order.priceScaled))} | qty{' '}
+                      {formatTokenAmount(asBigInt(order.quantityScaled))} | filled{' '}
+                      {formatTokenAmount(asBigInt(order.filledScaled))}
+                    </p>
+                    <p className='text-xs text-black/60'>
+                      placed {new Date(order.createdAtIso).toLocaleString()} | expires{' '}
+                      {new Date(order.expiresAtIso).toLocaleString()}
+                    </p>
+                  </div>
+                  <button
+                    className='rounded border border-black/20 px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50'
+                    type='button'
+                    onClick={() => void handleCancelOrder(order.id, order.publicId)}
+                    disabled={isCanceling || cancelingOrderId !== null}
+                  >
+                    {isCanceling ? 'Cancelling...' : 'Cancel'}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {cancelStatus ? <p className='mt-2 text-xs text-black/70'>{cancelStatus}</p> : null}
       </section>
       {/* end of LLM written Code */}
 

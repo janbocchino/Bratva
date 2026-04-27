@@ -52,3 +52,4 @@ models/gte-base/
 # Config
 .editorconfig
 .vscode/
+.agents/

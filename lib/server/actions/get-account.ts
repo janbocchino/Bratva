@@ -11,6 +11,9 @@ import { assetReadRepo } from '../ports/asset';
 import { ledgerReadRepo } from '../ports/ledger';
 import { userReadRepo } from '../ports/user';
 import { runServerDomainEffect } from '../run-server-domain-effect';
+// beginning of LLM written Code, Model: Claude Opus 4.7
+import { listOpenOrders, type OpenOrderRow } from './list-open-orders';
+// end of LLM written Code
 
 // beginning of LLM written Code, Model: gpt-5.3-codex-low
 export type AccountSnapshot = {
@@ -20,6 +23,9 @@ export type AccountSnapshot = {
   history: AccountHistory;
   /** Ledger rows for this asset use `QuoteAmount` scale (USD); used to format `scaled_unit` balances. */
   usdAssetId: AssetId | null;
+  // end of LLM written Code
+  // beginning of LLM written Code, Model: Claude Opus 4.7
+  openOrders: readonly OpenOrderRow[];
   // end of LLM written Code
 };
 
@@ -54,6 +60,15 @@ export async function getAccount(): Promise<AccountSnapshot | null> {
     }),
   );
 
-  return runServerDomainEffect(snapshot.pipe(E.provideService(Db, db)));
+  const base = await runServerDomainEffect(snapshot.pipe(E.provideService(Db, db)));
+  if (base === null) return null;
+
+  // beginning of LLM written Code, Model: Claude Opus 4.7
+  // `listOpenOrders` is a `'use server'` action with its own effect runner and
+  // the user's id is only known after the implicit-user lookup, so we fan out
+  // the read here rather than threading it through the single Effect pipeline.
+  const openOrders = await listOpenOrders({ userId: base.user.id });
+  return { ...base, openOrders };
+  // end of LLM written Code
 }
 // end of LLM written Code

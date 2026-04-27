@@ -1,6 +1,7 @@
 // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 'use server';
 
+import * as Exit from 'effect/Exit';
 import { E, Fn } from '@/lib/shared/imports';
 import { AmmPool } from '@/domain/aggregates/market';
 import type { Order, OrderStatus } from '@/domain/aggregates/exchange';
@@ -17,13 +18,14 @@ import { mapTransactionsToUsdPriceSeriesPoints } from '@/domain/workflows/price-
 import { TokenAmount, QuoteAmount } from '@/domain/values/currencies';
 import { PROTOCOL_USER_ID } from '@/domain/values/protocol';
 import { parseFixedPoint } from '@/domain/values/parse-fixed-point';
+import { InfraError, PortError } from '@/domain/errors';
 import { type } from 'arktype';
 import {
   applyAmmFillToPool,
   parseOptionalExpiresAt,
   parseOptionalStopLoss,
 } from './place-order.shared';
-import { Db, db } from '../db';
+import { type DB, Db, db } from '../db';
 import { runServerDomainEffect } from '../run-server-domain-effect';
 import { assetReadRepo } from '../ports/asset';
 import { ledgerReadRepo, ledgerWriteRepo } from '../ports/ledger';
@@ -32,6 +34,40 @@ import { marketReadRepo, marketWriteRepo } from '../ports/market';
 import { orderReadRepo, orderWriteRepo, transactionWriteRepo } from '../ports/exchange';
 import { priceSeriesWriteRepo } from '../ports/price-series';
 import type { CreateTransactionParams, UpdateOrderFillsParams } from '@/domain/ports/exchange';
+
+/**
+ * Execute a Db-using Effect inside a single drizzle/libsql transaction so that
+ * a failure anywhere in the write pipeline (e.g. `InsufficientBalanceError`)
+ * rolls back every prior write. Without this, concurrent `E.all` writes would
+ * partially commit and leave ghost orders / missing price_series rows.
+ */
+const runInTransaction = <A, Err>(
+  effect: E.Effect<A, Err, Db>,
+): E.Effect<A, Err | PortError> =>
+  E.async<A, Err | PortError>((resume) => {
+    let resolved = false;
+    const safeResume = (r: E.Effect<A, Err | PortError>) => {
+      if (resolved) return;
+      resolved = true;
+      resume(r);
+    };
+    const ROLLBACK_SENTINEL = '__place_order_tx_rollback__';
+    void db
+      .transaction(async (tx) => {
+        const exit = await E.runPromiseExit(
+          effect.pipe(E.provideService(Db, tx as unknown as DB)),
+        );
+        if (Exit.isFailure(exit)) {
+          safeResume(E.failCause(exit.cause));
+          throw new Error(ROLLBACK_SENTINEL);
+        }
+        safeResume(E.succeed(exit.value));
+      })
+      .catch((err) => {
+        if (err instanceof Error && err.message === ROLLBACK_SENTINEL) return;
+        safeResume(E.fail(new PortError({ cause: new InfraError({ cause: err }) })));
+      });
+  });
 
 /*
 Decision questionnaire
@@ -117,7 +153,7 @@ export async function placeOrder(p: {
           const counterSide = p.side === 'bid' ? 'ask' : 'bid';
           const ammOrder = buildAmmOrder(market.ammPool, market, counterSide);
 
-          return Fn.pipe(
+          const writeEffect = Fn.pipe(
             orderWriteRepo.createOrder({
               marketId: market.id,
               userId: user.id,
@@ -210,7 +246,6 @@ export async function placeOrder(p: {
                   p.side === 'bid' ? market.quoteAssetId : market.baseAssetId;
                 const makerCreditAmount =
                   p.side === 'bid' ? settlement.proceeds.amount : match.matchedQuantity;
-                const makerCreditUnits = p.side === 'bid' ? ('scaled_unit' as const) : ('scaled_unit' as const);
 
                 settlementEffects.push(
                   Fn.pipe(
@@ -218,7 +253,27 @@ export async function placeOrder(p: {
                       userId: before.userId,
                       assetId: makerCreditAssetId,
                       amount: makerCreditAmount,
-                      units: makerCreditUnits,
+                      units: 'scaled_unit',
+                    }),
+                    E.flatMap(ledgerWriteRepo.createEntry),
+                  ),
+                );
+
+                // Taker receives the opposite asset: base on a buy, quote on a sell.
+                // Without this, a buyer never accrues base tokens and a subsequent
+                // sell fails with InsufficientBalance even though matching succeeded.
+                const takerCreditAssetId =
+                  p.side === 'bid' ? market.baseAssetId : market.quoteAssetId;
+                const takerCreditAmount =
+                  p.side === 'bid' ? match.matchedQuantity : settlement.proceeds.amount;
+
+                settlementEffects.push(
+                  Fn.pipe(
+                    creditUserBalance({
+                      userId: user.id,
+                      assetId: takerCreditAssetId,
+                      amount: takerCreditAmount,
+                      units: 'scaled_unit',
                     }),
                     E.flatMap(ledgerWriteRepo.createEntry),
                   ),
@@ -243,6 +298,28 @@ export async function placeOrder(p: {
                   quantity: TokenAmount.new(ammFilled),
                 });
                 totalDust += ammSettlement.cost.dust;
+
+                // AMM pool conservation is handled via `applyAmmFillToPool` further
+                // below; here we credit the taker side so the user actually receives
+                // the proceeds / tokens. Mirrors the book-match taker credit above.
+                const ammTakerCreditAssetId =
+                  p.side === 'bid' ? market.baseAssetId : market.quoteAssetId;
+                const ammTakerCreditAmount =
+                  p.side === 'bid'
+                    ? TokenAmount.new(ammFilled)
+                    : ammSettlement.proceeds.amount;
+
+                settlementEffects.push(
+                  Fn.pipe(
+                    creditUserBalance({
+                      userId: user.id,
+                      assetId: ammTakerCreditAssetId,
+                      amount: ammTakerCreditAmount,
+                      units: 'scaled_unit',
+                    }),
+                    E.flatMap(ledgerWriteRepo.createEntry),
+                  ),
+                );
               }
 
               if (BigInt(settledIncomingOrder.filled) > 0n) {
@@ -324,29 +401,35 @@ export async function placeOrder(p: {
                   : E.void;
 
               return Fn.pipe(
-                E.all([
-                  orderWriteRepo.updateOrderFills([incomingFillUpdate, ...orderFillUpdates]),
-                  persistTransactionsAndPriceSeries,
-                  E.all(settlementEffects),
-                  ammFilled > 0n
-                    ? (() => {
-                        const nextPool = applyAmmFillToPool({
-                          side: p.side,
-                          pool: {
-                            reserveBase: BigInt(market.ammPool.reserveBase),
-                            reserveQuote: BigInt(market.ammPool.reserveQuote),
-                          },
-                          quantity: ammFilled,
-                        });
-                        return marketWriteRepo.updateMarketAfterMatch({
-                          marketId: market.id,
-                          sequenceNumber: market.sequenceNumber + 1,
-                          ammReserveBase: nextPool.reserveBase,
-                          ammReserveQuote: nextPool.reserveQuote,
-                        });
-                      })()
-                    : E.void,
-                ]),
+                // Sequential (`concurrency: 1`) so that, within the transaction,
+                // writes happen in a predictable order and a synchronous failure
+                // (e.g. insufficient-balance guard) fires before later writes.
+                E.all(
+                  [
+                    orderWriteRepo.updateOrderFills([incomingFillUpdate, ...orderFillUpdates]),
+                    persistTransactionsAndPriceSeries,
+                    E.all(settlementEffects, { concurrency: 1 }),
+                    ammFilled > 0n
+                      ? (() => {
+                          const nextPool = applyAmmFillToPool({
+                            side: p.side,
+                            pool: {
+                              reserveBase: BigInt(market.ammPool.reserveBase),
+                              reserveQuote: BigInt(market.ammPool.reserveQuote),
+                            },
+                            quantity: ammFilled,
+                          });
+                          return marketWriteRepo.updateMarketAfterMatch({
+                            marketId: market.id,
+                            sequenceNumber: market.sequenceNumber + 1,
+                            ammReserveBase: nextPool.reserveBase,
+                            ammReserveQuote: nextPool.reserveQuote,
+                          });
+                        })()
+                      : E.void,
+                  ],
+                  { concurrency: 1 },
+                ),
                 E.map(
                   () =>
                     ({
@@ -358,6 +441,8 @@ export async function placeOrder(p: {
               );
             }),
           );
+
+          return runInTransaction(writeEffect);
         }),
       );
     }),
