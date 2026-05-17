@@ -1,5 +1,6 @@
 {
   "assetId": "ERST",
+  "kind": "token",
   "name": "Eric Schmidt",
   "occupation": "Businessman",
   "citizenship": ["United States"],
@@ -17,5 +18,6 @@
     "Apple",
     "Princeton University"
   ],
+  "news_headlines": [],
   "age": 50
 }

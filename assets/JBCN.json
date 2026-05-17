@@ -1,10 +1,13 @@
 {
   "assetId": "JBCN",
+  "kind": "token",
   "name": "Jan Bocchino",
   "occupation": "Freelancer",
   "citizenship": ["Germany", "Italy"],
   "net_worth": 5000,
   "social_media_followers": 2000,
   "associations": [],
+  "news_headlines": [],
   "age": 23
+
 }

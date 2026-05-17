@@ -1,0 +1,40 @@
+{
+  "assetId": "ERST",
+  "kind": "token",
+  "name": "Eric Schmidt",
+  "occupation": "Businessman",
+  "citizenship": [
+    "United States"
+  ],
+  "net_worth": 36300000000,
+  "social_media_followers": -1,
+  "associations": [
+    "Google",
+    "Alphabet Inc.",
+    "Alphabet",
+    "Relativity Space",
+    "Bloomberg Billionaires Index",
+    "Bell Labs",
+    "Sun Microsystems",
+    "Novell",
+    "Carnegie Mellon University",
+    "Apple",
+    "Princeton University",
+    "the Mayo Clinic",
+    "the National Football League",
+    "NFL",
+    "Council of Advisors on Science and Technology",
+    "the Office of Science and Technology Policy",
+    "the U.S. National Security Commission on Artificial Intelligence",
+    "the Special Competitive Studies Project",
+    "SCSP"
+  ],
+  "news_headlines": [
+    "Is Antitrust Enough?",
+    "Scott Wiener Opposes a California Billionaire Tax. So Do His Tech CEO Backers.",
+    "Graduating students may ‘boo’ every mention of AI but still need timeless advice as jobs turn scarce",
+    "Trump to Discuss AI Guardrails with China’s Xi During Visit to Beijing",
+    "“I had to turn down President Obama”"
+  ],
+  "age": 50
+}

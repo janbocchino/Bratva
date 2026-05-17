@@ -1,10 +1,12 @@
 {
   "assetId": "FASL",
+  "kind": "token",
   "name": "Fabian Stahl",
   "occupation": "Engineer",
   "citizenship": ["Germany"],
   "net_worth": 114243,
   "social_media_followers": 15000,
   "associations": ["Airbus"],
+  "news_headlines": [],
   "age": 43
 }

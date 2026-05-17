@@ -1,4 +1,5 @@
 {
   "assetId": "USD",
+  "kind": "fiat",
   "name": "United States Dollar"
 }

@@ -53,3 +53,7 @@ models/gte-base/
 .editorconfig
 .vscode/
 .agents/
+
+# Live scraper state
+assets/live/.last_run.json
+assets/live/.wiki_revid_cache.json

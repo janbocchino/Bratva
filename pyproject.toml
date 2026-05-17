@@ -7,11 +7,15 @@ requires-python = ">=3.13"
 dependencies = [
     "flax>=0.12.2",
     "fastapi>=0.121.0",
+    "httpx>=0.28.0",
     "jax>=0.8.2",
     "jaxtyping>=0.3.5",
+    "python-dotenv>=1.0.0",
+    "requests>=2.32.0",
     "safetensors>=0.7.0",
     "scikit-learn>=1.8.0",
     "sentence-transformers>=5.2.0",
+    "spacy>=3.8.0",
     "toolz>=0.12.0",
     "uvicorn>=0.38.0",
 ]
