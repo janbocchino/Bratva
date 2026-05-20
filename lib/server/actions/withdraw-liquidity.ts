@@ -8,9 +8,9 @@ import { transitionMarket } from '@/domain/workflows/market';
 import { PositionOwnershipError } from '@/domain/errors';
 import { TokenAmount, QuoteAmount } from '@/domain/values/currencies';
 import { PROTOCOL_USER_ID } from '@/domain/values/protocol';
+import { requireUser } from '../auth/guards';
 import { Db, db } from '../db';
 import { ledgerWriteRepo } from '../ports/ledger';
-import { userReadRepo } from '../ports/user';
 import { marketReadRepo } from '../ports/market';
 import {
   liquidityMarketWriteRepo,
@@ -20,11 +20,10 @@ import {
 import { assetReadRepo } from '../ports/asset';
 import { runServerDomainEffect } from '../run-server-domain-effect';
 
-export async function withdrawLiquidityAction(p: { userId: number; positionId: number }) {
-  const user = Fn.pipe(
-    E.succeed(p.userId),
-    E.flatMap((id) => userReadRepo.getUser({ id })),
-  );
+export async function withdrawLiquidityAction(p: { positionId: number }) {
+  // beginning of LLM written Code, Model: GPT-5.5
+  const user = requireUser();
+  // end of LLM written Code
 
   const position = liquidityPositionReadRepo.getPosition(p.positionId);
 

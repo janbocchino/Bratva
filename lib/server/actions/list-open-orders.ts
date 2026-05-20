@@ -3,6 +3,7 @@
 
 import type { Side } from '@/domain/aggregates/exchange';
 import { E } from '@/lib/shared/imports';
+import { getRequiredUser } from '../auth/guards';
 import { Db, db } from '../db';
 import { assetReadRepo } from '../ports/asset';
 import { marketReadRepo } from '../ports/market';
@@ -26,9 +27,12 @@ export type OpenOrderRow = {
   expiresAtIso: string;
 };
 
-export async function listOpenOrders(p: { userId: number }): Promise<readonly OpenOrderRow[]> {
+export async function listOpenOrders(): Promise<readonly OpenOrderRow[]> {
+  // beginning of LLM written Code, Model: GPT-5.5
+  const user = await getRequiredUser();
+  // end of LLM written Code
   const openOrders = await runServerDomainEffect(
-    orderReadRepo.getOpenOrdersByUserId(p.userId).pipe(E.provideService(Db, db)),
+    orderReadRepo.getOpenOrdersByUserId(user.id).pipe(E.provideService(Db, db)),
   );
 
   const uniqueMarketIds = Array.from(new Set(openOrders.map((o) => o.marketId)));
@@ -44,9 +48,7 @@ export async function listOpenOrders(p: { userId: number }): Promise<readonly Op
   );
 
   const uniqueAssetIds = Array.from(
-    new Set(
-      Array.from(marketById.values()).flatMap((m) => [m.baseAssetId, m.quoteAssetId]),
-    ),
+    new Set(Array.from(marketById.values()).flatMap((m) => [m.baseAssetId, m.quoteAssetId])),
   );
   const assetById = new Map(
     await Promise.all(

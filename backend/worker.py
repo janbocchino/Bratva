@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from backend.constants import FASTAPI_MODEL_PRICE_URL, PRICE_UPDATE_INTERVAL
+from backend.constants import FASTAPI_MODEL_PRICE_TOKEN, FASTAPI_MODEL_PRICE_URL, PRICE_UPDATE_INTERVAL
 from backend.ml import calculate_model_price, load_all_models
 from backend.types_ import InputData
 
@@ -115,10 +115,16 @@ class PriceWorker:
         if not prices:
             return True
 
+        # beginning of LLM written Code, Model: GPT-5.5
+        headers = {"Content-Type": "application/json"}
+        if FASTAPI_MODEL_PRICE_TOKEN:
+            headers["x-model-price-token"] = FASTAPI_MODEL_PRICE_TOKEN
+        # end of LLM written Code
+
         request = Request(
             FASTAPI_MODEL_PRICE_URL,
             data=json.dumps(prices).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
+            headers=headers,
             method="POST",
         )
 

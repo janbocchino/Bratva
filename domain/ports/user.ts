@@ -21,7 +21,6 @@ export type GetUserParams = typeof GetUserParams.infer;
 export interface UserReadRepo<D> {
   // beginning of LLM written Code, Model: gpt-5.3-codex-low
   getUser(o: GetUserParams): E.Effect<User, PortError, D>;
-  getImplicitUser(): E.Effect<User, PortError, D>;
   // end of LLM written Code
 }
 

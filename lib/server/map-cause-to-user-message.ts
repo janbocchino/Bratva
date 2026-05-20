@@ -4,12 +4,15 @@ import * as O from 'effect/Option';
 import {
   AddBalanceValidationError,
   AssetNotFoundError,
+  AuthenticationRequiredError,
   DisplayNameAlreadyInUseError,
   EmailAlreadyInUseError,
+  ForbiddenError,
   IllegalMarketTransitionError,
   InfraError,
   InfraNotFoundError,
   InsufficientBalanceError,
+  InvalidSessionError,
   LiquidityLockError,
   LiquidityPositionNotFoundError,
   LiquidityValidationError,
@@ -88,6 +91,15 @@ function mapPlainError(err: Error): string | null {
 
 function mapTaggedToUser(err: unknown): string | null {
   if (err instanceof InfraNotFoundError || err instanceof InfraError) return GENERIC;
+
+  // beginning of LLM written Code, Model: GPT-5.5
+  if (err instanceof AuthenticationRequiredError || err instanceof InvalidSessionError) {
+    return 'Sign in or create an account to continue.';
+  }
+  if (err instanceof ForbiddenError) {
+    return "You don't have permission to do that.";
+  }
+  // end of LLM written Code
 
   if (err instanceof InsufficientBalanceError) {
     return "You don't have enough balance for this action.";

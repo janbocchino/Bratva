@@ -1,4 +1,4 @@
-import { desc, eq, or, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { User } from '@/domain/aggregates/user';
 import { InfraError, InfraNotFoundError, PortError, UserNotFoundError } from '@/domain/errors';
 import type {
@@ -6,18 +6,44 @@ import type {
   UserReadRepo as UserReadRepoDomain,
   UserWriteRepo as UserWriteRepoDomain,
 } from '@/domain/ports/user';
-import { UserDisplayName, UserEmail, UserId, UserPublicId, Nonce } from '@/domain/values/user';
+import {
+  UserDisplayName,
+  UserEmail,
+  UserId,
+  UserPublicId,
+  Nonce,
+  UserRole,
+} from '@/domain/values/user';
 // beginning of LLM written Code, Model: gpt-5.3-codex
 import { requireValidDate } from '@/domain/values/timestamp';
 // end of LLM written Code
 import { A, E, Fn } from '@/lib/shared/imports';
 import { Db } from '../db';
-import { users } from '../schema';
+import { type UserPrs, users } from '../schema';
 
 const errMapper =
   (WrappedError: typeof InfraNotFoundError | typeof InfraError | typeof UserNotFoundError) =>
   (cause: unknown) =>
     new PortError({ cause: new WrappedError({ cause }) });
+
+// beginning of LLM written Code, Model: GPT-5.5
+/*
+Decision questionnaire
+- Where should DB user rows become domain users?
+  - [x] Single mapper in the infrastructure port.
+  - [ ] Repeated object literals in every repository method.
+*/
+const mapUserPrsToDomain = (u: UserPrs): User => ({
+  id: UserId(u.id),
+  publicId: UserPublicId(u.publicId),
+  displayName: UserDisplayName(u.displayName),
+  email: UserEmail(u.email),
+  role: UserRole.from(u.role),
+  createdAt: requireValidDate(u.createdAt),
+  updatedAt: requireValidDate(u.updatedAt),
+  nonce: Nonce(u.nonce),
+});
+// end of LLM written Code
 
 export const userReadRepo: UserReadRepoDomain<Db> = {
   getUser: (o) =>
@@ -40,47 +66,8 @@ export const userReadRepo: UserReadRepoDomain<Db> = {
         }),
       ),
       E.flatMap((us) => Fn.pipe(A.head(us), E.mapError(errMapper(UserNotFoundError)))),
-      E.map(
-        (u): User => ({
-          id: UserId(u.id),
-          publicId: UserPublicId(u.publicId),
-          displayName: UserDisplayName(u.displayName),
-          email: UserEmail(u.email),
-          // beginning of LLM written Code, Model: gpt-5.3-codex
-          createdAt: requireValidDate(u.createdAt),
-          updatedAt: requireValidDate(u.updatedAt),
-          // end of LLM written Code
-          nonce: Nonce(u.nonce),
-        }),
-      ),
+      E.map(mapUserPrsToDomain),
     ),
-  // beginning of LLM written Code, Model: gpt-5.3-codex-low
-  getImplicitUser: () =>
-    Fn.pipe(
-      E.serviceOptional(Db),
-      E.mapError(errMapper(InfraNotFoundError)),
-      E.flatMap((db) =>
-        E.tryPromise({
-          try: () => db.select().from(users).orderBy(desc(users.createdAt)).limit(1),
-          catch: errMapper(InfraError),
-        }),
-      ),
-      E.flatMap((us) => Fn.pipe(A.head(us), E.mapError(errMapper(UserNotFoundError)))),
-      E.map(
-        (u): User => ({
-          id: UserId(u.id),
-          publicId: UserPublicId(u.publicId),
-          displayName: UserDisplayName(u.displayName),
-          email: UserEmail(u.email),
-          // beginning of LLM written Code, Model: gpt-5.3-codex
-          createdAt: requireValidDate(u.createdAt),
-          updatedAt: requireValidDate(u.updatedAt),
-          // end of LLM written Code
-          nonce: Nonce(u.nonce),
-        }),
-      ),
-    ),
-  // end of LLM written Code
 };
 
 export const userWriteRepo: UserWriteRepoDomain<Db> = {
@@ -102,19 +89,7 @@ export const userWriteRepo: UserWriteRepoDomain<Db> = {
         }),
       ),
       E.flatMap((rows) => Fn.pipe(A.head(rows), E.mapError(errMapper(InfraError)))),
-      E.map(
-        (u): User => ({
-          id: UserId(u.id),
-          publicId: UserPublicId(u.publicId),
-          displayName: UserDisplayName(u.displayName),
-          email: UserEmail(u.email),
-          // beginning of LLM written Code, Model: gpt-5.3-codex
-          createdAt: requireValidDate(u.createdAt),
-          updatedAt: requireValidDate(u.updatedAt),
-          // end of LLM written Code
-          nonce: Nonce(u.nonce),
-        }),
-      ),
+      E.map(mapUserPrsToDomain),
     ),
 
   // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking

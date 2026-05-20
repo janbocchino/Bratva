@@ -39,7 +39,13 @@ def _assert_valid_token(x_model_price_token: str | None) -> None:
 
 
 @app.post("/model-prices")
-def ingest_model_prices(rows: List[ModelPriceRow]) -> Dict[str, Any]:
+def ingest_model_prices(
+    rows: List[ModelPriceRow],
+    x_model_price_token: str | None = Header(default=None),
+) -> Dict[str, Any]:
+    # beginning of LLM written Code, Model: GPT-5.5
+    _assert_valid_token(x_model_price_token)
+    # end of LLM written Code
     serialized_rows = [row.model_dump() for row in rows]
     with _LATEST_MODEL_PRICE_ROWS_LOCK:
         _LATEST_MODEL_PRICE_ROWS.clear()

@@ -3,7 +3,7 @@ import { E, O } from '@/lib/shared/imports';
 import * as Cause from 'effect/Cause';
 import { createUserAccount } from '../workflows/user';
 import type { DbSnapshot } from '../workflows/user';
-import { UserId, UserEmail, UserDisplayName } from '../values/user';
+import { UserId, UserEmail, UserDisplayName, UserRole } from '../values/user';
 
 const mkSnapshot = (overrides: Partial<DbSnapshot> = {}): DbSnapshot => ({
   emailToUserId: new Map(),
@@ -105,3 +105,13 @@ describe('createUserAccount', () => {
     });
   });
 });
+
+// beginning of LLM written Code, Model: GPT-5.5
+describe('UserRole', () => {
+  it('accepts only the persisted role values', () => {
+    expect(UserRole.from('user')).toBe('user');
+    expect(UserRole.from('admin')).toBe('admin');
+    expect(() => UserRole.from('owner')).toThrow('Invalid user role');
+  });
+});
+// end of LLM written Code

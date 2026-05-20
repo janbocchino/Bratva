@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { formatUsdFromScaledQuote } from '@/lib/client/format-scaled-usd';
-import { refreshModelPricesFromFastApi } from '@/lib/server/actions/ingest-model-prices';
 import type { ExploreMarketRow } from '@/lib/server/actions/list-markets';
 import { listMarkets } from '@/lib/server/actions/list-markets';
 
@@ -27,34 +26,28 @@ const REFRESH_INTERVAL_MS = 1000;
 export default function ExplorePage() {
   const [markets, setMarkets] = useState<readonly ExploreMarketRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [refreshMessage, setRefreshMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
-    let isRefreshInFlight = false;
+    // beginning of LLM written Code, Model: GPT-5.5
+    let isLoadInFlight = false;
 
-    const refreshAndLoad = async () => {
-      if (isRefreshInFlight) return;
-      isRefreshInFlight = true;
+    const loadMarkets = async () => {
+      if (isLoadInFlight) return;
+      isLoadInFlight = true;
       try {
-        const refreshResult = await refreshModelPricesFromFastApi();
-        if (!refreshResult.ok && isMounted) {
-          setRefreshMessage(`Price source unavailable: ${refreshResult.error}`);
-        } else if (isMounted) {
-          setRefreshMessage(null);
-        }
-
         const rows = await listMarkets();
         if (!isMounted) return;
         setMarkets(rows);
         setIsLoading(false);
       } finally {
-        isRefreshInFlight = false;
+        isLoadInFlight = false;
       }
     };
 
-    refreshAndLoad();
-    const intervalId = setInterval(refreshAndLoad, REFRESH_INTERVAL_MS);
+    loadMarkets();
+    const intervalId = setInterval(loadMarkets, REFRESH_INTERVAL_MS);
+    // end of LLM written Code
 
     return () => {
       isMounted = false;
@@ -70,9 +63,6 @@ export default function ExplorePage() {
       </header>
 
       {isLoading ? <p className='text-sm text-black/70'>Loading markets...</p> : null}
-      {!isLoading && refreshMessage !== null ? (
-        <p className='text-sm text-black/70'>{refreshMessage}</p>
-      ) : null}
 
       <div className='overflow-hidden rounded-lg border border-black/10'>
         <table className='w-full border-collapse text-left text-sm'>

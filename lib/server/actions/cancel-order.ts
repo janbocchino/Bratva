@@ -6,16 +6,15 @@ import { Order } from '@/domain/aggregates/exchange';
 import { OrderNotCancellableError, OrderOwnershipError } from '@/domain/errors';
 import { TokenAmount } from '@/domain/values/currencies';
 import { E, Fn } from '@/lib/shared/imports';
+import { requireUser } from '../auth/guards';
 import { Db, db } from '../db';
 import { orderReadRepo, orderWriteRepo } from '../ports/exchange';
-import { userReadRepo } from '../ports/user';
 import { runServerDomainEffect } from '../run-server-domain-effect';
 
-export async function cancelOrder(p: { userId: number; orderId: number }): Promise<OrderType> {
-  const user = Fn.pipe(
-    E.succeed(p.userId),
-    E.flatMap((id) => userReadRepo.getUser({ id })),
-  );
+export async function cancelOrder(p: { orderId: number }): Promise<OrderType> {
+  // beginning of LLM written Code, Model: GPT-5.5
+  const user = requireUser();
+  // end of LLM written Code
 
   const order = orderReadRepo.getOrderById(p.orderId);
 

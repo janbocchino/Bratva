@@ -25,11 +25,12 @@ import {
   parseOptionalExpiresAt,
   parseOptionalStopLoss,
 } from './place-order.shared';
+import { requireUser } from '../auth/guards';
 import { type DB, Db, db } from '../db';
 import { runServerDomainEffect } from '../run-server-domain-effect';
 import { assetReadRepo } from '../ports/asset';
 import { ledgerReadRepo, ledgerWriteRepo } from '../ports/ledger';
-import { userReadRepo, userWriteRepo } from '../ports/user';
+import { userWriteRepo } from '../ports/user';
 import { marketReadRepo, marketWriteRepo } from '../ports/market';
 import { orderReadRepo, orderWriteRepo, transactionWriteRepo } from '../ports/exchange';
 import { priceSeriesWriteRepo } from '../ports/price-series';
@@ -41,9 +42,7 @@ import type { CreateTransactionParams, UpdateOrderFillsParams } from '@/domain/p
  * rolls back every prior write. Without this, concurrent `E.all` writes would
  * partially commit and leave ghost orders / missing price_series rows.
  */
-const runInTransaction = <A, Err>(
-  effect: E.Effect<A, Err, Db>,
-): E.Effect<A, Err | PortError> =>
+const runInTransaction = <A, Err>(effect: E.Effect<A, Err, Db>): E.Effect<A, Err | PortError> =>
   E.async<A, Err | PortError>((resume) => {
     let resolved = false;
     const safeResume = (r: E.Effect<A, Err | PortError>) => {
@@ -54,9 +53,7 @@ const runInTransaction = <A, Err>(
     const ROLLBACK_SENTINEL = '__place_order_tx_rollback__';
     void db
       .transaction(async (tx) => {
-        const exit = await E.runPromiseExit(
-          effect.pipe(E.provideService(Db, tx as unknown as DB)),
-        );
+        const exit = await E.runPromiseExit(effect.pipe(E.provideService(Db, tx as unknown as DB)));
         if (Exit.isFailure(exit)) {
           safeResume(E.failCause(exit.cause));
           throw new Error(ROLLBACK_SENTINEL);
@@ -81,7 +78,6 @@ Decision questionnaire
 */
 
 export async function placeOrder(p: {
-  userId: number;
   marketId: number;
   side: 'bid' | 'ask';
   price: string;
@@ -111,10 +107,9 @@ export async function placeOrder(p: {
 
   const market = marketReadRepo.getMarket({ id: p.marketId });
 
-  const user = Fn.pipe(
-    E.succeed(p.userId),
-    E.flatMap((id) => userReadRepo.getUser({ id })),
-  );
+  // beginning of LLM written Code, Model: GPT-5.5
+  const user = requireUser();
+  // end of LLM written Code
 
   const currentLedger = Fn.pipe(
     user,
@@ -205,7 +200,9 @@ export async function placeOrder(p: {
               const settlementEffects: E.Effect<void, any, Db>[] = [];
               let totalDust = 0n;
 
-              for (const match of processedOrder.matches.filter((entry) => entry.source === 'book')) {
+              for (const match of processedOrder.matches.filter(
+                (entry) => entry.source === 'book',
+              )) {
                 if (BigInt(match.matchedQuantity) <= 0n) continue;
 
                 const before = match.before;
@@ -305,9 +302,7 @@ export async function placeOrder(p: {
                 const ammTakerCreditAssetId =
                   p.side === 'bid' ? market.baseAssetId : market.quoteAssetId;
                 const ammTakerCreditAmount =
-                  p.side === 'bid'
-                    ? TokenAmount.new(ammFilled)
-                    : ammSettlement.proceeds.amount;
+                  p.side === 'bid' ? TokenAmount.new(ammFilled) : ammSettlement.proceeds.amount;
 
                 settlementEffects.push(
                   Fn.pipe(
@@ -347,7 +342,9 @@ export async function placeOrder(p: {
                     debitUserBalance({
                       userId: user.id,
                       assetId: takerDebitAssetId,
-                      amount: isBid ? QuoteAmount.new(takerDebitTotal) : TokenAmount.new(takerDebitTotal),
+                      amount: isBid
+                        ? QuoteAmount.new(takerDebitTotal)
+                        : TokenAmount.new(takerDebitTotal),
                       units: 'scaled_unit',
                       currentBalance,
                     }),

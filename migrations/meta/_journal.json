@@ -15,6 +15,13 @@
       "when": 1775553067540,
       "tag": "0001_plain_spectrum",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1779273749875,
+      "tag": "0002_brainy_human_torch",
+      "breakpoints": true
     }
   ]
 }

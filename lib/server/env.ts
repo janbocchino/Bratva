@@ -6,6 +6,9 @@ export const ServerEnv = PublicEnv.and(
   // beginning of LLM written Code, Model: gpt-5.3-codex-low
   type({
     DATABASE_URL: 'string',
+    // beginning of LLM written Code, Model: GPT-5.5
+    AUTH_SESSION_SECRET: 'string?',
+    // end of LLM written Code
     FASTAPI_MODEL_PRICE_SOURCE_URL: 'string?',
     FASTAPI_MODEL_PRICE_SOURCE_TOKEN: 'string?',
   }),

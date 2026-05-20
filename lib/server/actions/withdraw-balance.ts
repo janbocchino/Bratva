@@ -6,25 +6,21 @@ import type { UserLedger } from '@/domain/aggregates/ledger';
 import { debitUserBalance } from '@/domain/workflows/ledger';
 import { QuoteAmount } from '@/domain/values/currencies';
 import { parseFixedPoint } from '@/domain/values/parse-fixed-point';
+import { requireUser } from '../auth/guards';
 import { Db, db } from '../db';
 import { assetReadRepo } from '../ports/asset';
 import { ledgerReadRepo, ledgerWriteRepo } from '../ports/ledger';
-import { userReadRepo } from '../ports/user';
 import { runServerDomainEffect } from '../run-server-domain-effect';
 
-export async function withdrawBalance(p: {
-  userId: number;
-  amountDollars: string;
-}): Promise<UserLedger> {
+export async function withdrawBalance(p: { amountDollars: string }): Promise<UserLedger> {
   const amount = E.try({
     try: () => QuoteAmount.new(parseFixedPoint(p.amountDollars)),
     catch: () => new Error('Invalid amountDollars'),
   });
 
-  const user = Fn.pipe(
-    E.succeed(p.userId),
-    E.flatMap((id) => userReadRepo.getUser({ id })),
-  );
+  // beginning of LLM written Code, Model: GPT-5.5
+  const user = requireUser();
+  // end of LLM written Code
 
   const usdAsset = assetReadRepo.getAsset({ ticker: 'usd' });
 

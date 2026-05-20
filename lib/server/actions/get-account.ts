@@ -6,10 +6,10 @@ import type { User } from '@/domain/aggregates/user';
 import type { AssetId } from '@/domain/values/asset';
 import { E, Fn } from '@/lib/shared/imports';
 import { Db, db } from '../db';
+import { requireUser } from '../auth/guards';
 import { accountHistoryReadRepo } from '../ports/account-history';
 import { assetReadRepo } from '../ports/asset';
 import { ledgerReadRepo } from '../ports/ledger';
-import { userReadRepo } from '../ports/user';
 import { runServerDomainEffect } from '../run-server-domain-effect';
 // beginning of LLM written Code, Model: Claude Opus 4.7
 import { listOpenOrders, type OpenOrderRow } from './list-open-orders';
@@ -31,7 +31,9 @@ export type AccountSnapshot = {
 
 export async function getAccount(): Promise<AccountSnapshot | null> {
   const snapshot = Fn.pipe(
-    userReadRepo.getImplicitUser(),
+    // beginning of LLM written Code, Model: GPT-5.5
+    requireUser(),
+    // end of LLM written Code
     E.flatMap(
       (user) =>
         // beginning of LLM written Code, Model: gpt-5.3-codex
@@ -48,16 +50,25 @@ export async function getAccount(): Promise<AccountSnapshot | null> {
         ),
       // end of LLM written Code
     ),
-    E.catch('name', {
-      failure: 'PortError',
-      onFailure: (err) => {
-        const cause = (err as { cause?: { name?: string; _tag?: string } }).cause;
-        if (cause?.name === 'UserNotFoundError' || cause?._tag === 'UserNotFoundError') {
-          return E.succeed(null);
-        }
-        return E.fail(err);
-      },
+    // beginning of LLM written Code, Model: GPT-5.5
+    E.catchAll((err) => {
+      const direct = err as {
+        name?: string;
+        _tag?: string;
+        cause?: { name?: string; _tag?: string };
+      };
+      const cause = direct.cause;
+      const tag = direct.name ?? direct._tag ?? cause?.name ?? cause?._tag;
+      if (
+        tag === 'UserNotFoundError' ||
+        tag === 'AuthenticationRequiredError' ||
+        tag === 'InvalidSessionError'
+      ) {
+        return E.succeed(null);
+      }
+      return E.fail(err);
     }),
+    // end of LLM written Code
   );
 
   const base = await runServerDomainEffect(snapshot.pipe(E.provideService(Db, db)));
@@ -67,7 +78,7 @@ export async function getAccount(): Promise<AccountSnapshot | null> {
   // `listOpenOrders` is a `'use server'` action with its own effect runner and
   // the user's id is only known after the implicit-user lookup, so we fan out
   // the read here rather than threading it through the single Effect pipeline.
-  const openOrders = await listOpenOrders({ userId: base.user.id });
+  const openOrders = await listOpenOrders();
   return { ...base, openOrders };
   // end of LLM written Code
 }

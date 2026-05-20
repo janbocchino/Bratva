@@ -84,7 +84,9 @@ export default function AccountPage() {
     setStatus('');
     setBalanceAction('add');
     try {
-      await addBalance({ userId: snapshot.user.id, amountDollars });
+      // beginning of LLM written Code, Model: GPT-5.5
+      await addBalance({ amountDollars });
+      // end of LLM written Code
       await refreshAccount();
       setStatus('Balance added.');
     } catch (error) {
@@ -101,7 +103,9 @@ export default function AccountPage() {
     setStatus('');
     setBalanceAction('withdraw');
     try {
-      await withdrawBalance({ userId: snapshot.user.id, amountDollars });
+      // beginning of LLM written Code, Model: GPT-5.5
+      await withdrawBalance({ amountDollars });
+      // end of LLM written Code
       await refreshAccount();
       setStatus('Withdrawn.');
     } catch (error) {
@@ -118,7 +122,9 @@ export default function AccountPage() {
     setCancelingOrderId(orderId);
     setCancelStatus('');
     try {
-      await cancelOrder({ userId: snapshot.user.id, orderId });
+      // beginning of LLM written Code, Model: GPT-5.5
+      await cancelOrder({ orderId });
+      // end of LLM written Code
       await refreshAccount();
       setCancelStatus(`Order ${orderPublicId} cancelled.`);
     } catch (error) {
@@ -236,6 +242,12 @@ export default function AccountPage() {
             <dt className='text-black/60'>Email</dt>
             <dd className='font-medium'>{snapshot.user.email}</dd>
           </div>
+          {/* beginning of LLM written Code, Model: GPT-5.5 */}
+          <div>
+            <dt className='text-black/60'>Role</dt>
+            <dd className='font-medium'>{snapshot.user.role}</dd>
+          </div>
+          {/* end of LLM written Code */}
         </dl>
       </section>
 

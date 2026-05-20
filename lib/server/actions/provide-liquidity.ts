@@ -11,31 +11,26 @@ import { TokenAmount, QuoteAmount, SCALE } from '@/domain/values/currencies';
 import { mulDivDown } from '@/domain/values/fixed-point';
 import { PROTOCOL_USER_ID } from '@/domain/values/protocol';
 import { parseFixedPoint } from '@/domain/values/parse-fixed-point';
+import { requireUser } from '../auth/guards';
 import { Db, db } from '../db';
 import { buildLiquidityPriceSeriesPoint } from './provide-liquidity.shared';
 import { assetReadRepo } from '../ports/asset';
 import { type } from 'arktype';
 import { ledgerReadRepo, ledgerWriteRepo } from '../ports/ledger';
-import { userReadRepo } from '../ports/user';
 import { marketReadRepo } from '../ports/market';
 import { liquidityMarketWriteRepo, liquidityPositionWriteRepo } from '../ports/liquidity';
 import { priceSeriesWriteRepo } from '../ports/price-series';
 import { runServerDomainEffect } from '../run-server-domain-effect';
 
-export async function provideLiquidityAction(p: {
-  userId: number;
-  marketPublicId: string;
-  amountDollars: string;
-}) {
+export async function provideLiquidityAction(p: { marketPublicId: string; amountDollars: string }) {
   const quoteAmount = E.try({
     try: () => QuoteAmount.new(parseFixedPoint(p.amountDollars)),
     catch: () => new Error('Invalid amountDollars'),
   });
 
-  const user = Fn.pipe(
-    E.succeed(p.userId),
-    E.flatMap((id) => userReadRepo.getUser({ id })),
-  );
+  // beginning of LLM written Code, Model: GPT-5.5
+  const user = requireUser();
+  // end of LLM written Code
 
   const usdAsset = assetReadRepo.getAsset({ ticker: 'usd' });
 
@@ -122,13 +117,13 @@ export async function provideLiquidityAction(p: {
                 ),
                 E.flatMap(() =>
                   Fn.pipe(
-                    priceSeriesWriteRepo.insertPriceSeriesBatch(
-                      [buildLiquidityPriceSeriesPoint({
+                    priceSeriesWriteRepo.insertPriceSeriesBatch([
+                      buildLiquidityPriceSeriesPoint({
                         assetId: market.baseAssetId,
                         market: nextMarket,
                         createdAt: new Date(),
-                      })],
-                    ),
+                      }),
+                    ]),
                     E.asVoid,
                   ),
                 ),

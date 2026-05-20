@@ -33,8 +33,8 @@ Decision questionnaire
   - [x] Dedicated `/explore/[publicId]` page to keep action context explicit.
   - [ ] Inline expansion on `/explore`.
 - How should user identity be provided to actions?
-  - [x] Use implicit account snapshot (`getAccount`) and pass `snapshot.user.id`.
-  - [ ] Manual user id entry.
+  - [x] Server actions derive user identity from the session.
+  - [ ] Pass `snapshot.user.id` from the client.
 */
 
 type TradeSide = 'bid' | 'ask';
@@ -256,7 +256,6 @@ export default function ExploreMarketPage() {
     setLiquidityStatus({ state: 'submitting', message: 'Providing liquidity...' });
     try {
       await provideLiquidityAction({
-        userId: snapshot.user.id,
         marketPublicId: market.publicId,
         amountDollars: liquidityAmountDollars,
       });
@@ -297,7 +296,6 @@ export default function ExploreMarketPage() {
     });
     try {
       const placed = await placeOrder({
-        userId: snapshot.user.id,
         marketId: market.id,
         side: tradeSide,
         price: tradePrice,

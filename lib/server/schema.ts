@@ -1,5 +1,13 @@
 import { sql } from 'drizzle-orm';
-import { customType, index, integer, sqliteTable, text, uniqueIndex, sqliteView } from 'drizzle-orm/sqlite-core';
+import {
+  customType,
+  index,
+  integer,
+  sqliteTable,
+  text,
+  uniqueIndex,
+  sqliteView,
+} from 'drizzle-orm/sqlite-core';
 import { v4 as uuidv4 } from 'uuid';
 
 // beginning of LLM written Code, Model: Claude Opus 4.5
@@ -16,7 +24,8 @@ export const scaledBigintBlob = customType<{ data: bigint; driverData: unknown }
     if (typeof value === 'bigint') return value;
     if (typeof value === 'number') return BigInt(Math.trunc(value));
     if (typeof value === 'string') return BigInt(value);
-    if (typeof Buffer !== 'undefined' && Buffer.isBuffer(value)) return BigInt(value.toString('utf8'));
+    if (typeof Buffer !== 'undefined' && Buffer.isBuffer(value))
+      return BigInt(value.toString('utf8'));
     if (value instanceof Uint8Array)
       return BigInt(Buffer.from(value.buffer, value.byteOffset, value.byteLength).toString('utf8'));
     if (value instanceof ArrayBuffer) return BigInt(Buffer.from(value).toString('utf8'));
@@ -38,7 +47,9 @@ Decision questionnaire
 // end of LLM written Code
 export const timestamps = {
   // beginning of LLM written Code, Model: gpt-5.3-codex
-  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(unixepoch() * 1000)`),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
     .notNull()
     .default(sql`(unixepoch() * 1000)`)
@@ -57,6 +68,11 @@ export const users = sqliteTable(
 
     displayName: text('display_name').notNull(),
     email: text('email').notNull().unique(),
+    // beginning of LLM written Code, Model: GPT-5.5
+    role: text('role', { enum: ['user', 'admin'] })
+      .notNull()
+      .default('user'),
+    // end of LLM written Code
     nonce: integer('nonce').notNull().default(0),
 
     ...timestamps,
@@ -132,7 +148,9 @@ export const ledgerEntries = sqliteTable(
     amount: scaledBigintBlob('amount').notNull(),
     units: text('unit', { enum: ['cent', 'unit', 'scaled_unit'] }).notNull(),
     // beginning of LLM written Code, Model: gpt-5.3-codex
-    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
     // end of LLM written Code
   },
   (table) => [
@@ -216,7 +234,9 @@ export const markets = sqliteTable(
     sequenceNumber: integer('sequence_number').notNull().default(0),
     ammReserveBase: scaledBigintBlob('amm_reserve_base').notNull(),
     ammReserveQuote: scaledBigintBlob('amm_reserve_quote').notNull(),
-    totalLpTokens: scaledBigintBlob('total_lp_tokens').notNull().$defaultFn(() => 0n),
+    totalLpTokens: scaledBigintBlob('total_lp_tokens')
+      .notNull()
+      .$defaultFn(() => 0n),
     status: text('status', {
       // beginning of LLM written Code, Model: Claude
       enum: ['closed', 'pending', 'active'],
@@ -316,7 +336,9 @@ export const orders = sqliteTable(
     side: text('side', { enum: ['bid', 'ask'] }).notNull(),
     price: scaledBigintBlob('price').notNull(),
     quantity: scaledBigintBlob('quantity').notNull(),
-    filled: scaledBigintBlob('filled').notNull().$defaultFn(() => 0n),
+    filled: scaledBigintBlob('filled')
+      .notNull()
+      .$defaultFn(() => 0n),
     stopLoss: scaledBigintBlob('stop_loss').notNull(),
     marketSequenceNumber: integer('market_sequence_number').notNull(),
     nonce: integer('nonce').notNull().default(0),

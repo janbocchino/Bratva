@@ -5,6 +5,7 @@ import type { User } from '@/domain/aggregates/user';
 import { createUserAccount } from '@/domain/workflows/user';
 import { type } from 'arktype';
 import { Db, db } from '../db';
+import { setSessionUser } from '../auth/session';
 import { userReadRepo, userWriteRepo } from '../ports/user';
 import { runServerDomainEffect } from '../run-server-domain-effect';
 import { UserDisplayName, UserEmail, UserId } from '@/domain/values/user';
@@ -65,5 +66,9 @@ export async function createUser(p: Pick<User, 'displayName' | 'email'>): Promis
     E.flatMap(userWriteRepo.createUser),
   );
 
-  return runServerDomainEffect(user.pipe(E.provideService(Db, db)));
+  // beginning of LLM written Code, Model: GPT-5.5
+  const createdUser = await runServerDomainEffect(user.pipe(E.provideService(Db, db)));
+  await setSessionUser(createdUser.id);
+  return createdUser;
+  // end of LLM written Code
 }

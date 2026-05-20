@@ -16,6 +16,26 @@ export class UserNotFoundError extends Data.TaggedError('UserNotFoundError')<{
   cause: unknown;
 }> {}
 
+// beginning of LLM written Code, Model: GPT-5.5
+/*
+Decision questionnaire
+- How should auth failures cross server boundaries?
+  - [x] Named domain errors mapped to safe user messages.
+  - [ ] Raw thrown strings from auth helpers.
+*/
+export class AuthenticationRequiredError extends Data.TaggedError('AuthenticationRequiredError')<{
+  cause: string;
+}> {}
+
+export class ForbiddenError extends Data.TaggedError('ForbiddenError')<{
+  requiredRole: string;
+}> {}
+
+export class InvalidSessionError extends Data.TaggedError('InvalidSessionError')<{
+  cause: string;
+}> {}
+// end of LLM written Code
+
 export class AssetNotFoundError extends Data.TaggedError('AssetNotFoundError')<{
   cause: unknown;
 }> {}

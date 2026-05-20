@@ -14,6 +14,8 @@
 		"db:push": "drizzle-kit push",
 		"fmt": "biome format --write app domain lib",
 		"assets:import": "bun run ./scripts/create-assets-from-json.ts",
+		"admin:promote": "bun run ./scripts/promote-user-to-admin.ts",
+		"prices:refresh": "bun run ./scripts/refresh-model-prices.ts",
 		"dev:all": "concurrently \"npm run dev\" \"uv run python -m backend.api\" \"uv run python -m backend.main\" \"uv run python -m assets.live.scrape\""
 	},
 	"dependencies": {

@@ -20,9 +20,11 @@
 - cleanup/testing
 - take out use server/client
 - pull USD value from coingecko
-- user accounting --> cookies
+- user accounting --> cookies --> admin role
 - no trading if user is LP for market
 - footbal players
+- notes/explore-data-flow-report.md
+
 
 
 

@@ -18,7 +18,14 @@ import {
 } from '@/domain/values/exchange';
 import { PriceSeriesId, PriceSeriesPublicId } from '@/domain/values/price-series';
 import { requireValidDate } from '@/domain/values/timestamp';
-import { Nonce, UserDisplayName, UserEmail, UserId, UserPublicId } from '@/domain/values/user';
+import {
+  Nonce,
+  UserDisplayName,
+  UserEmail,
+  UserId,
+  UserPublicId,
+  UserRole,
+} from '@/domain/values/user';
 import type {
   AssetPrs,
   LedgerEntryPrs,
@@ -34,6 +41,9 @@ export const userMapper: MapperPort<User, UserPrs> = {
     publicId: UserPublicId(p.publicId),
     displayName: UserDisplayName(p.displayName),
     email: UserEmail(p.email),
+    // beginning of LLM written Code, Model: GPT-5.5
+    role: UserRole.from(p.role),
+    // end of LLM written Code
     createdAt: requireValidDate(p.createdAt),
     updatedAt: requireValidDate(p.updatedAt),
     nonce: Nonce(p.nonce),
@@ -43,6 +53,9 @@ export const userMapper: MapperPort<User, UserPrs> = {
     publicId: d.publicId,
     displayName: d.displayName,
     email: d.email,
+    // beginning of LLM written Code, Model: GPT-5.5
+    role: d.role,
+    // end of LLM written Code
     createdAt: d.createdAt,
     updatedAt: d.updatedAt,
     nonce: d.nonce,
