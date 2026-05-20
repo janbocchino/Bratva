@@ -16,7 +16,7 @@ import requests
 import spacy
 
 # beginning of LLM written Code, Model: claude-opus-4-7
-from common import LIVE_DIR, ensure_live_copy, list_token_assets, update_live_field
+from assets.live.scrape.common import LIVE_DIR, ensure_live_copy, list_token_assets, update_live_field
 
 CACHE = LIVE_DIR / ".wiki_revid_cache.json"
 WIKI = "https://en.wikipedia.org/w/api.php"

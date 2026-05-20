@@ -14,7 +14,7 @@
 		"db:push": "drizzle-kit push",
 		"fmt": "biome format --write app domain lib",
 		"assets:import": "bun run ./scripts/create-assets-from-json.ts",
-		"dev:all": "concurrently \"npm run dev\" \"uv run python -m backend.api\" \"uv run python -m backend.main\""
+		"dev:all": "concurrently \"npm run dev\" \"uv run python -m backend.api\" \"uv run python -m backend.main\" \"uv run python -m assets.live.scrape\""
 	},
 	"dependencies": {
 		"@libsql/client": "^0.17.0",

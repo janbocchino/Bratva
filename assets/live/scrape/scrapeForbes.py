@@ -2,7 +2,8 @@
 
 Fetches the rtb-api list once, indexes it by ``name``, and for each token asset
 whose name matches an RTB entry writes ``net_worth`` (USD) and ``occupation``
-into the asset's mirror. Assets that don't match any RTB entry are left alone.
+into the asset's mirror. When RTB omits ``age`` or supplies a non-integer value,
+the mirror ``age`` is unchanged. Assets that don't match any RTB entry are left alone.
 """
 
 from __future__ import annotations
@@ -59,7 +60,20 @@ def run() -> None:
         occ = occupation(entry.get("industry"))
         update_live_field(asset_id, "net_worth", net_worth)
         update_live_field(asset_id, "occupation", occ)
-        print(f"[forbes] {asset_id}: net_worth={net_worth} occupation={occ}")
+        # beginning of LLM written Code, Model: Composer
+        age_raw = entry.get("age")
+        age_extra = ""
+        if age_raw is not None:
+            try:
+                age_i = int(age_raw)
+            except (TypeError, ValueError):
+                pass
+            else:
+                if age_i > 0:
+                    update_live_field(asset_id, "age", age_i)
+                    age_extra = f" age={age_i}"
+        # end of LLM written Code
+        print(f"[forbes] {asset_id}: net_worth={net_worth} occupation={occ}{age_extra}")
 
 
 if __name__ == "__main__":

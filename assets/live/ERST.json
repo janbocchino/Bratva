@@ -2,12 +2,12 @@
   "assetId": "ERST",
   "kind": "token",
   "name": "Eric Schmidt",
-  "occupation": "Businessman",
+  "occupation": "Entrepreneur",
   "citizenship": [
     "United States"
   ],
-  "net_worth": 36300000000,
-  "social_media_followers": -1,
+  "net_worth": 41755634,
+  "social_media_followers": 13000,
   "associations": [
     "Google",
     "Alphabet Inc.",
@@ -30,11 +30,7 @@
     "SCSP"
   ],
   "news_headlines": [
-    "Is Antitrust Enough?",
-    "Scott Wiener Opposes a California Billionaire Tax. So Do His Tech CEO Backers.",
-    "Graduating students may ‘boo’ every mention of AI but still need timeless advice as jobs turn scarce",
-    "Trump to Discuss AI Guardrails with China’s Xi During Visit to Beijing",
-    "“I had to turn down President Obama”"
+    "The most-cited computer scientist alive says AI could make humanity extinct within a decade"
   ],
-  "age": 50
+  "age": 71
 }

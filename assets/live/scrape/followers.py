@@ -2,8 +2,8 @@
 
 For each ``assets/*.json`` (kind=token) this queries SerpAPI for the asset's
 ``name``, sums the follower counts mentioned in result snippets, and writes the
-total into the asset's mirror under ``social_media_followers``. ``-1`` is used
-when the call fails or no count was parsed.
+total into the asset's mirror under ``social_media_followers``. If the call fails
+or no count was parsed, the live mirror field is left unchanged.
 """
 
 from __future__ import annotations
@@ -40,7 +40,12 @@ def total_followers(name: str, api_key: str) -> int | None:
         return None
     total = 0
     for item in r.json().get("organic_results", []):
-        count = parse_count(item.get("displayed_link", ""))
+        text = " ".join(
+            part
+            for key in ("title", "snippet")
+            if isinstance((part := item.get(key)), str) and part
+        )
+        count = parse_count(text)
         if not count:
             break  # mirrors v1: stop at the first non-followers result
         total += count
@@ -52,8 +57,14 @@ def run() -> None:
     for asset_id, source_data in list_token_assets():
         ensure_live_copy(asset_id, source_data)
         count = total_followers(source_data["name"], api_key)
-        update_live_field(asset_id, "social_media_followers", count if count is not None else -1)
-        print(f"[followers] {asset_id}: {count if count is not None else -1}")
+        if count is not None:
+            update_live_field(asset_id, "social_media_followers", count)
+            print(f"[followers] {asset_id}: {count}")
+        else:
+            print(
+                f"[followers] {asset_id}: no parse / request failed; "
+                "social_media_followers unchanged"
+            )
         sleep(PER_REQUEST_SLEEP_S)
 
 

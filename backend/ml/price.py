@@ -5,7 +5,6 @@ from sklearn.preprocessing import RobustScaler
 from sentence_transformers import SentenceTransformer
 import time
 import math
-import random
 
 from backend.types_ import InputData
 
@@ -54,8 +53,14 @@ def calculate_model_price(
     prediction, timestamp = predict_single_sample(model, sample, scaler, embedding_model)
     return scale_to_stock_price(prediction), timestamp
 
+# beginning of LLM written Code, Model: Composer
 
-def sample_price_movement(price: float) -> Tuple[float, float]:
-    """Simulate random price movement (±0.1%)."""
-    movement = random.uniform(-0.001, 0.001) * price
-    return price + movement, time.time()
+# deprecated: synthetic ±0.1% jitter replaced by reading `assets/live/*.json` each tick so
+# net_worth / followers / headline-driven features move the ML price.
+#
+# def sample_price_movement(price: float) -> Tuple[float, float]:
+#     """Simulate random price movement (±0.1%)."""
+#     movement = random.uniform(-0.001, 0.001) * price
+#     return price + movement, time.time()
+
+# end of LLM written Code

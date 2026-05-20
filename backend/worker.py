@@ -1,5 +1,5 @@
 """
-Price worker that reads asset JSON files each tick, performs ML inference,
+Price worker that reads `assets/live/*.json` each tick, performs ML inference,
 and persists model prices through the local FastAPI bridge.
 """
 import json
@@ -11,6 +11,7 @@ from urllib.request import Request, urlopen
 
 from backend.constants import FASTAPI_MODEL_PRICE_URL, PRICE_UPDATE_INTERVAL
 from backend.ml import calculate_model_price, load_all_models
+from backend.types_ import InputData
 
 
 # beginning of LLM written Code, Model: gpt-5.3-codex
@@ -25,13 +26,13 @@ class AssetState:
 
 
 class PriceWorker:
-    """Reads assets/*.json every second and writes inferred prices via local FastAPI."""
+    """Reads live asset JSON mirrors every tick and writes inferred prices via local FastAPI."""
 
     def __init__(self, assets_dir: Optional[Path] = None):
         self.update_count = 0
         # beginning of LLM written Code, Model: gpt-5.3-codex
         self.repo_root = Path(__file__).resolve().parents[1]
-        self.assets_dir = assets_dir or (self.repo_root / "assets")
+        self.assets_dir = assets_dir or (self.repo_root / "assets" / "live")
         # end of LLM written Code
         self.assets_by_ticker: Dict[str, AssetState] = {}
 
@@ -59,8 +60,12 @@ class PriceWorker:
         normalized_sample["name"] = str(sample["name"]).strip()
         normalized_sample["occupation"] = sample["occupation"]
         normalized_sample["citizenship"] = sample["citizenship"]
-        normalized_sample["net_worth"] = int(sample["net_worth"])
-        normalized_sample["social_media_followers"] = int(sample["social_media_followers"])
+        # beginning of LLM written Code, Model: gpt-5.5-medium
+        # log1p(undefined); scrapers may leave legacy -1 for "unknown".
+        for field in InputData.LOG_TRANSFORM_FIELDS:
+            value = max(0, int(sample[field]))
+            normalized_sample[field] = value
+        # end of LLM written Code
         normalized_sample["associations"] = sample["associations"]
         normalized_sample["age"] = int(sample["age"])
         return normalized_sample
