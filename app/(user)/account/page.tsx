@@ -15,6 +15,9 @@ import { cancelOrder } from '@/lib/server/actions/cancel-order';
 import { createUser } from '@/lib/server/actions/create-user';
 import type { AccountSnapshot } from '@/lib/server/actions/get-account';
 import { getAccount } from '@/lib/server/actions/get-account';
+// beginning of LLM written Code, Model: Composer
+import { signIn } from '@/lib/server/actions/sign-in';
+// end of LLM written Code
 import { withdrawBalance } from '@/lib/server/actions/withdraw-balance';
 
 // beginning of LLM written Code, Model: Claude Opus 4.5
@@ -61,6 +64,12 @@ export default function AccountPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [balanceAction, setBalanceAction] = useState<'idle' | 'add' | 'withdraw'>('idle');
   const [isCreating, setIsCreating] = useState(false);
+  // beginning of LLM written Code, Model: Composer
+  const [authMode, setAuthMode] = useState<'signIn' | 'createAccount'>('signIn');
+  const [signInEmail, setSignInEmail] = useState('');
+  const [signInStatus, setSignInStatus] = useState('');
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  // end of LLM written Code
   // beginning of LLM written Code, Model: Claude Opus 4.7
   const [cancelingOrderId, setCancelingOrderId] = useState<number | null>(null);
   const [cancelStatus, setCancelStatus] = useState<string>('');
@@ -135,6 +144,24 @@ export default function AccountPage() {
   };
   // end of LLM written Code
 
+  // beginning of LLM written Code, Model: Composer
+  const handleSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSignInStatus('');
+    setIsSigningIn(true);
+    try {
+      const user = await signIn({ email: UserEmail(signInEmail) });
+      setSignInEmail('');
+      await refreshAccount();
+      setSignInStatus(`Signed in as ${user.displayName}.`);
+    } catch (error) {
+      setSignInStatus(formatActionError(error, 'Failed to sign in.'));
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+  // end of LLM written Code
+
   const handleCreateUser = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setCreateStatus('');
@@ -188,38 +215,83 @@ export default function AccountPage() {
       <section className='flex flex-col gap-6'>
         <header className='flex flex-col gap-1'>
           <h1 className='text-3xl font-semibold tracking-tight'>Account</h1>
-          <p className='text-sm text-black/70'>Create an account to start funding and trading.</p>
+          <p className='text-sm text-black/70'>
+            Sign in or create an account to start funding and trading.
+          </p>
         </header>
-        <form
-          onSubmit={handleCreateUser}
-          className='flex w-full max-w-md flex-col gap-3 rounded-lg border border-black/10 p-4'
-        >
-          <h2 className='text-lg font-medium'>Create Account</h2>
-          <input
-            className='rounded border border-black/20 px-3 py-2'
-            type='text'
-            placeholder='Display name'
-            value={displayName}
-            onChange={(event) => setDisplayName(event.target.value)}
-            required
-          />
-          <input
-            className='rounded border border-black/20 px-3 py-2'
-            type='email'
-            placeholder='Email'
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            required
-          />
+        {/* beginning of LLM written Code, Model: Composer */}
+        <div className='flex flex-wrap gap-2'>
           <button
             className='rounded border border-black/20 px-3 py-2 text-sm font-medium'
-            type='submit'
-            disabled={isCreating}
+            type='button'
+            onClick={() => setAuthMode('signIn')}
           >
-            {isCreating ? 'Creating...' : 'Create Account'}
+            Sign in
           </button>
-          {createStatus ? <p className='text-sm text-black/70'>{createStatus}</p> : null}
-        </form>
+          <button
+            className='rounded border border-black/20 px-3 py-2 text-sm font-medium'
+            type='button'
+            onClick={() => setAuthMode('createAccount')}
+          >
+            Create Account
+          </button>
+        </div>
+        {authMode === 'signIn' ? (
+          <form
+            onSubmit={handleSignIn}
+            className='flex w-full max-w-md flex-col gap-3 rounded-lg border border-black/10 p-4'
+          >
+            <h2 className='text-lg font-medium'>Sign in</h2>
+            <input
+              className='rounded border border-black/20 px-3 py-2'
+              type='email'
+              placeholder='Email'
+              value={signInEmail}
+              onChange={(event) => setSignInEmail(event.target.value)}
+              required
+            />
+            <button
+              className='rounded border border-black/20 px-3 py-2 text-sm font-medium'
+              type='submit'
+              disabled={isSigningIn}
+            >
+              {isSigningIn ? 'Signing in...' : 'Sign In'}
+            </button>
+            {signInStatus ? <p className='text-sm text-black/70'>{signInStatus}</p> : null}
+          </form>
+        ) : (
+          <form
+            onSubmit={handleCreateUser}
+            className='flex w-full max-w-md flex-col gap-3 rounded-lg border border-black/10 p-4'
+          >
+            <h2 className='text-lg font-medium'>Create Account</h2>
+            <input
+              className='rounded border border-black/20 px-3 py-2'
+              type='text'
+              placeholder='Display name'
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              required
+            />
+            <input
+              className='rounded border border-black/20 px-3 py-2'
+              type='email'
+              placeholder='Email'
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+            />
+            <button
+              className='rounded border border-black/20 px-3 py-2 text-sm font-medium'
+              type='submit'
+              disabled={isCreating}
+            >
+              {isCreating ? 'Creating...' : 'Create Account'}
+            </button>
+            {createStatus ? <p className='text-sm text-black/70'>{createStatus}</p> : null}
+          </form>
+        )}
+        {/* end of LLM written Code */}
       </section>
     );
   }

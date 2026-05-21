@@ -13,7 +13,8 @@ Decision questionnaire
 const numericStringPattern = /^\d+$/;
 const sqliteDateTimePattern = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
 
-export const toTimestampMs = (value: number): number => (Math.abs(value) < 1_000_000_000_000 ? value * 1000 : value);
+export const toTimestampMs = (value: number): number =>
+  Math.abs(value) < 1_000_000_000_000 ? value * 1000 : value;
 
 export const normalizeTimestamp = (value: unknown): Date | null => {
   if (value instanceof Date) {
@@ -53,5 +54,6 @@ export const normalizeTimestamp = (value: unknown): Date | null => {
   return null;
 };
 
-export const requireValidDate = (value: unknown, fallback = new Date(0)): Date => normalizeTimestamp(value) ?? fallback;
+export const requireValidDate = (value: unknown, fallback = new Date(0)): Date =>
+  normalizeTimestamp(value) ?? fallback;
 // end of LLM written Code

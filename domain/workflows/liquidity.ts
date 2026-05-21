@@ -50,7 +50,11 @@ export function validateDepositRatio(
   return E.void;
 }
 
-export const validateProvide = (p: { market: Market; amountBase: TokenAmount; amountQuote: QuoteAmount }) =>
+export const validateProvide = (p: {
+  market: Market;
+  amountBase: TokenAmount;
+  amountQuote: QuoteAmount;
+}) =>
   Fn.pipe(
     validateLiquidityParams(p),
     E.flatMap(() =>
@@ -140,7 +144,8 @@ export const provideLiquidity = (input: ProvideLiquidityInput): ProvideLiquidity
         lpDust: lpResult.lpTokens.dust,
         newReserveBase,
         newReserveQuote,
-        newTotalLpTokens: (BigInt(input.market.totalLpTokens) + BigInt(lpResult.lpTokens.amount)) as LpTokens,
+        newTotalLpTokens: (BigInt(input.market.totalLpTokens) +
+          BigInt(lpResult.lpTokens.amount)) as LpTokens,
         lockedUntil:
           input.market.status === 'active'
             ? new Date(input.currentTimestamp.getTime() + LOCK_DURATION_MS)

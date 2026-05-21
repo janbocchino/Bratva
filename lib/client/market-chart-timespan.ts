@@ -122,11 +122,7 @@ function stepByFixedMs(startMs: number, endMs: number, stepMs: number, firstMs: 
  * Per-span, anchored x-axis ticks. Aims for ~6–8 labels regardless of window so the
  * axis is always readable and never "bulked" with per-second ticks.
  */
-export function buildXAxisTicks(
-  startMs: number,
-  endMs: number,
-  span: ChartTimespan,
-): number[] {
+export function buildXAxisTicks(startMs: number, endMs: number, span: ChartTimespan): number[] {
   if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs < startMs) return [];
   if (startMs === endMs) return [startMs];
 

@@ -44,8 +44,6 @@ export type InsertModelPriceParams = {
 
 export interface MarketWriteRepo<D> {
   updateMarketAfterMatch(o: UpdateMarketParams): E.Effect<void, PortError, D>;
-  insertModelPrices(
-    rows: readonly InsertModelPriceParams[],
-  ): E.Effect<number, PortError, D>;
+  insertModelPrices(rows: readonly InsertModelPriceParams[]): E.Effect<number, PortError, D>;
 }
 // end of LLM written Code

@@ -72,6 +72,13 @@ export class OrderValidationError extends Data.TaggedError('OrderValidationError
   cause: string;
 }> {}
 
+// beginning of LLM written Code, Model: GPT-5.5
+export class LiquidityProviderTradeError extends Data.TaggedError('LiquidityProviderTradeError')<{
+  marketId: number;
+  userId: number;
+}> {}
+// end of LLM written Code
+
 export class OrderNotFoundError extends Data.TaggedError('OrderNotFoundError')<{
   cause: unknown;
 }> {}

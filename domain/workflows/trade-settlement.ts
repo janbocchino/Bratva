@@ -30,7 +30,9 @@ export const settleTradeMatch = (input: TradeSettlementInput): TradeSettlementRe
   const hasDust = dust > 0n;
 
   const proceedsAmount = mulDivDown(price, quantity, SCALE) as QuoteAmount;
-  const costAmount = (hasDust ? BigInt(proceedsAmount) + 1n : BigInt(proceedsAmount)) as QuoteAmount;
+  const costAmount = (
+    hasDust ? BigInt(proceedsAmount) + 1n : BigInt(proceedsAmount)
+  ) as QuoteAmount;
 
   return {
     cost: { amount: costAmount, dust: hasDust ? 1n : 0n },

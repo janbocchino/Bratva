@@ -109,7 +109,23 @@ export default function ExploreMarketPage() {
   const isLiquiditySubmitting = liquidityStatus.state === 'submitting';
   const isTradeSubmitting = tradeStatus.state === 'submitting';
 
-  const isTradeDisabled = useMemo(() => market?.status === 'closed', [market?.status]);
+  // beginning of LLM written Code, Model: GPT-5.5
+  const isLiquidityProviderForMarket = useMemo(
+    () =>
+      market !== null && snapshot !== null && snapshot.activeLiquidityMarketIds.includes(market.id),
+    [market, snapshot],
+  );
+
+  const tradeDisabledReason = useMemo(() => {
+    if (market?.status === 'closed') return 'Trading is disabled for closed markets.';
+    if (isLiquidityProviderForMarket) {
+      return "You can't trade this market while you have an active liquidity position.";
+    }
+    return null;
+  }, [isLiquidityProviderForMarket, market?.status]);
+
+  const isTradeDisabled = tradeDisabledReason !== null;
+  // end of LLM written Code
 
   const useModelChart = useMemo(
     () => market !== null && shouldUseModelPriceChart(market.status, market.wasPreviouslyActive),
@@ -279,7 +295,9 @@ export default function ExploreMarketPage() {
     if (isTradeDisabled) {
       setTradeStatus({
         state: 'error',
-        message: 'Trading is disabled for closed markets.',
+        // beginning of LLM written Code, Model: GPT-5.5
+        message: tradeDisabledReason ?? 'Trading is disabled for this market.',
+        // end of LLM written Code
       });
       return;
     }
@@ -425,6 +443,11 @@ export default function ExploreMarketPage() {
             Trade
           </button>
         </div>
+        {/* beginning of LLM written Code, Model: GPT-5.5 */}
+        {tradeDisabledReason !== null ? (
+          <p className='text-xs text-black/60'>{tradeDisabledReason}</p>
+        ) : null}
+        {/* end of LLM written Code */}
 
         <form onSubmit={handleProvideLiquidity} className='flex max-w-sm flex-col gap-2'>
           <label className='text-sm text-black/70' htmlFor='provide-amount'>

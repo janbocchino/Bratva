@@ -16,8 +16,7 @@ export const mulDivUp = (a: bigint, b: bigint, c: bigint): bigint => {
 
 export const divDown = (a: bigint, b: bigint): bigint => a / b;
 
-export const divUp = (a: bigint, b: bigint): bigint =>
-  a % b === 0n ? a / b : a / b + 1n;
+export const divUp = (a: bigint, b: bigint): bigint => (a % b === 0n ? a / b : a / b + 1n);
 
 export const remainder = (a: bigint, b: bigint, c: bigint): bigint => (a * b) % c;
 // end of LLM written Code

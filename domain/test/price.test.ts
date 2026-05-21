@@ -32,7 +32,10 @@ describe('selectMarketDisplayPrice', () => {
     const market = mkMarket({
       status: 'closed',
       modelPrice: QuoteAmount.new(2_345n * SCALE),
-      ammPool: { reserveBase: TokenAmount.new(200n * SCALE), reserveQuote: QuoteAmount.new(50_000n * SCALE) },
+      ammPool: {
+        reserveBase: TokenAmount.new(200n * SCALE),
+        reserveQuote: QuoteAmount.new(50_000n * SCALE),
+      },
     });
 
     expect(selectMarketDisplayPrice(market)).toBe(QuoteAmount.new(2_345n * SCALE));
@@ -41,7 +44,10 @@ describe('selectMarketDisplayPrice', () => {
   it('uses AMM price when market is pending', () => {
     const market = mkMarket({
       status: 'pending',
-      ammPool: { reserveBase: TokenAmount.new(40n * SCALE), reserveQuote: QuoteAmount.new(10_000n * SCALE) },
+      ammPool: {
+        reserveBase: TokenAmount.new(40n * SCALE),
+        reserveQuote: QuoteAmount.new(10_000n * SCALE),
+      },
     });
 
     expect(selectMarketDisplayPrice(market)).toBe(QuoteAmount.new(250n * SCALE));

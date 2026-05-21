@@ -3,7 +3,11 @@
 import { mulDivDown, mulDivUp, divDown, divUp, remainder } from '../values/fixed-point';
 import { settledMulDiv } from '../values/settlement';
 import { parseFixedPoint } from '../values/parse-fixed-point';
-import { formatFixedPoint, formatTokenAmount, formatQuoteAmount } from '../values/format-fixed-point';
+import {
+  formatFixedPoint,
+  formatTokenAmount,
+  formatQuoteAmount,
+} from '../values/format-fixed-point';
 import { settleTradeMatch } from '../workflows/trade-settlement';
 import { calcLpTokens } from '../workflows/liquidity';
 import { SCALE, TokenAmount, QuoteAmount, LpTokens } from '../values/currencies';
@@ -80,7 +84,9 @@ describe('settledMulDiv', () => {
   });
 
   it('amount + dust/c reconstructs original', () => {
-    const a = 7n, b = 11n, c = 3n;
+    const a = 7n,
+      b = 11n,
+      c = 3n;
     const result = settledMulDiv(a, b, c);
     expect(result.amount * c + result.dust).toBe(a * b);
   });
@@ -252,8 +258,16 @@ describe('calcLpTokens with dust', () => {
 
     const totalLpFinal = totalLpAfterDeposit + BigInt(secondLp.lpTokens.amount);
 
-    const withdrawBase = settledMulDiv(BigInt(secondLp.lpTokens.amount), newReserveBase, totalLpFinal);
-    const withdrawQuote = settledMulDiv(BigInt(secondLp.lpTokens.amount), newReserveQuote, totalLpFinal);
+    const withdrawBase = settledMulDiv(
+      BigInt(secondLp.lpTokens.amount),
+      newReserveBase,
+      totalLpFinal,
+    );
+    const withdrawQuote = settledMulDiv(
+      BigInt(secondLp.lpTokens.amount),
+      newReserveQuote,
+      totalLpFinal,
+    );
 
     expect(withdrawBase.amount).toBeLessThanOrEqual(depositBase);
     expect(withdrawQuote.amount).toBeLessThanOrEqual(depositQuote);

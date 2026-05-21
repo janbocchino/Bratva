@@ -1,10 +1,7 @@
 // beginning of LLM written Code, Model: Claude claude-4.6-opus-high-thinking
 import { SCALE, DECIMALS } from './currencies';
 
-export const formatFixedPoint = (
-  value: bigint,
-  displayDecimals: number = 4,
-): string => {
+export const formatFixedPoint = (value: bigint, displayDecimals: number = 4): string => {
   const negative = value < 0n;
   const abs = negative ? -value : value;
   const whole = abs / SCALE;

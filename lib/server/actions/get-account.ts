@@ -10,6 +10,9 @@ import { requireUser } from '../auth/guards';
 import { accountHistoryReadRepo } from '../ports/account-history';
 import { assetReadRepo } from '../ports/asset';
 import { ledgerReadRepo } from '../ports/ledger';
+// beginning of LLM written Code, Model: GPT-5.5
+import { liquidityPositionReadRepo } from '../ports/liquidity';
+// end of LLM written Code
 import { runServerDomainEffect } from '../run-server-domain-effect';
 // beginning of LLM written Code, Model: Claude Opus 4.7
 import { listOpenOrders, type OpenOrderRow } from './list-open-orders';
@@ -27,6 +30,9 @@ export type AccountSnapshot = {
   // beginning of LLM written Code, Model: Claude Opus 4.7
   openOrders: readonly OpenOrderRow[];
   // end of LLM written Code
+  // beginning of LLM written Code, Model: GPT-5.5
+  activeLiquidityMarketIds: readonly number[];
+  // end of LLM written Code
 };
 
 export async function getAccount(): Promise<AccountSnapshot | null> {
@@ -40,13 +46,37 @@ export async function getAccount(): Promise<AccountSnapshot | null> {
         E.all({
           ledger: ledgerReadRepo.getLedgerByUserId(user.id),
           history: accountHistoryReadRepo.getHistoryByUserId(user.id),
+          // beginning of LLM written Code, Model: GPT-5.5
+          activeLiquidityMarketIds: Fn.pipe(
+            liquidityPositionReadRepo.getPositionsByUserId(user.id),
+            E.map((positions) =>
+              Array.from(
+                new Set(
+                  positions
+                    .filter((position) => position.status === 'active')
+                    .map((position) => Number(position.marketId)),
+                ),
+              ),
+            ),
+          ),
+          // end of LLM written Code
           usdAssetId: Fn.pipe(
             assetReadRepo.getAsset({ ticker: 'usd' }),
             E.map((asset) => asset.id),
             E.catchAll(() => E.succeed(null)),
           ),
         }).pipe(
-          E.map(({ ledger, history, usdAssetId }) => ({ user, ledger, history, usdAssetId })),
+          E.map(
+            // beginning of LLM written Code, Model: GPT-5.5
+            ({ ledger, history, activeLiquidityMarketIds, usdAssetId }) => ({
+              user,
+              ledger,
+              history,
+              activeLiquidityMarketIds,
+              usdAssetId,
+            }),
+            // end of LLM written Code
+          ),
         ),
       // end of LLM written Code
     ),

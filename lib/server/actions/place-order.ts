@@ -33,6 +33,9 @@ import { ledgerReadRepo, ledgerWriteRepo } from '../ports/ledger';
 import { userWriteRepo } from '../ports/user';
 import { marketReadRepo, marketWriteRepo } from '../ports/market';
 import { orderReadRepo, orderWriteRepo, transactionWriteRepo } from '../ports/exchange';
+// beginning of LLM written Code, Model: GPT-5.5
+import { liquidityPositionReadRepo } from '../ports/liquidity';
+// end of LLM written Code
 import { priceSeriesWriteRepo } from '../ports/price-series';
 import type { CreateTransactionParams, UpdateOrderFillsParams } from '@/domain/ports/exchange';
 
@@ -135,14 +138,20 @@ export async function placeOrder(p: {
       const { price, quantity, stopLoss, expiresAt, market, user, currentLedger, usdAsset } = ctx;
 
       return Fn.pipe(
-        validateOrderParams({
-          market,
-          price,
-          quantity,
-          side: p.side,
-          userLedgerSummary: currentLedger.summary,
-        }),
-
+        // beginning of LLM written Code, Model: GPT-5.5
+        liquidityPositionReadRepo.getActivePositionsByMarketAndUser(market.id, user.id),
+        E.flatMap((activeLiquidityPositions) =>
+          validateOrderParams({
+            market,
+            price,
+            quantity,
+            side: p.side,
+            userId: user.id,
+            isLiquidityProviderForMarket: activeLiquidityPositions.length > 0,
+            userLedgerSummary: currentLedger.summary,
+          }),
+        ),
+        // end of LLM written Code
         E.flatMap(() => orderReadRepo.getOpenOrdersByMarketId(market.id)),
         E.flatMap((openOrders) => {
           const counterSide = p.side === 'bid' ? 'ask' : 'bid';

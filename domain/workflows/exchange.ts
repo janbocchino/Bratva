@@ -16,7 +16,7 @@ import type { UserLedger } from '../aggregates/ledger';
 import { TokenAmount, QuoteAmount, SCALE } from '../values/currencies';
 import { OrderId, OrderPublicId, MarketSequenceNumber } from '../values/exchange';
 import { Nonce, UserId } from '../values/user';
-import { MarketNotActiveError, OrderValidationError } from '../errors';
+import { LiquidityProviderTradeError, MarketNotActiveError, OrderValidationError } from '../errors';
 import { BigInt as BigIntEffect } from 'effect';
 import { divDown, mulDivDown } from '../values/fixed-point';
 
@@ -87,7 +87,9 @@ export function processOrderDetailed(o: {
               ...oA,
               {
                 ...currentOrder,
-                filled: TokenAmount.new(BigInt(currentOrder.quantity) - BigInt(currentOrder.filled)),
+                filled: TokenAmount.new(
+                  BigInt(currentOrder.quantity) - BigInt(currentOrder.filled),
+                ),
               },
             ],
             oB,
@@ -100,7 +102,9 @@ export function processOrderDetailed(o: {
 
         const updatedCounterOrder: Order = {
           ...currentOrder,
-          filled: TokenAmount.new(BigInt(currentOrder.quantity) - currentOrderAvailable + currentOrderSatisfies),
+          filled: TokenAmount.new(
+            BigInt(currentOrder.quantity) - currentOrderAvailable + currentOrderSatisfies,
+          ),
         };
 
         const updatedIncoming: Order = {
@@ -189,8 +193,19 @@ export function validateOrderParams(p: {
   price: QuoteAmount;
   quantity: TokenAmount;
   side: Side;
+  // beginning of LLM written Code, Model: GPT-5.5
+  userId: UserId;
+  // end of LLM written Code
+  // beginning of LLM written Code, Model: GPT-5.5
+  isLiquidityProviderForMarket: boolean;
+  // end of LLM written Code
   userLedgerSummary?: UserLedger['summary'];
-}): E.Effect<void, MarketNotActiveError | OrderValidationError> {
+}): E.Effect<void, LiquidityProviderTradeError | MarketNotActiveError | OrderValidationError> {
+  // beginning of LLM written Code, Model: GPT-5.5
+  if (p.isLiquidityProviderForMarket) {
+    return E.fail(new LiquidityProviderTradeError({ marketId: p.market.id, userId: p.userId }));
+  }
+  // end of LLM written Code
   if (p.market.status === 'pending' && p.market.wasPreviouslyActive) {
     const tokenBalance =
       p.userLedgerSummary?.find((s) => s.assetId === p.market.baseAssetId)?.balance ?? 0n;

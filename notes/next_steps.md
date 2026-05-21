@@ -20,8 +20,13 @@
 - cleanup/testing
 - take out use server/client
 - pull USD value from coingecko
-- user accounting --> cookies --> admin role
-- no trading if user is LP for market
+- user accounting
+    - Practical checklist before production:
+    - Set AUTH_SESSION_SECRET (e.g. 32+ random bytes) in production.
+    - Add real authentication (password, magic link, OAuth, etc.).
+    - Expose sign-out using clearSessionUser().
+    - Keep admin checks in server layout/actions (as you do now); treat middleware as redirect-only.
+    - Optionally shorten session TTL and add session tests.
 - footbal players
 - notes/explore-data-flow-report.md
 

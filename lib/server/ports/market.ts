@@ -80,7 +80,9 @@ const fetchMarketRow = (
     catch: errMapper(InfraError),
   });
 
-const fetchAllMarketRows = (db: DB): E.Effect<readonly (typeof markets.$inferSelect)[], PortError> =>
+const fetchAllMarketRows = (
+  db: DB,
+): E.Effect<readonly (typeof markets.$inferSelect)[], PortError> =>
   E.tryPromise({
     try: () => db.select().from(markets),
     catch: errMapper(InfraError),
@@ -116,7 +118,10 @@ const fetchLegacyModelPrice = (db: DB, marketId: number): E.Effect<bigint | null
     catch: errMapper(InfraError),
   });
 
-const fetchLatestModelPriceByMarketId = (db: DB, marketId: number): E.Effect<bigint | null, PortError> =>
+const fetchLatestModelPriceByMarketId = (
+  db: DB,
+  marketId: number,
+): E.Effect<bigint | null, PortError> =>
   Fn.pipe(
     fetchLatestModelPriceFromHistory(db, marketId),
     E.catchAll((cause) =>

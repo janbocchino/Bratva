@@ -505,8 +505,12 @@ describe('processOrder', () => {
 
       expect(result.bid[0].filled).toBe(TokenAmount.new(10n * S));
       expect(result.ask).toHaveLength(2);
-      expect(result.ask.find((o) => o.publicId === ask1.publicId)!.filled).toBe(TokenAmount.new(3n * S));
-      expect(result.ask.find((o) => o.publicId === ask2.publicId)!.filled).toBe(TokenAmount.new(7n * S));
+      expect(result.ask.find((o) => o.publicId === ask1.publicId)!.filled).toBe(
+        TokenAmount.new(3n * S),
+      );
+      expect(result.ask.find((o) => o.publicId === ask2.publicId)!.filled).toBe(
+        TokenAmount.new(7n * S),
+      );
     });
 
     it('6b: bid(qty=15) partially filled by ask1(qty=3) + ask2(qty=7) — 5 unfilled', () => {
@@ -572,8 +576,12 @@ describe('processOrder', () => {
       const result = processOrder({ order: ask, orderBook, ammOrder });
 
       expect(result.ask[0].filled).toBe(TokenAmount.new(10n * S));
-      expect(result.bid.find((o) => o.publicId === bid1.publicId)!.filled).toBe(TokenAmount.new(4n * S));
-      expect(result.bid.find((o) => o.publicId === bid2.publicId)!.filled).toBe(TokenAmount.new(6n * S));
+      expect(result.bid.find((o) => o.publicId === bid1.publicId)!.filled).toBe(
+        TokenAmount.new(4n * S),
+      );
+      expect(result.bid.find((o) => o.publicId === bid2.publicId)!.filled).toBe(
+        TokenAmount.new(6n * S),
+      );
     });
 
     it('6d: three counter orders but only two needed to fill', () => {
@@ -612,9 +620,15 @@ describe('processOrder', () => {
       const result = processOrder({ order: bid, orderBook, ammOrder });
 
       expect(result.bid[0].filled).toBe(TokenAmount.new(8n * S));
-      expect(result.ask.find((o) => o.publicId === ask1.publicId)!.filled).toBe(TokenAmount.new(3n * S));
-      expect(result.ask.find((o) => o.publicId === ask2.publicId)!.filled).toBe(TokenAmount.new(5n * S));
-      expect(result.ask.find((o) => o.publicId === ask3.publicId)!.filled).toBe(TokenAmount.new(10n * S));
+      expect(result.ask.find((o) => o.publicId === ask1.publicId)!.filled).toBe(
+        TokenAmount.new(3n * S),
+      );
+      expect(result.ask.find((o) => o.publicId === ask2.publicId)!.filled).toBe(
+        TokenAmount.new(5n * S),
+      );
+      expect(result.ask.find((o) => o.publicId === ask3.publicId)!.filled).toBe(
+        TokenAmount.new(10n * S),
+      );
     });
   });
 
@@ -652,8 +666,12 @@ describe('processOrder', () => {
       const result = processOrder({ order: bid, orderBook, ammOrder });
 
       expect(result.bid[0].filled).toBe(TokenAmount.new(3n * S));
-      expect(result.ask.find((o) => o.publicId === askCheap.publicId)!.filled).toBe(TokenAmount.new(3n * S));
-      expect(result.ask.find((o) => o.publicId === askExpensive.publicId)!.filled).toBe(TokenAmount.new(10n * S));
+      expect(result.ask.find((o) => o.publicId === askCheap.publicId)!.filled).toBe(
+        TokenAmount.new(3n * S),
+      );
+      expect(result.ask.find((o) => o.publicId === askExpensive.publicId)!.filled).toBe(
+        TokenAmount.new(10n * S),
+      );
     });
 
     it('7b: bids sorted by price descending — highest bid matched first', () => {
@@ -686,8 +704,12 @@ describe('processOrder', () => {
       const result = processOrder({ order: ask, orderBook, ammOrder });
 
       expect(result.ask[0].filled).toBe(TokenAmount.new(3n * S));
-      expect(result.bid.find((o) => o.publicId === bidHigh.publicId)!.filled).toBe(TokenAmount.new(3n * S));
-      expect(result.bid.find((o) => o.publicId === bidLow.publicId)!.filled).toBe(TokenAmount.new(10n * S));
+      expect(result.bid.find((o) => o.publicId === bidHigh.publicId)!.filled).toBe(
+        TokenAmount.new(3n * S),
+      );
+      expect(result.bid.find((o) => o.publicId === bidLow.publicId)!.filled).toBe(
+        TokenAmount.new(10n * S),
+      );
     });
 
     it('7c: same price — earlier createdAt matched first', () => {
@@ -722,8 +744,12 @@ describe('processOrder', () => {
       const result = processOrder({ order: bid, orderBook, ammOrder });
 
       expect(result.bid[0].filled).toBe(TokenAmount.new(3n * S));
-      expect(result.ask.find((o) => o.publicId === askEarly.publicId)!.filled).toBe(TokenAmount.new(3n * S));
-      expect(result.ask.find((o) => o.publicId === askLate.publicId)!.filled).toBe(TokenAmount.new(10n * S));
+      expect(result.ask.find((o) => o.publicId === askEarly.publicId)!.filled).toBe(
+        TokenAmount.new(3n * S),
+      );
+      expect(result.ask.find((o) => o.publicId === askLate.publicId)!.filled).toBe(
+        TokenAmount.new(10n * S),
+      );
     });
 
     it('7d: same price, same time — larger quantity matched first', () => {
@@ -758,8 +784,12 @@ describe('processOrder', () => {
       const result = processOrder({ order: bid, orderBook, ammOrder });
 
       expect(result.bid[0].filled).toBe(TokenAmount.new(3n * S));
-      expect(result.ask.find((o) => o.publicId === askLarge.publicId)!.filled).toBe(TokenAmount.new(3n * S));
-      expect(result.ask.find((o) => o.publicId === askSmall.publicId)!.filled).toBe(TokenAmount.new(5n * S));
+      expect(result.ask.find((o) => o.publicId === askLarge.publicId)!.filled).toBe(
+        TokenAmount.new(3n * S),
+      );
+      expect(result.ask.find((o) => o.publicId === askSmall.publicId)!.filled).toBe(
+        TokenAmount.new(5n * S),
+      );
     });
   });
 

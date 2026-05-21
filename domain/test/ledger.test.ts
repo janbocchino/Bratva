@@ -95,7 +95,13 @@ describe('debitUserBalance', () => {
       const amount = QuoteAmount.new(100n * SCALE);
 
       const result = await E.runPromise(
-        debitUserBalance({ userId, assetId, amount, units, currentBalance: QuoteAmount.new(500n * SCALE) }),
+        debitUserBalance({
+          userId,
+          assetId,
+          amount,
+          units,
+          currentBalance: QuoteAmount.new(500n * SCALE),
+        }),
       );
 
       expect(result).toEqual({
@@ -111,7 +117,13 @@ describe('debitUserBalance', () => {
       const amount = TokenAmount.new(50n * SCALE);
 
       const result = await E.runPromise(
-        debitUserBalance({ userId, assetId, amount, units: 'unit', currentBalance: TokenAmount.new(100n * SCALE) }),
+        debitUserBalance({
+          userId,
+          assetId,
+          amount,
+          units: 'unit',
+          currentBalance: TokenAmount.new(100n * SCALE),
+        }),
       );
 
       expect(result.drCr).toBe('dr');
@@ -193,7 +205,13 @@ describe('debitUserBalance', () => {
       const amount = QuoteAmount.new(100n * SCALE);
 
       const result = await E.runPromise(
-        debitUserBalance({ userId, assetId, amount, units, currentBalance: QuoteAmount.new(100n * SCALE) }),
+        debitUserBalance({
+          userId,
+          assetId,
+          amount,
+          units,
+          currentBalance: QuoteAmount.new(100n * SCALE),
+        }),
       );
 
       expect(result).toEqual({

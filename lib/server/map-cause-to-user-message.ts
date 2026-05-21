@@ -13,6 +13,7 @@ import {
   InfraNotFoundError,
   InsufficientBalanceError,
   InvalidSessionError,
+  LiquidityProviderTradeError,
   LiquidityLockError,
   LiquidityPositionNotFoundError,
   LiquidityValidationError,
@@ -119,6 +120,11 @@ function mapTaggedToUser(err: unknown): string | null {
   if (err instanceof MarketClosedError) {
     return 'This market is closed.';
   }
+  // beginning of LLM written Code, Model: GPT-5.5
+  if (err instanceof LiquidityProviderTradeError) {
+    return "You can't trade this market while you have an active liquidity position.";
+  }
+  // end of LLM written Code
   if (err instanceof OrderNotFoundError) {
     return 'Order not found.';
   }

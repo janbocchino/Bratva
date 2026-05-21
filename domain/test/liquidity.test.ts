@@ -16,8 +16,14 @@ import type { LiquidityPosition } from '../aggregates/liquidity';
 import { TokenAmount, QuoteAmount, LpTokens, SCALE } from '../values/currencies';
 import { MarketId, MarketPublicId, MarketSequenceNumber } from '../values/exchange';
 import type { AssetId } from '../values/asset';
+// beginning of LLM written Code, Model: GPT-5.5
+import { UserId } from '../values/user';
+// end of LLM written Code
 
 const now = new Date('2026-01-15T12:00:00Z');
+// beginning of LLM written Code, Model: GPT-5.5
+const testUserId = UserId(1);
+// end of LLM written Code
 
 const mkMarket = (overrides: Partial<Market> = {}): Market => ({
   id: MarketId(1),
@@ -59,7 +65,10 @@ describe('provideLiquidity', () => {
   it('subsequent deposit: LP tokens proportional via min formula', () => {
     const market = mkMarket({
       status: 'active',
-      ammPool: { reserveBase: TokenAmount.new(10n * SCALE), reserveQuote: QuoteAmount.new(10000n * SCALE) },
+      ammPool: {
+        reserveBase: TokenAmount.new(10n * SCALE),
+        reserveQuote: QuoteAmount.new(10000n * SCALE),
+      },
       totalLpTokens: LpTokens.new(316n * SCALE),
     });
 
@@ -91,7 +100,10 @@ describe('provideLiquidity', () => {
     const result = provideLiquidity({
       market: mkMarket({
         status: 'active',
-        ammPool: { reserveBase: TokenAmount.new(10n * SCALE), reserveQuote: QuoteAmount.new(10000n * SCALE) },
+        ammPool: {
+          reserveBase: TokenAmount.new(10n * SCALE),
+          reserveQuote: QuoteAmount.new(10000n * SCALE),
+        },
         totalLpTokens: LpTokens.new(316n * SCALE),
         wasPreviouslyActive: true,
       }),
@@ -216,12 +228,16 @@ describe('validateDepositRatio', () => {
   });
 
   it('rejects bad ratio for non-empty pool', () => {
-    const exit = E.runSyncExit(validateDepositRatio(5n * SCALE, 2000n * SCALE, 10n * SCALE, 10000n * SCALE));
+    const exit = E.runSyncExit(
+      validateDepositRatio(5n * SCALE, 2000n * SCALE, 10n * SCALE, 10000n * SCALE),
+    );
     expect(exit._tag).toBe('Failure');
   });
 
   it('passes matching ratio', () => {
-    const exit = E.runSyncExit(validateDepositRatio(5n * SCALE, 5000n * SCALE, 10n * SCALE, 10000n * SCALE));
+    const exit = E.runSyncExit(
+      validateDepositRatio(5n * SCALE, 5000n * SCALE, 10n * SCALE, 10000n * SCALE),
+    );
     expect(exit._tag).toBe('Success');
   });
 });
@@ -276,7 +292,10 @@ describe('withdrawLiquidity', () => {
   it('computes pro-rata share of reserves', () => {
     const market = mkMarket({
       status: 'active',
-      ammPool: { reserveBase: TokenAmount.new(10n * SCALE), reserveQuote: QuoteAmount.new(10000n * SCALE) },
+      ammPool: {
+        reserveBase: TokenAmount.new(10n * SCALE),
+        reserveQuote: QuoteAmount.new(10000n * SCALE),
+      },
       totalLpTokens: LpTokens.new(316n * SCALE),
       wasPreviouslyActive: true,
     });
@@ -295,7 +314,10 @@ describe('withdrawLiquidity', () => {
     // Pool ~$120 notional (2×60 quote); withdrawing 1/3 of LP removes 20 quote → 40 left → 2×40 < $100 threshold.
     const market = mkMarket({
       status: 'active',
-      ammPool: { reserveBase: TokenAmount.new(10n * SCALE), reserveQuote: QuoteAmount.new(60n * SCALE) },
+      ammPool: {
+        reserveBase: TokenAmount.new(10n * SCALE),
+        reserveQuote: QuoteAmount.new(60n * SCALE),
+      },
       totalLpTokens: LpTokens.new(300n * SCALE),
       wasPreviouslyActive: true,
     });
@@ -309,7 +331,10 @@ describe('withdrawLiquidity', () => {
   it('does not deactivate when remaining reserves >= $100', () => {
     const market = mkMarket({
       status: 'active',
-      ammPool: { reserveBase: TokenAmount.new(20n * SCALE), reserveQuote: QuoteAmount.new(20000n * SCALE) },
+      ammPool: {
+        reserveBase: TokenAmount.new(20n * SCALE),
+        reserveQuote: QuoteAmount.new(20000n * SCALE),
+      },
       totalLpTokens: LpTokens.new(632n * SCALE),
       wasPreviouslyActive: true,
     });
@@ -345,7 +370,10 @@ describe('validateWithdrawLiquidity', () => {
     const market = mkMarket({
       status: 'active',
       totalLpTokens: LpTokens.new(316n * SCALE),
-      ammPool: { reserveBase: TokenAmount.new(10n * SCALE), reserveQuote: QuoteAmount.new(10000n * SCALE) },
+      ammPool: {
+        reserveBase: TokenAmount.new(10n * SCALE),
+        reserveQuote: QuoteAmount.new(10000n * SCALE),
+      },
       wasPreviouslyActive: true,
     });
     const pastDate = new Date(now.getTime() - 86400000);
@@ -376,18 +404,63 @@ describe('validateOrderParams – token-holder gating', () => {
     const market = mkMarket({
       status: 'active',
       wasPreviouslyActive: true,
-      ammPool: { reserveBase: TokenAmount.new(10n * SCALE), reserveQuote: QuoteAmount.new(10000n * SCALE) },
+      ammPool: {
+        reserveBase: TokenAmount.new(10n * SCALE),
+        reserveQuote: QuoteAmount.new(10000n * SCALE),
+      },
     });
     const exit = E.runSyncExit(
-      validateOrderParams({ market, price: QuoteAmount.new(100n * SCALE), quantity: TokenAmount.new(1n * SCALE), side: 'bid' }),
+      validateOrderParams({
+        market,
+        price: QuoteAmount.new(100n * SCALE),
+        quantity: TokenAmount.new(1n * SCALE),
+        side: 'bid',
+        // beginning of LLM written Code, Model: GPT-5.5
+        userId: testUserId,
+        isLiquidityProviderForMarket: false,
+        // end of LLM written Code
+      }),
     );
     expect(exit._tag).toBe('Success');
   });
 
+  // beginning of LLM written Code, Model: GPT-5.5
+  it('rejects orders when the user is an active LP for the market', () => {
+    const market = mkMarket({
+      status: 'active',
+      wasPreviouslyActive: true,
+      ammPool: {
+        reserveBase: TokenAmount.new(10n * SCALE),
+        reserveQuote: QuoteAmount.new(10000n * SCALE),
+      },
+    });
+    const exit = E.runSyncExit(
+      validateOrderParams({
+        market,
+        price: QuoteAmount.new(100n * SCALE),
+        quantity: TokenAmount.new(1n * SCALE),
+        side: 'bid',
+        userId: testUserId,
+        isLiquidityProviderForMarket: true,
+      }),
+    );
+    expect(exit._tag).toBe('Failure');
+  });
+  // end of LLM written Code
+
   it('rejects orders on fresh pending market', () => {
     const market = mkMarket({ status: 'pending', wasPreviouslyActive: false });
     const exit = E.runSyncExit(
-      validateOrderParams({ market, price: QuoteAmount.new(100n * SCALE), quantity: TokenAmount.new(1n * SCALE), side: 'bid' }),
+      validateOrderParams({
+        market,
+        price: QuoteAmount.new(100n * SCALE),
+        quantity: TokenAmount.new(1n * SCALE),
+        side: 'bid',
+        // beginning of LLM written Code, Model: GPT-5.5
+        userId: testUserId,
+        isLiquidityProviderForMarket: false,
+        // end of LLM written Code
+      }),
     );
     expect(exit._tag).toBe('Failure');
   });
@@ -400,7 +473,13 @@ describe('validateOrderParams – token-holder gating', () => {
         price: QuoteAmount.new(100n * SCALE),
         quantity: TokenAmount.new(1n * SCALE),
         side: 'bid',
-        userLedgerSummary: [{ assetId: 1 as AssetId, balance: TokenAmount.new(5n * SCALE), units: 'unit' }],
+        // beginning of LLM written Code, Model: GPT-5.5
+        userId: testUserId,
+        isLiquidityProviderForMarket: false,
+        // end of LLM written Code
+        userLedgerSummary: [
+          { assetId: 1 as AssetId, balance: TokenAmount.new(5n * SCALE), units: 'unit' },
+        ],
       }),
     );
     expect(exit._tag).toBe('Success');
@@ -414,7 +493,13 @@ describe('validateOrderParams – token-holder gating', () => {
         price: QuoteAmount.new(100n * SCALE),
         quantity: TokenAmount.new(1n * SCALE),
         side: 'bid',
-        userLedgerSummary: [{ assetId: 2 as AssetId, balance: QuoteAmount.new(5000n * SCALE), units: 'cent' }],
+        // beginning of LLM written Code, Model: GPT-5.5
+        userId: testUserId,
+        isLiquidityProviderForMarket: false,
+        // end of LLM written Code
+        userLedgerSummary: [
+          { assetId: 2 as AssetId, balance: QuoteAmount.new(5000n * SCALE), units: 'cent' },
+        ],
       }),
     );
     expect(exit._tag).toBe('Failure');
@@ -428,6 +513,10 @@ describe('validateOrderParams – token-holder gating', () => {
         price: QuoteAmount.new(100n * SCALE),
         quantity: TokenAmount.new(1n * SCALE),
         side: 'bid',
+        // beginning of LLM written Code, Model: GPT-5.5
+        userId: testUserId,
+        isLiquidityProviderForMarket: false,
+        // end of LLM written Code
         userLedgerSummary: [{ assetId: 1 as AssetId, balance: TokenAmount.new(0n), units: 'unit' }],
       }),
     );

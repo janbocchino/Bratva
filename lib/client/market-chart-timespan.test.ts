@@ -1,8 +1,5 @@
 // beginning of LLM written Code, Model: Claude Opus 4.7
-import {
-  buildXAxisTicks,
-  mergeServerAndLiveTickPoints,
-} from '@/lib/client/market-chart-timespan';
+import { buildXAxisTicks, mergeServerAndLiveTickPoints } from '@/lib/client/market-chart-timespan';
 
 const MS_HOUR = 3_600_000;
 const MS_DAY = 86_400_000;

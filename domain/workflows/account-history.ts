@@ -25,7 +25,9 @@ import type { UserId } from '@/domain/values/user';
 const epochIso = new Date(0).toISOString();
 export const normalizeTimestamp = sharedNormalizeTimestamp;
 
-const historyTimestamp = (value: unknown): { occurredAtIso: string; hasAccurateTimestamp: boolean } => {
+const historyTimestamp = (
+  value: unknown,
+): { occurredAtIso: string; hasAccurateTimestamp: boolean } => {
   const date = normalizeTimestamp(value);
   if (!date) return { occurredAtIso: epochIso, hasAccurateTimestamp: false };
   return { occurredAtIso: date.toISOString(), hasAccurateTimestamp: true };

@@ -105,7 +105,10 @@ describe('market workflow transitions', () => {
     const market = mkMarket({
       status: 'active',
       wasPreviouslyActive: true,
-      ammPool: { reserveBase: TokenAmount.new(100n * SCALE), reserveQuote: QuoteAmount.new(100_000n * SCALE) },
+      ammPool: {
+        reserveBase: TokenAmount.new(100n * SCALE),
+        reserveQuote: QuoteAmount.new(100_000n * SCALE),
+      },
       totalLpTokens: LpTokens.new(100n * SCALE),
     });
 
@@ -134,7 +137,10 @@ describe('market workflow transitions', () => {
       status: 'active',
       wasPreviouslyActive: true,
       modelPrice: QuoteAmount.new(2_500n * SCALE),
-      ammPool: { reserveBase: TokenAmount.new(50n * SCALE), reserveQuote: QuoteAmount.new(125_000n * SCALE) },
+      ammPool: {
+        reserveBase: TokenAmount.new(50n * SCALE),
+        reserveQuote: QuoteAmount.new(125_000n * SCALE),
+      },
       totalLpTokens: LpTokens.new(100n * SCALE),
     });
 
@@ -161,7 +167,10 @@ describe('market workflow transitions', () => {
   it('closes pending market when pool becomes empty', () => {
     const market = mkMarket({
       status: 'pending',
-      ammPool: { reserveBase: TokenAmount.new(5n * SCALE), reserveQuote: QuoteAmount.new(2_000n * SCALE) },
+      ammPool: {
+        reserveBase: TokenAmount.new(5n * SCALE),
+        reserveQuote: QuoteAmount.new(2_000n * SCALE),
+      },
       totalLpTokens: LpTokens.new(10n * SCALE),
     });
 
