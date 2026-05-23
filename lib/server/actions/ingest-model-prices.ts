@@ -17,7 +17,6 @@ import { Db, db } from '../db';
 import { ModelPriceInputBatch, toLatestRowByTicker } from '../model-price-ingest';
 import { assetReadRepo } from '../ports/asset';
 import { marketWriteRepo } from '../ports/market';
-import { fetchModelPricesFromFastApi } from '../ports/model-price-feed';
 import { runServerDomainEffect } from '../run-server-domain-effect';
 
 const resolveAssetIdByTicker = async (ticker: string): Promise<number> =>
@@ -59,42 +58,5 @@ export async function ingestModelPricesBatch(rawPayload: unknown): Promise<{
     appliedAssets: inserts.length,
     updatedMarkets,
   };
-}
-
-export type RefreshModelPricesFromFastApiResult =
-  | {
-      ok: true;
-      receivedRows: number;
-      appliedAssets: number;
-      updatedMarkets: number;
-    }
-  | {
-      ok: false;
-      error: string;
-      statusCode?: number;
-    };
-
-export async function refreshModelPricesFromFastApi(): Promise<RefreshModelPricesFromFastApiResult> {
-  const feedResult = await fetchModelPricesFromFastApi();
-  if (!feedResult.ok) {
-    return {
-      ok: false,
-      error: feedResult.error,
-      statusCode: feedResult.statusCode,
-    };
-  }
-
-  try {
-    const ingestionResult = await ingestModelPricesBatch(feedResult.rows);
-    return {
-      ok: true,
-      ...ingestionResult,
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : 'Failed to ingest model prices',
-    };
-  }
 }
 // end of LLM written Code

@@ -55,7 +55,7 @@ flowchart LR
 
 ---
 
-## Explore index: price refresh and market list
+## Explore index: market list
 
 Poll interval ~1s (`REFRESH_INTERVAL_MS` in `app/explore/page.tsx`).
 
@@ -66,15 +66,14 @@ flowchart LR
   end
   subgraph feCol[Frontend]
     fe1["app/explore/page.tsx"]
-    fe2["refreshAndLoad on interval"]
+    fe2["loadMarkets on interval"]
     fe3["Render market table"]
   end
   subgraph beCol[Backend]
-    be1["refreshModelPricesFromFastApi"]
-    be2["listMarkets"]
+    be1["listMarkets"]
   end
   u1 --> fe1 --> fe2
-  fe2 --> be1 --> be2 --> fe3
+  fe2 --> be1 --> fe3
 ```
 
 ---
@@ -117,5 +116,5 @@ flowchart LR
 |------|------|---------|
 | Home | `app/page.tsx` | — |
 | Account | `app/account/page.tsx` | `createUser`, `getAccount`, `addBalance` |
-| Explore | `app/explore/page.tsx` | `refreshModelPricesFromFastApi`, `listMarkets` |
+| Explore | `app/explore/page.tsx` | `listMarkets` |
 | Market | `app/explore/[publicId]/page.tsx` | `getAccount`, `listMarkets`, `provideLiquidityAction`, `placeOrder` |

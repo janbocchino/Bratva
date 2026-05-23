@@ -18,14 +18,12 @@ Short for data transfer object. Indicates that the type of the variable is a kin
 ## Functionality
 
 - to add assets to the databse run ```bun assets:import```
+- set `DATABASE_URL` in root `.env`; Next, Drizzle, and the worker all use that same value.
 - to run the worker: ```uv run bratva-worker```
-- to run the FAST API: ```uv run backend.api:main```
-- frontend model prices refresh every 1s by calling a server action that pulls latest rows from FastAPI (`GET /model-prices`) and persists them into DB.
+- the worker reads `assets/live/*.json`, infers model prices, and writes directly to SQLite `model_price`.
 
 Worker: uv run python -m backend.main
-API: uv run python -m backend.api
 
 Worker: uv run bratva-worker
-API: uv run bratva-price-api
 
 Run all: ```npm run dev:all```

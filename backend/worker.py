@@ -1,16 +1,15 @@
 """
 Price worker that reads `assets/live/*.json` each tick, performs ML inference,
-and persists model prices through the local FastAPI bridge.
+and persists model prices directly to SQLite.
 """
 import json
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 
-from backend.constants import FASTAPI_MODEL_PRICE_TOKEN, FASTAPI_MODEL_PRICE_URL, PRICE_UPDATE_INTERVAL
+from backend.constants import DATABASE_URL, PRICE_UPDATE_INTERVAL
 from backend.ml import calculate_model_price, load_all_models
+from backend.persistence.model_price import ModelPriceInputRow, ModelPriceWriter
 from backend.types_ import InputData
 
 
@@ -26,13 +25,16 @@ class AssetState:
 
 
 class PriceWorker:
-    """Reads live asset JSON mirrors every tick and writes inferred prices via local FastAPI."""
+    """Reads live asset JSON mirrors every tick and writes inferred prices to SQLite."""
 
     def __init__(self, assets_dir: Optional[Path] = None):
         self.update_count = 0
         # beginning of LLM written Code, Model: gpt-5.3-codex
         self.repo_root = Path(__file__).resolve().parents[1]
         self.assets_dir = assets_dir or (self.repo_root / "assets" / "live")
+        # end of LLM written Code
+        # beginning of LLM written Code, Model: GPT-5.5
+        self.model_price_writer = ModelPriceWriter(DATABASE_URL, self.repo_root)
         # end of LLM written Code
         self.assets_by_ticker: Dict[str, AssetState] = {}
 
@@ -111,49 +113,28 @@ class PriceWorker:
         )
         return inferred_price
 
-    def _send_to_ingest(self, prices: List[Dict[str, Any]]) -> bool:
+    # beginning of LLM written Code, Model: GPT-5.5
+    def _write_model_prices(self, prices: List[ModelPriceInputRow]) -> bool:
         if not prices:
             return True
 
-        # beginning of LLM written Code, Model: GPT-5.5
-        headers = {"Content-Type": "application/json"}
-        if FASTAPI_MODEL_PRICE_TOKEN:
-            headers["x-model-price-token"] = FASTAPI_MODEL_PRICE_TOKEN
-        # end of LLM written Code
-
-        request = Request(
-            FASTAPI_MODEL_PRICE_URL,
-            data=json.dumps(prices).encode("utf-8"),
-            headers=headers,
-            method="POST",
-        )
-
         try:
-            with urlopen(request, timeout=10.0) as response:
-                body = response.read().decode("utf-8")
-                if body.strip():
-                    print(body.strip())
-                return 200 <= response.status < 300
-        except HTTPError as error:
-            error_body = error.read().decode("utf-8")
-            message = error_body.strip() if error_body else "<no body>"
-            print(
-                f"Price ingest HTTP request failed ({error.code}) "
-                f"against {FASTAPI_MODEL_PRICE_URL}: {message}"
-            )
+            written_count = self.model_price_writer.write_batch(prices)
+            if written_count != len(prices):
+                print(f"Model price write skipped {len(prices) - written_count} unknown assets.")
+            return True
+        except Exception as error:
+            print(f"Model price SQLite write failed: {error}")
             return False
-        except URLError as error:
-            print(
-                "Price ingest HTTP request failed against "
-                f"{FASTAPI_MODEL_PRICE_URL}: {error.reason}"
-            )
-            return False
+    # end of LLM written Code
 
     def run(self):
         print(f"\n{'='*60}")
         print("Starting price worker")
         print(f"Assets source: {self.assets_dir}")
-        print("Write path: local FastAPI bridge")
+        # beginning of LLM written Code, Model: GPT-5.5
+        print("Write path: SQLite (DATABASE_URL)")
+        # end of LLM written Code
         print(f"Update interval: {PRICE_UPDATE_INTERVAL}s")
         print(f"{'='*60}\n")
 
@@ -167,7 +148,9 @@ class PriceWorker:
                     time.sleep(PRICE_UPDATE_INTERVAL)
                     continue
 
-                db_batch: List[Dict[str, Any]] = []
+                # beginning of LLM written Code, Model: GPT-5.5
+                db_batch: List[ModelPriceInputRow] = []
+                # end of LLM written Code
                 for asset in self.assets_by_ticker.values():
                     asset.current_price = self._calculate_price(asset)
                     db_batch.append(
@@ -178,7 +161,9 @@ class PriceWorker:
                         }
                     )
 
-                if self._send_to_ingest(db_batch):
+                # beginning of LLM written Code, Model: GPT-5.5
+                if self._write_model_prices(db_batch):
+                    # end of LLM written Code
                     self.update_count += 1
                     if self.update_count % 10 == 0:
                         prices_str = " | ".join(

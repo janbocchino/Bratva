@@ -6,16 +6,17 @@ This document explains how the current `backend/` runtime predicts and streams a
 
 What write-path should worker ingestion use?
 
-- [x] Local FastAPI bridge (`127.0.0.1`) stores latest worker batch; Next server action pulls from FastAPI and applies typed DB writes.
-- [ ] Direct Python DB writes
+- [x] Direct Python DB writes to SQLite `model_price`.
+- [ ] Local HTTP bridge stores latest worker batch; Next server action pulls from it and applies typed DB writes.
 - [ ] Public HTTP API ingestion
 
 ## 1) Entry Point and Runtime Loop
 
 `backend/main.py` is the bootstrap:
 
-1. Constructs `PriceWorker()` with default assets source `assets/*.json`.
-2. Calls `worker.run()`.
+1. Loads root `.env` so the worker shares `DATABASE_URL` with Next and Drizzle.
+2. Constructs `PriceWorker()` with default assets source `assets/live/*.json`.
+3. Calls `worker.run()`.
 
 Inside `PriceWorker.__init__` (`backend/worker.py`):
 
@@ -24,12 +25,13 @@ Inside `PriceWorker.__init__` (`backend/worker.py`):
   - power model (`Model`)
   - numeric scaler (`RobustScaler`)
   - text embedding model (`SentenceTransformer`)
-- Sets up secure local write bridge:
-  - sends worker batches to local FastAPI bridge at `FASTAPI_MODEL_PRICE_URL`
+- Sets up SQLite persistence:
+  - opens `DATABASE_URL` from root `.env`
+  - enables WAL mode for concurrent Next reads
 
 Inside `PriceWorker.run()`:
 
-- Every tick reads `assets/*.json` and refreshes asset runtime state.
+- Every tick reads `assets/live/*.json` and refreshes asset runtime state.
 - Computes model-derived prices on each tick via `calculate_model_price(...)`.
 - Enters an infinite loop (`while True`) that runs every `PRICE_UPDATE_INTERVAL` seconds (default `1.0`):
   - Captures a shared tick timestamp.
@@ -37,8 +39,8 @@ Inside `PriceWorker.run()`:
     - `assetTicker` (from `assetId` field in JSON, normalized lowercase)
     - `priceCents` (`int(current_price * 100)`)
     - `timestamp`
-  - Sends batch to local FastAPI bridge, which stores latest rows in memory.
-  - Next frontend polling triggers a server action that pulls from FastAPI, resolves ticker -> market, and updates `markets.modelPrice`.
+  - Writes the batch directly to SQLite `model_price`, resolving ticker -> asset -> market.
+  - Logs skipped rows for unknown tickers.
   - Logs every 10 updates.
   - Sleeps for the configured interval.
 
@@ -48,7 +50,7 @@ flowchart TD
     createWorker[PriceWorkerInit]
     buildAssets[CreateAssetStateList]
     loadModels[load_all_models]
-    initDb[PriceIngestClientInit]
+    initDb[ModelPriceWriterInit]
     runLoopStart[run]
     bootstrapAssets[bootstrapAssets]
     initPrices[calculate_model_pricePerAsset]
@@ -56,7 +58,7 @@ flowchart TD
     tickTimestamp[timeNow]
     movePrice[sample_price_movementPerAsset]
     buildBatch[BuildDbBatch]
-    writeDb[insert_prices]
+    writeDb[InsertModelPriceRows]
     countLog[UpdateCounterAndOptionalLog]
     sleepTick[sleepPRICE_UPDATE_INTERVAL]
 
@@ -161,6 +163,7 @@ Model paths and loop interval are configured in `backend/constants.py` via envir
 - `EMBEDDING_MODEL` (default `models/gte-base`)
 - `POWER_MODEL` (default safetensors checkpoint path)
 - `PRICE_UPDATE_INTERVAL` (default `1.0` seconds)
+- `DATABASE_URL` (required from root `.env`)
 
 ## 4) Output Stream Contract
 
@@ -172,8 +175,9 @@ On each tick, worker emits one record per asset to DB write batch:
 
 The worker persistence interface is:
 
-- `POST http://127.0.0.1:8010/model-prices` (FastAPI local bridge)
-- FastAPI also exposes `GET /model-prices` for the Next server action pull path (optional token via `x-model-price-token`).
+- `backend.persistence.model_price.ModelPriceWriter`
+- `INSERT INTO model_price (market_id, price, created_at)`
+- `price` is stored as UTF-8 decimal bytes matching the TypeScript `scaledBigintBlob` encoding.
 
 ## 5) Runtime Characteristics
 
@@ -186,8 +190,9 @@ The worker persistence interface is:
 
 ## 6) Runtime boot sequence
 
-- Start Next server (`npm run dev`) so frontend polling can call server actions.
-- Start FastAPI bridge (`uv run bratva-price-api`).
+- Ensure root `.env` contains `DATABASE_URL`.
+- Run migrations/imports (`bun db:migrate`, `bun assets:import`) before the worker writes.
+- Start Next server (`npm run dev`).
 - Start worker (`uv run bratva-worker`).
-- Worker reads `assets/*.json` each tick and sends model prices to local FastAPI bridge.
+- Worker reads `assets/live/*.json` each tick and writes model prices directly to SQLite.
 

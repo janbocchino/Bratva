@@ -1,9 +1,10 @@
 // beginning of LLM written Code, Model: gpt-5.3-codex
-import { type } from 'arktype';
-import { readdir, readFile } from 'node:fs/promises';
+
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { assetReadRepo, assetWriteRepo } from '../lib/server/ports/asset';
+import { type } from 'arktype';
 import { Db, db } from '../lib/server/db';
+import { assetReadRepo, assetWriteRepo } from '../lib/server/ports/asset';
 import { markets, modelPrice } from '../lib/server/schema';
 import { E, Fn } from '../lib/shared/imports';
 
@@ -17,10 +18,23 @@ Decision questionnaire
 // end of LLM written Code
 const AssetJsonFile = type({
   assetId: 'string.trim |> string.lower',
+  // beginning of LLM written Code, Model: GPT-5.5
+  kind: 'string?',
+  // end of LLM written Code
   name: 'string.trim',
 });
 
 type AssetJsonFile = typeof AssetJsonFile.infer;
+
+// beginning of LLM written Code, Model: GPT-5.5
+type ParsedAssetFile = {
+  asset: AssetJsonFile;
+  sourceAssetId: string;
+  sourceData: unknown;
+};
+
+const LIVE_ASSETS_DIR = path.resolve('assets/live');
+// end of LLM written Code
 
 function getArg(flag: string): string | undefined {
   const idx = process.argv.indexOf(flag);
@@ -45,11 +59,50 @@ function isAssetNotFoundError(error: unknown): boolean {
   return maybeCause?.name === 'AssetNotFoundError' || maybeCause?._tag === 'AssetNotFoundError';
 }
 
-async function parseAssetFile(filePath: string): Promise<AssetJsonFile> {
+async function parseAssetFile(filePath: string): Promise<ParsedAssetFile> {
   const raw = await readFile(filePath, 'utf8');
-  const parsed = JSON.parse(raw) as unknown;
-  return AssetJsonFile.assert(parsed);
+  // beginning of LLM written Code, Model: GPT-5.5
+  const sourceData = JSON.parse(raw) as unknown;
+  const asset = AssetJsonFile.assert(sourceData);
+  const rawAssetId =
+    typeof sourceData === 'object' &&
+    sourceData !== null &&
+    'assetId' in sourceData &&
+    typeof sourceData.assetId === 'string'
+      ? sourceData.assetId.trim()
+      : asset.assetId;
+  return { asset, sourceAssetId: rawAssetId, sourceData };
+  // end of LLM written Code
 }
+
+// beginning of LLM written Code, Model: GPT-5.5
+const isFileExistsError = (error: unknown): boolean =>
+  typeof error === 'object' &&
+  error !== null &&
+  'code' in error &&
+  (error as { code?: unknown }).code === 'EEXIST';
+
+async function ensureLiveMirror(
+  asset: AssetJsonFile,
+  sourceAssetId: string,
+  sourceData: unknown,
+): Promise<'created' | 'skipped'> {
+  if (asset.kind !== 'token' || asset.assetId === 'usd') return 'skipped';
+
+  await mkdir(LIVE_ASSETS_DIR, { recursive: true });
+  const livePath = path.join(LIVE_ASSETS_DIR, `${sourceAssetId}.json`);
+  try {
+    await writeFile(livePath, `${JSON.stringify(sourceData, null, 2)}\n`, {
+      encoding: 'utf8',
+      flag: 'wx',
+    });
+    return 'created';
+  } catch (error) {
+    if (isFileExistsError(error)) return 'skipped';
+    throw error;
+  }
+}
+// end of LLM written Code
 
 async function resolveUsdAssetId(): Promise<number> {
   // beginning of LLM written Code, Model: GPT-5.2
@@ -121,16 +174,28 @@ async function main(): Promise<void> {
   let skipped = 0;
   let marketsCreated = 0;
   let marketsSkipped = 0;
+  // beginning of LLM written Code, Model: GPT-5.5
+  let liveMirrorsCreated = 0;
+  let liveMirrorsSkipped = 0;
+  // end of LLM written Code
 
   for (const filePath of files) {
-    const asset = await parseAssetFile(filePath);
+    // beginning of LLM written Code, Model: GPT-5.5
+    const parsed = await parseAssetFile(filePath);
+    const { asset, sourceAssetId, sourceData } = parsed;
+    const liveMirror = await ensureLiveMirror(asset, sourceAssetId, sourceData);
+    if (liveMirror === 'created') liveMirrorsCreated += 1;
+    else liveMirrorsSkipped += 1;
+    // end of LLM written Code
     const result = await ensureAsset(asset);
     if (result.kind === 'created') created += 1;
     else skipped += 1;
 
     if (result.assetId === usdAssetId) {
       marketsSkipped += 1;
-      console.log(`${result.kind.toUpperCase()}: ${asset.assetId} (${asset.name}) (self-quote skipped) from ${filePath}`);
+      console.log(
+        `${result.kind.toUpperCase()}: ${asset.assetId} (${asset.name}) (self-quote skipped) from ${filePath}`,
+      );
       continue;
     }
 
@@ -145,7 +210,9 @@ async function main(): Promise<void> {
   }
 
   console.log(
-    `Asset import completed. created=${created} skipped=${skipped} marketsCreated=${marketsCreated} marketsSkipped=${marketsSkipped}`,
+    // beginning of LLM written Code, Model: GPT-5.5
+    `Asset import completed. created=${created} skipped=${skipped} marketsCreated=${marketsCreated} marketsSkipped=${marketsSkipped} liveMirrorsCreated=${liveMirrorsCreated} liveMirrorsSkipped=${liveMirrorsSkipped}`,
+    // end of LLM written Code
   );
 }
 
