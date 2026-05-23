@@ -43,16 +43,9 @@ class PriceWorker:
         print("Models loaded.")
 
     def _normalize_sample(self, sample: Dict[str, Any]) -> Dict[str, Any]:
-        required_fields = [
-            "assetId",
-            "name",
-            "occupation",
-            "citizenship",
-            "net_worth",
-            "social_media_followers",
-            "associations",
-            "age",
-        ]
+        # beginning of LLM written Code, Model: Composer
+        required_fields = ["assetId", *InputData.field_names()]
+        # end of LLM written Code
         missing_fields = [field for field in required_fields if field not in sample]
         if missing_fields:
             raise ValueError(f"Missing required fields: {missing_fields}")
@@ -64,11 +57,15 @@ class PriceWorker:
         normalized_sample["citizenship"] = sample["citizenship"]
         # beginning of LLM written Code, Model: gpt-5.5-medium
         # log1p(undefined); scrapers may leave legacy -1 for "unknown".
-        for field in InputData.LOG_TRANSFORM_FIELDS:
+        for field in InputData.log_transform_fields():
             value = max(0, int(sample[field]))
             normalized_sample[field] = value
         # end of LLM written Code
         normalized_sample["associations"] = sample["associations"]
+        headlines = sample["news_headlines"]
+        if not isinstance(headlines, list):
+            raise ValueError("news_headlines must be a list")
+        normalized_sample["news_headlines"] = [str(headline).strip() for headline in headlines]
         normalized_sample["age"] = int(sample["age"])
         return normalized_sample
 

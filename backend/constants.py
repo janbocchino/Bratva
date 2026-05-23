@@ -1,8 +1,8 @@
 import os
 
 # ML Model paths
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "models/gte-base")
-POWER_MODEL = os.getenv("POWER_MODEL", "models/powerModel/model_1768577407.6430953.safetensors")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
+POWER_MODEL = os.getenv("POWER_MODEL")
 
 
 # Worker configuration

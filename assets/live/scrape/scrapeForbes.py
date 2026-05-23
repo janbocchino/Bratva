@@ -56,7 +56,7 @@ def run() -> None:
         if entry is None:
             print(f"[forbes] {asset_id}: not in RTB list, skipping")
             continue
-        net_worth = int(round(float(entry.get("networth") or 0) * 1_000))
+        net_worth = int(round(float(entry.get("networth") or 0) * 1_000_000))
         occ = occupation(entry.get("industry"))
         update_live_field(asset_id, "net_worth", net_worth)
         update_live_field(asset_id, "occupation", occ)

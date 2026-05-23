@@ -1,16 +1,13 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Inter } from 'next/font/google';
 import './globals.css';
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+// beginning of LLM written Code, Model: claude-4.6-sonnet-medium-thinking
+const inter = Inter({
+  variable: '--font-inter',
   subsets: ['latin'],
 });
-
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-});
+// end of LLM written Code
 
 export const metadata: Metadata = {
   title: 'huzzdaq',
@@ -23,8 +20,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang='en'>
-      <body className='antialiased min-h-dvh flex flex-col'>
+    <html lang='en' className={inter.variable}>
+      <body className='font-sans antialiased min-h-dvh flex flex-col'>
         {/* beginning of LLM written Code, Model: gpt-5.3-codex-low */}
         {children}
         {/* end of LLM written Code */}

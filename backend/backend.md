@@ -83,15 +83,17 @@ flowchart TD
 
 Input examples live in `assets/*.json` (one file per asset). Each sample contains:
 
-- Identity/text-like fields: `name`, `occupation`, `citizenship`, `associations`
+- Identity/text-like fields: `name`, `occupation`, `citizenship`, `associations`, `news_headlines`
 - Numeric fields: `net_worth`, `social_media_followers`, `age`
 - Routing/metadata field used by worker: `assetId`
 
-Field groups are formalized in `backend/types_.py`:
+Field groups are derived from the `InputData` dataclass in `backend/types_.py`:
 
-- `InputData.TEXT_FIELDS = ["name", "occupation", "citizenship", "associations"]`
-- `InputData.NUMERIC_FIELDS = ["net_worth", "social_media_followers", "age"]`
-- `InputData.LOG_TRANSFORM_FIELDS = ["net_worth", "social_media_followers"]`
+- `InputData.text_fields()` — `str` and `List[str]` fields in dataclass definition order
+- `InputData.numeric_fields()` — `int` and `float` fields
+- `InputData.log_transform_fields()` — `["net_worth", "social_media_followers"]`
+
+With the current schema that yields five text embeddings (768-dim GTE each → 3840 total) plus three scaled numeric features.
 
 In `predict_single_sample(...)` (`backend/ml/price.py`):
 

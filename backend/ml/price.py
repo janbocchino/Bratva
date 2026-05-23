@@ -14,7 +14,7 @@ def predict_single_sample(
 ) -> Tuple[float, float]:
     # Encode text fields
     text_values = []
-    for f in InputData.TEXT_FIELDS:
+    for f in InputData.text_fields():
         value = sample[f]
         text_values.append(", ".join(value) if isinstance(value, list) else value)
 
@@ -24,9 +24,9 @@ def predict_single_sample(
     # Process numeric fields
     # jnp.where
     numeric_values = []
-    for f in InputData.NUMERIC_FIELDS:
+    for f in InputData.numeric_fields():
         value = jnp.array(sample[f], dtype=jnp.float32)
-        if f in InputData.LOG_TRANSFORM_FIELDS:
+        if f in InputData.log_transform_fields():
             value = jnp.log1p(value)
         numeric_values.append(value)
     

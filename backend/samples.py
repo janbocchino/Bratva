@@ -8,6 +8,7 @@ samples = [
         "social_media_followers": 2000,
         "current_date": 1765401284,
         "associations": [],
+        "news_headlines": [],
         "age": 23,
     },
     {
@@ -22,6 +23,10 @@ samples = [
             "Bloomberg Billionaires Index", "Bell Labs", "Sun Microsystems",
             "Novell", "Carnegie Mellon University", "Apple", "Princeton University",
         ],
+        "news_headlines": [
+            "Google Is Shattering Under Its Own Weight (The IBM-Ification of Google?)",
+            "Apple cofounder Steve Wozniak got cheers, not boos, after telling students they 'all have AI — actual intelligence'",
+        ],
         "age": 50,
     },
     {
@@ -32,6 +37,7 @@ samples = [
         "net_worth": 200000000000,
         "social_media_followers": 120000000,
         "associations": ["Meta"],
+        "news_headlines": [],
         "age": 41,
     },
     {
@@ -43,6 +49,7 @@ samples = [
         "age": 40,
         "associations": ["Fund"],
         "social_media_followers": 25000,
+        "news_headlines": [],
     },
     {
         "assetId": "FASL",
@@ -53,5 +60,6 @@ samples = [
         "age": 43,
         "associations": ["Airbus"],
         "social_media_followers": 15000,
+        "news_headlines": [],
     },
 ]
