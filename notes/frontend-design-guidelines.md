@@ -1,0 +1,15 @@
+- architecture: 
+    - classic next/ react architecture
+    - components for reused elements like footer and header
+
+- two different views: user & admin
+    - user: shows all the data that belongs to the user witghout displaying sensitive ids
+    - admin: ??
+- menu bar at the top:
+    - home
+    - Invest / Trade
+    - Account
+- design:
+    - font: inter
+    - super clean and simple design
+    - shadcn charts

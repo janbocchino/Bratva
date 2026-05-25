@@ -30,18 +30,28 @@ class Model(nnx.Module):
         )
         self.dropout = nnx.Dropout(self.config["dropout"], rngs=rngs)
 
-    def __call__(self, x: Float[Array, "input_dim"]) -> Float[Array, "output_dim"]:
+    def __call__(
+        self,
+        x: Float[Array, "input_dim"],
+        *,
+        deterministic: bool = True,
+    ) -> Float[Array, "output_dim"]:
+        # beginning of LLM written Code, Model: Composer
+        def apply_dropout(t):
+            return self.dropout(t, deterministic=deterministic)
+        # end of LLM written Code
+
         text_l1 = pipe(
             x[: self.config["text_input_dim"]],
             self.l1_text,
             nnx.relu,
-            self.dropout,
+            apply_dropout,
         )
         num_l1 = pipe(
             x[self.config["text_input_dim"] :],
             self.l1_num,
             nnx.relu,
-            self.dropout,
+            apply_dropout,
         )
         l1 = jnp.concatenate([text_l1, num_l1], axis=0)
 
@@ -49,6 +59,6 @@ class Model(nnx.Module):
             l1,
             self.l2,
             nnx.relu,
-            self.dropout,
+            apply_dropout,
             self.out,
         )

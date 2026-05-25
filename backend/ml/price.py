@@ -44,7 +44,7 @@ def scale_to_stock_price(prediction: float) -> float:
     """Scale prediction to a stock-like price using log scaling."""
     max_net_worth = 779_700_000_000
     max_price = math.log1p(max_net_worth) * 7.3
-    return max_price ** prediction
+    return max_price ** (prediction)
 
 
 def calculate_model_price(

@@ -33,7 +33,8 @@
     - Display these comments on the graph at relevant points.
     - Enable sharing these annotated graphs as part of the whole experience.
 - Can you migrate all state to zustand
-
+- Max Networth pulling
+- yfinance as news source
 
 
 `later release:`
