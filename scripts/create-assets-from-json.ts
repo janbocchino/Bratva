@@ -2,10 +2,17 @@
 
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { eq } from 'drizzle-orm';
 import { type } from 'arktype';
 import { Db, db } from '../lib/server/db';
 import { assetReadRepo, assetWriteRepo } from '../lib/server/ports/asset';
-import { markets, modelPrice } from '../lib/server/schema';
+// beginning of LLM written Code, Model: GPT-5.5
+import {
+  assetsDataWriteRepo,
+  extractAssetDataFields,
+} from '../lib/server/ports/assets-data';
+import { assets, markets, modelPrice, type AssetKind } from '../lib/server/schema';
+// end of LLM written Code
 import { E, Fn } from '../lib/shared/imports';
 
 // beginning of LLM written Code, Model: gpt-5.3-codex
@@ -19,9 +26,18 @@ Decision questionnaire
 const AssetJsonFile = type({
   assetId: 'string.trim |> string.lower',
   // beginning of LLM written Code, Model: GPT-5.5
-  kind: 'string?',
+  kind: "'token' | 'fiat'?",
   // end of LLM written Code
   name: 'string.trim',
+  // beginning of LLM written Code, Model: GPT-5.5
+  occupation: 'unknown?',
+  citizenship: 'unknown?',
+  net_worth: 'unknown?',
+  social_media_followers: 'unknown?',
+  associations: 'unknown?',
+  news_headlines: 'unknown?',
+  age: 'unknown?',
+  // end of LLM written Code
 });
 
 type AssetJsonFile = typeof AssetJsonFile.infer;
@@ -87,7 +103,7 @@ async function ensureLiveMirror(
   sourceAssetId: string,
   sourceData: unknown,
 ): Promise<'created' | 'skipped'> {
-  if (asset.kind !== 'token' || asset.assetId === 'usd') return 'skipped';
+  if (resolveAssetKind(asset) !== 'token' || asset.assetId === 'usd') return 'skipped';
 
   await mkdir(LIVE_ASSETS_DIR, { recursive: true });
   const livePath = path.join(LIVE_ASSETS_DIR, `${sourceAssetId}.json`);
@@ -104,9 +120,37 @@ async function ensureLiveMirror(
 }
 // end of LLM written Code
 
+// beginning of LLM written Code, Model: GPT-5.5
+function resolveAssetKind(asset: AssetJsonFile): AssetKind {
+  return asset.kind ?? 'token';
+}
+
+async function syncAssetKind(assetId: number, kind: AssetKind): Promise<void> {
+  await db.update(assets).set({ kind }).where(eq(assets.id, assetId));
+}
+
+async function insertMissingInitialAssetData(
+  assetId: number,
+  asset: AssetJsonFile,
+  sourceData: unknown,
+): Promise<number> {
+  if (resolveAssetKind(asset) !== 'token' || typeof sourceData !== 'object' || sourceData === null)
+    return 0;
+
+  return await Fn.pipe(
+    assetsDataWriteRepo.insertMissingInitialAssetDataFields({
+      assetId,
+      fields: extractAssetDataFields(sourceData as Record<string, unknown>),
+    }),
+    E.provideService(Db, db),
+    E.runPromise,
+  );
+}
+// end of LLM written Code
+
 async function resolveUsdAssetId(): Promise<number> {
   // beginning of LLM written Code, Model: GPT-5.2
-  const usd = await ensureAsset({ assetId: 'usd', name: 'US Dollar' });
+  const usd = await ensureAsset({ assetId: 'usd', kind: 'fiat', name: 'US Dollar' });
   if (usd.kind === 'created') {
     console.log('CREATED: usd (US Dollar) (bootstrap quote asset)');
   }
@@ -143,7 +187,12 @@ async function createAssetUsdMarket(baseAssetId: number, usdAssetId: number): Pr
 
 async function ensureAsset(
   asset: AssetJsonFile,
-): Promise<{ kind: 'created'; assetId: number } | { kind: 'skipped'; assetId: number }> {
+  sourceData?: unknown,
+): Promise<
+  | { kind: 'created'; assetId: number; dataFieldsBootstrapped: number }
+  | { kind: 'skipped'; assetId: number; dataFieldsBootstrapped: number }
+> {
+  const assetKind = resolveAssetKind(asset);
   const existing = await Fn.pipe(
     assetReadRepo.getAsset({ ticker: asset.assetId }),
     E.provideService(Db, db),
@@ -151,15 +200,24 @@ async function ensureAsset(
     E.runPromise,
   );
 
-  if (existing._tag === 'Right') return { kind: 'skipped', assetId: existing.right.id };
+  if (existing._tag === 'Right') {
+    await syncAssetKind(existing.right.id, assetKind);
+    const dataFieldsBootstrapped = await insertMissingInitialAssetData(
+      existing.right.id,
+      asset,
+      sourceData,
+    );
+    return { kind: 'skipped', assetId: existing.right.id, dataFieldsBootstrapped };
+  }
   if (!isAssetNotFoundError(existing.left)) throw existing.left;
 
   const created = await Fn.pipe(
-    assetWriteRepo.createAsset({ name: asset.name, ticker: asset.assetId }),
+    assetWriteRepo.createAsset({ name: asset.name, ticker: asset.assetId, kind: assetKind }),
     E.provideService(Db, db),
     E.runPromise,
   );
-  return { kind: 'created', assetId: created.id };
+  const dataFieldsBootstrapped = await insertMissingInitialAssetData(created.id, asset, sourceData);
+  return { kind: 'created', assetId: created.id, dataFieldsBootstrapped };
 }
 
 async function main(): Promise<void> {
@@ -177,6 +235,7 @@ async function main(): Promise<void> {
   // beginning of LLM written Code, Model: GPT-5.5
   let liveMirrorsCreated = 0;
   let liveMirrorsSkipped = 0;
+  let dataFieldsBootstrapped = 0;
   // end of LLM written Code
 
   for (const filePath of files) {
@@ -187,9 +246,10 @@ async function main(): Promise<void> {
     if (liveMirror === 'created') liveMirrorsCreated += 1;
     else liveMirrorsSkipped += 1;
     // end of LLM written Code
-    const result = await ensureAsset(asset);
+    const result = await ensureAsset(asset, sourceData);
     if (result.kind === 'created') created += 1;
     else skipped += 1;
+    dataFieldsBootstrapped += result.dataFieldsBootstrapped;
 
     if (result.assetId === usdAssetId) {
       marketsSkipped += 1;
@@ -211,7 +271,7 @@ async function main(): Promise<void> {
 
   console.log(
     // beginning of LLM written Code, Model: GPT-5.5
-    `Asset import completed. created=${created} skipped=${skipped} marketsCreated=${marketsCreated} marketsSkipped=${marketsSkipped} liveMirrorsCreated=${liveMirrorsCreated} liveMirrorsSkipped=${liveMirrorsSkipped}`,
+    `Asset import completed. created=${created} skipped=${skipped} marketsCreated=${marketsCreated} marketsSkipped=${marketsSkipped} liveMirrorsCreated=${liveMirrorsCreated} liveMirrorsSkipped=${liveMirrorsSkipped} dataFieldsBootstrapped=${dataFieldsBootstrapped}`,
     // end of LLM written Code
   );
 }

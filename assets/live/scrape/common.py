@@ -17,6 +17,10 @@ import threading
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
+
+from backend.persistence.assets_data import ASSET_DATA_FIELDS, AssetsDataStore
+
 # beginning of LLM written Code, Model: gpt-5.3-codex
 _SCRAPE_DIR = Path(__file__).resolve().parent
 _LIVE_DIR = _SCRAPE_DIR.parent
@@ -25,6 +29,21 @@ LIVE_DIR = _LIVE_DIR
 
 _asset_locks: dict[str, threading.Lock] = {}
 _locks_registry_lock = threading.Lock()
+
+# beginning of LLM written Code, Model: GPT-5.5
+_repo_root = ASSETS_DIR.parent
+_assets_data_store: AssetsDataStore | None = None
+
+
+def _store() -> AssetsDataStore:
+    global _assets_data_store
+    if _assets_data_store is None:
+        load_dotenv(_repo_root / ".env")
+        from backend.constants import DATABASE_URL
+
+        _assets_data_store = AssetsDataStore(DATABASE_URL, _repo_root)
+    return _assets_data_store
+# end of LLM written Code
 
 
 def _lock_for_asset(asset_id: str) -> threading.Lock:
@@ -69,6 +88,9 @@ def ensure_live_copy(asset_id: str, source_data: dict[str, Any]) -> Path:
                 json.dumps(source_data, ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
+    # beginning of LLM written Code, Model: GPT-5.5
+    _store().bootstrap_missing_fields(asset_id, source_data)
+    # end of LLM written Code
     return live_path
 
 
@@ -89,4 +111,10 @@ def update_live_field(asset_id: str, field: str, value: Any) -> None:
             encoding="utf-8",
         )
         os.replace(tmp_path, live_path)
+    # beginning of LLM written Code, Model: GPT-5.5
+    if field not in ASSET_DATA_FIELDS:
+        print(f"[common] skipping assets_data append for non-feature field: {field}")
+        return
+    _store().append_field(asset_id, field, value)
+    # end of LLM written Code
 # end of LLM written Code

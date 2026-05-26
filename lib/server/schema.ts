@@ -86,6 +86,22 @@ export const users = sqliteTable(
 export type UserPrs = typeof users.$inferSelect;
 export type NewUserPrs = typeof users.$inferInsert;
 
+// beginning of LLM written Code, Model: GPT-5.5
+export const ASSET_KINDS = ['token', 'fiat'] as const;
+export type AssetKind = (typeof ASSET_KINDS)[number];
+
+export const ASSET_DATA_FIELDS = [
+  'occupation',
+  'citizenship',
+  'net_worth',
+  'social_media_followers',
+  'associations',
+  'news_headlines',
+  'age',
+] as const;
+export type AssetDataField = (typeof ASSET_DATA_FIELDS)[number];
+// end of LLM written Code
+
 export const assets = sqliteTable(
   'assets',
   {
@@ -96,16 +112,45 @@ export const assets = sqliteTable(
       .$defaultFn(() => uuidv4()),
     name: text('name').notNull(),
     ticker: text('ticker').notNull().unique(),
+    // beginning of LLM written Code, Model: GPT-5.5
+    kind: text('kind', { enum: ASSET_KINDS }).notNull().default('token'),
+    // end of LLM written Code
     ...timestamps,
   },
   (table) => [
     index('assets_public_id_idx').on(table.publicId),
     index('assets_ticker_idx').on(table.ticker),
+    // beginning of LLM written Code, Model: GPT-5.5
+    index('assets_kind_idx').on(table.kind),
+    // end of LLM written Code
   ],
 );
 
 export type AssetPrs = typeof assets.$inferSelect;
 export type NewAssetPrs = typeof assets.$inferInsert;
+
+// beginning of LLM written Code, Model: GPT-5.5
+export const assetsData = sqliteTable(
+  'assets_data',
+  {
+    id: integer('id').primaryKey(),
+    assetId: integer('asset_id')
+      .notNull()
+      .references(() => assets.id),
+    field: text('field', { enum: ASSET_DATA_FIELDS }).notNull(),
+    value: text('value').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (table) => [
+    index('assets_data_asset_field_created_idx').on(table.assetId, table.field, table.createdAt),
+  ],
+);
+
+export type AssetsDataPrs = typeof assetsData.$inferSelect;
+export type NewAssetsDataPrs = typeof assetsData.$inferInsert;
+// end of LLM written Code
 
 export const priceSeries = sqliteTable(
   'price_series',

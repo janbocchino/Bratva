@@ -67,6 +67,9 @@ export const assetWriteRepo: AssetWriteRepoDomain<Db> = {
               .values({
                 name: o.name,
                 ticker: o.ticker,
+                // beginning of LLM written Code, Model: GPT-5.5
+                kind: o.kind ?? 'token',
+                // end of LLM written Code
               })
               .returning(),
           catch: errMapper(InfraError),

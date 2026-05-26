@@ -1,14 +1,14 @@
 """
-Price worker that reads `assets/live/*.json` each tick, performs ML inference,
+Price worker that reads latest `assets_data` feature rows each tick, performs ML inference,
 and persists model prices directly to SQLite.
 """
-import json
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from backend.constants import DATABASE_URL, PRICE_UPDATE_INTERVAL
 from backend.ml import calculate_model_price, load_all_models
+from backend.persistence.assets_data import AssetsDataStore
 from backend.persistence.model_price import ModelPriceInputRow, ModelPriceWriter
 from backend.types_ import InputData
 
@@ -25,15 +25,15 @@ class AssetState:
 
 
 class PriceWorker:
-    """Reads live asset JSON mirrors every tick and writes inferred prices to SQLite."""
+    """Reads asset feature snapshots every tick and writes inferred prices to SQLite."""
 
-    def __init__(self, assets_dir: Optional[Path] = None):
+    def __init__(self):
         self.update_count = 0
         # beginning of LLM written Code, Model: gpt-5.3-codex
         self.repo_root = Path(__file__).resolve().parents[1]
-        self.assets_dir = assets_dir or (self.repo_root / "assets" / "live")
         # end of LLM written Code
         # beginning of LLM written Code, Model: GPT-5.5
+        self.assets_data_store = AssetsDataStore(DATABASE_URL, self.repo_root)
         self.model_price_writer = ModelPriceWriter(DATABASE_URL, self.repo_root)
         # end of LLM written Code
         self.assets_by_ticker: Dict[str, AssetState] = {}
@@ -70,20 +70,19 @@ class PriceWorker:
         return normalized_sample
 
     def _read_asset_samples(self) -> List[Dict[str, Any]]:
-        if not self.assets_dir.exists():
-            print(f"Assets directory not found: {self.assets_dir}")
-            return []
-
         parsed_samples: List[Dict[str, Any]] = []
-        for asset_file in sorted(self.assets_dir.glob("*.json")):
+        for raw_sample in self.assets_data_store.list_token_inference_samples():
             try:
-                with asset_file.open("r", encoding="utf-8") as file_handle:
-                    raw_sample = json.load(file_handle)
                 if not isinstance(raw_sample, dict):
-                    raise ValueError("asset JSON root must be an object")
+                    raise ValueError("assets_data sample must be an object")
                 parsed_samples.append(self._normalize_sample(raw_sample))
             except Exception as error:
-                print(f"Skipping invalid asset file {asset_file}: {error}")
+                ticker = (
+                    raw_sample.get("assetId", "unknown")
+                    if isinstance(raw_sample, dict)
+                    else "unknown"
+                )
+                print(f"Skipping invalid assets_data sample for {ticker}: {error}")
         return parsed_samples
 
     def _refresh_assets(self, samples: List[Dict[str, Any]]) -> None:
@@ -128,7 +127,7 @@ class PriceWorker:
     def run(self):
         print(f"\n{'='*60}")
         print("Starting price worker")
-        print(f"Assets source: {self.assets_dir}")
+        print("Assets source: SQLite assets_data (latest per field)")
         # beginning of LLM written Code, Model: GPT-5.5
         print("Write path: SQLite (DATABASE_URL)")
         # end of LLM written Code
@@ -141,7 +140,7 @@ class PriceWorker:
                 self._refresh_assets(self._read_asset_samples())
 
                 if not self.assets_by_ticker:
-                    print("No valid asset JSON files found, waiting for next tick.")
+                    print("No token assets with complete assets_data rows found, waiting for next tick.")
                     time.sleep(PRICE_UPDATE_INTERVAL)
                     continue
 

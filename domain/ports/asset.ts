@@ -22,6 +22,9 @@ export interface AssetReadRepo<D> {
 export const CreateAssetParams = type({
   name: 'string.trim',
   ticker: 'string.trim |> string.lower',
+  // beginning of LLM written Code, Model: GPT-5.5
+  kind: "'token' | 'fiat'?",
+  // end of LLM written Code
 });
 
 export type CreateAssetParams = typeof CreateAssetParams.infer;
