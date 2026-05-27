@@ -3,7 +3,7 @@
 Decision questionnaire
 - Where should authorization be enforced?
   - [x] Server-only helpers that load the user from the session and DB.
-  - [ ] Client-side role checks or middleware-only checks.
+  - [ ] Client-side role checks or proxy-only checks.
 */
 import 'server-only';
 
