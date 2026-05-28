@@ -18,6 +18,8 @@ import {
 } from '@/lib/client/market-chart-timespan';
 import type { AccountSnapshot } from '@/lib/server/actions/get-account';
 import { getAccount } from '@/lib/server/actions/get-account';
+import type { AssetValuationSummary } from '@/lib/server/actions/get-asset-valuation-summary';
+import { getAssetValuationSummary } from '@/lib/server/actions/get-asset-valuation-summary';
 import type { MarketModelPriceSeriesPoint } from '@/lib/server/actions/get-market-model-price-series';
 import { getMarketModelPriceSeries } from '@/lib/server/actions/get-market-model-price-series';
 import type { MarketPriceSeriesPoint } from '@/lib/server/actions/get-market-price-series';
@@ -26,6 +28,7 @@ import type { ExploreMarketRow } from '@/lib/server/actions/list-markets';
 import { listMarkets } from '@/lib/server/actions/list-markets';
 import { placeOrder } from '@/lib/server/actions/place-order';
 import { provideLiquidityAction } from '@/lib/server/actions/provide-liquidity';
+import { ValuationSummaryCard } from '@/components/explore/valuation-summary-card';
 
 /*
 Decision questionnaire
@@ -83,6 +86,9 @@ export default function ExploreMarketPage() {
   const [market, setMarket] = useState<ExploreMarketRow | null>(null);
   const [modelSeries, setModelSeries] = useState<readonly MarketModelPriceSeriesPoint[]>([]);
   const [tradeSeries, setTradeSeries] = useState<readonly MarketPriceSeriesPoint[]>([]);
+  const [valuationSummary, setValuationSummary] = useState<AssetValuationSummary | null>(null);
+  const [valuationSummaryError, setValuationSummaryError] = useState('');
+  const [isValuationSummaryLoading, setIsValuationSummaryLoading] = useState(false);
   const [chartTimespan, setChartTimespan] = useState<ChartTimespan>('1d');
   const [nowMs, setNowMs] = useState(() => Date.now());
   /** Client-sampled series at `LIVE_TICK_INTERVAL_MS` (last known price); merged with server rows. */
@@ -132,6 +138,16 @@ export default function ExploreMarketPage() {
     [market],
   );
 
+  // beginning of LLM written Code, Model: GPT-5.2
+  const shouldShowAnalystSummary = useModelChart;
+
+  const clearValuationSummaryState = useCallback(() => {
+    setValuationSummary(null);
+    setValuationSummaryError('');
+    setIsValuationSummaryLoading(false);
+  }, []);
+  // end of LLM written Code
+
   /** Wire: scaled integer string; input field expects a decimal for `parseFixedPoint`. */
   const latestPriceScaled = useMemo(() => {
     if (market === null) return ONE_QUOTE_SCALED_STRING;
@@ -179,13 +195,20 @@ export default function ExploreMarketPage() {
     try {
       const [account, markets] = await Promise.all([getAccount(), listMarkets()]);
       const selected = markets.find((item) => item.publicId === publicId) ?? null;
+      // beginning of LLM written Code, Model: GPT-5.2
+      const selectedUsesModelChart =
+        selected !== null &&
+        shouldUseModelPriceChart(selected.status, selected.wasPreviouslyActive);
+      // end of LLM written Code
       setSnapshot(account);
       setMarket(selected);
+      setValuationSummaryError('');
       if (selected === null) {
         setLoadError('Market not found.');
         setModelSeries([]);
         setTradeSeries([]);
-      } else if (shouldUseModelPriceChart(selected.status, selected.wasPreviouslyActive)) {
+        clearValuationSummaryState();
+      } else if (selectedUsesModelChart) {
         const series = await getMarketModelPriceSeries({
           marketPublicId: publicId,
           limit: 2_000,
@@ -197,16 +220,54 @@ export default function ExploreMarketPage() {
         setTradeSeries(series);
         setModelSeries([]);
       }
+
+      // beginning of LLM written Code, Model: GPT-5.2
+      if (selected !== null && selectedUsesModelChart) {
+        setIsValuationSummaryLoading(true);
+        try {
+          const summary = await getAssetValuationSummary({
+            baseAssetPublicId: selected.baseAssetPublicId,
+          });
+          setValuationSummary(summary);
+        } catch (error) {
+          setValuationSummaryError(formatActionError(error, 'Failed to load summary.'));
+        } finally {
+          setIsValuationSummaryLoading(false);
+        }
+      } else {
+        clearValuationSummaryState();
+      }
+      // end of LLM written Code
     } catch (error) {
       setLoadError(formatActionError(error, 'Failed to load market.'));
     } finally {
       setIsLoading(false);
     }
-  }, [publicId]);
+  }, [publicId, clearValuationSummaryState]);
+
+  useEffect(() => {
+    // beginning of LLM written Code, Model: GPT-5.2
+    if (market === null || !shouldShowAnalystSummary) return;
+    const id = setInterval(async () => {
+      try {
+        const summary = await getAssetValuationSummary({
+          baseAssetPublicId: market.baseAssetPublicId,
+        });
+        setValuationSummary(summary);
+      } catch {
+        /* non-fatal */
+      }
+    }, 90_000);
+    return () => clearInterval(id);
+    // end of LLM written Code
+  }, [market, shouldShowAnalystSummary]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: clear live buffer when route or model vs trade chart switches
   useEffect(() => {
     setLiveTickPoints([]);
+    // beginning of LLM written Code, Model: GPT-5.2
+    if (!shouldShowAnalystSummary) clearValuationSummaryState();
+    // end of LLM written Code
   }, [publicId, useModelChart]);
 
   useEffect(() => {
@@ -399,9 +460,9 @@ export default function ExploreMarketPage() {
             {[...tablePoints]
               .slice(-10)
               .reverse()
-              .map((p) => (
+              .map((p, idx) => (
                 <div
-                  key={p.createdAtIso}
+                  key={`${p.createdAtIso}-${idx}`}
                   className='flex items-baseline justify-between rounded border border-black/10 px-3 py-2'
                 >
                   <span className='text-sm font-medium'>
@@ -416,6 +477,16 @@ export default function ExploreMarketPage() {
         ) : null}
         {/* end of LLM written Code */}
       </section>
+
+      {/* beginning of LLM written Code, Model: GPT-5.2 */}
+      {shouldShowAnalystSummary ? (
+        <ValuationSummaryCard
+          summary={valuationSummary}
+          isLoading={isValuationSummaryLoading}
+          error={valuationSummaryError}
+        />
+      ) : null}
+      {/* end of LLM written Code */}
 
       <section className='flex flex-col gap-3 rounded-lg border border-black/10 p-4'>
         <h2 className='text-lg font-medium'>Actions</h2>

@@ -330,6 +330,33 @@ export type ModelPricePrs = typeof modelPrice.$inferSelect;
 export type NewModelPricePrs = typeof modelPrice.$inferInsert;
 // end of LLM written Code
 
+// beginning of LLM written Code, Model: GPT-5.2
+export const valuationSummaries = sqliteTable(
+  'valuation_summaries',
+  {
+    id: integer('id').primaryKey(),
+    assetId: integer('asset_id')
+      .notNull()
+      .references(() => assets.id),
+    body: text('body').notNull(),
+    featureFingerprint: text('feature_fingerprint').notNull(),
+    featureSnapshotJson: text('feature_snapshot_json').notNull(),
+    previousFeatureFingerprint: text('previous_feature_fingerprint'),
+    modelPriceScaled: scaledBigintBlob('model_price_scaled'),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+  },
+  (table) => [
+    index('valuation_summaries_asset_id_idx').on(table.assetId),
+    index('valuation_summaries_asset_id_created_idx').on(table.assetId, table.createdAt),
+  ],
+);
+
+export type ValuationSummaryPrs = typeof valuationSummaries.$inferSelect;
+export type NewValuationSummaryPrs = typeof valuationSummaries.$inferInsert;
+// end of LLM written Code
+
 export const liquidityPositions = sqliteTable(
   'liquidity_positions',
   {

@@ -21,6 +21,7 @@ import { runServerDomainEffect } from '../run-server-domain-effect';
 export type ExploreMarketRow = {
   id: number;
   publicId: string;
+  baseAssetPublicId: string;
   baseAssetName: string;
   baseAssetTicker: string;
   quoteAssetName: string;
@@ -70,6 +71,7 @@ export async function listMarkets(): Promise<readonly ExploreMarketRow[]> {
       return {
         id: market.id,
         publicId: market.publicId,
+        baseAssetPublicId: baseAsset.publicId,
         baseAssetName: baseAsset.name,
         baseAssetTicker: baseAsset.ticker,
         quoteAssetName: quoteAsset.name,
@@ -84,6 +86,7 @@ export async function listMarkets(): Promise<readonly ExploreMarketRow[]> {
   return rows.map((market) => ({
     id: market.id,
     publicId: market.publicId,
+    baseAssetPublicId: market.baseAssetPublicId,
     baseAssetName: market.baseAssetName,
     baseAssetTicker: market.baseAssetTicker,
     quoteAssetName: market.quoteAssetName,

@@ -6,6 +6,7 @@ INTERVALS_SECONDS: dict[str, int] = {
     "followers_v2": 16 * 3600,
     "extended_associations_v2": 24 * 3600,
     "news": 10,
+    "valuation_summary": 10 * 60,
 }
 
 NEWS_LOOKBACK_HOURS = 48

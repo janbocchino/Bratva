@@ -28,7 +28,6 @@
     - Expose sign-out using clearSessionUser().
     - Keep admin checks in server layout/actions (as you do now); treat middleware as redirect-only.
     - Optionally shorten session TTL and add session tests.
-- Add an actuarial or analyst summary explaining the reasoning behind model price valuations. 
 - (Possibly) When migrating to order book pricing, allow users to attach comments to trades.
     - Display these comments on the graph at relevant points.
     - Enable sharing these annotated graphs as part of the whole experience.

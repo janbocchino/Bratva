@@ -29,12 +29,14 @@ from assets.live.scrape import extended_associations as extended_associations_mo
 from assets.live.scrape import followers as followers_mod
 from assets.live.scrape import news as news_mod
 from assets.live.scrape import scrapeForbes as scrapeForbes_mod
+from assets.live.scrape import valuation_summary as valuation_summary_mod
 
 SCRAPERS: dict[str, Callable[[], None]] = {
     "news": news_mod.run,
     "followers_v2": followers_mod.run,
     "scrapeForbes_v2": scrapeForbes_mod.run,
     "extended_associations_v2": extended_associations_mod.run,
+    "valuation_summary": valuation_summary_mod.run,
 }
 
 LAST_RUN_PATH = Path(__file__).resolve().parent / ".last_run.json"

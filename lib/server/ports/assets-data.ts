@@ -85,4 +85,35 @@ export const extractAssetDataFields = (
   }
   return fields;
 };
+
+export const assetsDataReadRepo = {
+  getLatestSnapshotByAssetId: (o: { assetId: number }) =>
+    Fn.pipe(
+      E.serviceOptional(Db),
+      E.mapError(errMapper(InfraNotFoundError)),
+      E.flatMap((db) =>
+        E.tryPromise({
+          try: async () => {
+            // Append-only table; take latest value per field.
+            const rows = await db
+              .select({
+                field: assetsData.field,
+                value: assetsData.value,
+                createdAt: assetsData.createdAt,
+              })
+              .from(assetsData)
+              .where(eq(assetsData.assetId, o.assetId))
+              .orderBy(assetsData.createdAt);
+
+            const latest: Partial<Record<AssetDataField, AssetDataValue>> = {};
+            for (const row of rows) {
+              latest[row.field] = JSON.parse(row.value) as AssetDataValue;
+            }
+            return latest;
+          },
+          catch: errMapper(InfraError),
+        }),
+      ),
+    ),
+};
 // end of LLM written Code
