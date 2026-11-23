@@ -8,6 +8,9 @@ Decision questionnaire
   - [x] AreaChart with up/down gradient (SOTA feel, frontend-only).
   - [ ] Plain LineChart (previous).
   - [ ] OHLC candles (requires server aggregation).
+- Chart colors in dark v2 vs light legacy?
+  - [x] Semantic tokens + optional `upColor`/`downColor` props; defaults keep legacy green/red.
+  - [ ] Hardcoded literals only.
 */
 'use client';
 
@@ -42,13 +45,13 @@ export type MarketChartRow = {
 
 const TIMESPAN_ORDER: readonly ChartTimespan[] = ['1d', '1w', '1m', 'max'];
 
-const UP_COLOR = 'hsl(142 71% 40%)';
-const DOWN_COLOR = 'hsl(0 72% 48%)';
+const DEFAULT_UP_COLOR = 'hsl(142 71% 40%)';
+const DEFAULT_DOWN_COLOR = 'hsl(0 72% 48%)';
 
 const chartConfig = {
   price: {
     label: 'Price',
-    color: 'hsl(var(--foreground))',
+    color: 'var(--color-foreground)',
   },
 } satisfies ChartConfig;
 
@@ -60,6 +63,8 @@ type MarketPriceChartProps = {
   windowEndMs: number;
   onTimespanChange: (span: ChartTimespan) => void;
   emptyMessage: string;
+  upColor?: string;
+  downColor?: string;
 };
 
 export function MarketPriceChart({
@@ -69,6 +74,8 @@ export function MarketPriceChart({
   windowEndMs,
   onTimespanChange,
   emptyMessage,
+  upColor = DEFAULT_UP_COLOR,
+  downColor = DEFAULT_DOWN_COLOR,
 }: MarketPriceChartProps) {
   const data = useMemo(
     () =>
@@ -123,15 +130,15 @@ export function MarketPriceChart({
     return (v: number) => fmt.format(Number(v));
   }, [stats?.range]);
 
-  const headerColor = stats?.isUp ? UP_COLOR : DOWN_COLOR;
+  const headerColor = stats?.isUp ? upColor : downColor;
   const gradientId = `market-area-gradient-${variant}-${stats?.isUp ? 'up' : 'down'}`;
 
   if (data.length === 0 || stats === null) {
     return (
       <div className='flex flex-col gap-3'>
-        <PriceHeader stats={null} color={UP_COLOR} />
+        <PriceHeader stats={null} color={upColor} />
         <TimespanBar timespan={timespan} onTimespanChange={onTimespanChange} />
-        <p className='text-sm text-black/70'>{emptyMessage}</p>
+        <p className='text-sm text-muted-foreground'>{emptyMessage}</p>
       </div>
     );
   }
@@ -149,7 +156,7 @@ export function MarketPriceChart({
                 <stop offset='100%' stopColor={headerColor} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid vertical={false} strokeDasharray='3 3' stroke='rgba(0,0,0,0.08)' />
+            <CartesianGrid vertical={false} strokeDasharray='3 3' className='stroke-border/50' />
             <XAxis
               dataKey='tMs'
               type='number'
@@ -160,7 +167,7 @@ export function MarketPriceChart({
               axisLine={false}
               minTickGap={16}
               height={28}
-              tick={{ fontSize: 11, fill: 'rgba(0,0,0,0.6)' }}
+              tick={{ fontSize: 11, className: 'fill-muted-foreground' }}
             />
             <YAxis
               domain={['auto', 'auto']}
@@ -168,18 +175,18 @@ export function MarketPriceChart({
               tickLine={false}
               axisLine={false}
               width={72}
-              tick={{ fontSize: 11, fill: 'rgba(0,0,0,0.6)' }}
+              tick={{ fontSize: 11, className: 'fill-muted-foreground' }}
               orientation='right'
             />
             <Tooltip
-              cursor={{ stroke: 'rgba(0,0,0,0.25)', strokeDasharray: '3 3', strokeWidth: 1 }}
+              cursor={{ className: 'stroke-border' }}
               content={({ active, payload }) => {
                 if (!active || !payload?.[0]) return null;
                 const row = payload[0].payload as { tMs: number; priceScaled: string };
                 return (
-                  <div className='rounded border border-black/10 bg-white px-2 py-1.5 text-xs shadow-sm'>
-                    <p className='text-black/60'>{new Date(row.tMs).toLocaleString()}</p>
-                    <p className='font-medium text-black'>
+                  <div className='rounded-lg border border-border bg-popover px-2 py-1.5 text-xs shadow-sm'>
+                    <p className='text-muted-foreground'>{new Date(row.tMs).toLocaleString()}</p>
+                    <p className='font-mono font-medium tabular-nums text-foreground'>
                       {formatUsdFromScaledQuote(row.priceScaled)}
                     </p>
                   </div>
@@ -218,7 +225,7 @@ function PriceHeader({ stats, color }: { stats: PriceStats | null; color: string
   if (stats === null) {
     return (
       <div className='flex items-baseline gap-3'>
-        <span className='text-2xl font-semibold tracking-tight text-black/40'>—</span>
+        <span className='text-2xl font-semibold tracking-tight text-muted-foreground'>—</span>
       </div>
     );
   }
@@ -227,13 +234,13 @@ function PriceHeader({ stats, color }: { stats: PriceStats | null; color: string
   const rangeDecimals = stats.range < 0.01 ? 6 : stats.range < 1 ? 4 : 2;
   return (
     <div className='flex flex-wrap items-baseline gap-x-4 gap-y-1'>
-      <span className='text-3xl font-semibold tracking-tight text-black'>
+      <span className='text-3xl font-semibold tracking-tight tabular-nums text-foreground md:text-4xl'>
         {formatUsdFromScaledQuote(stats.latestScaled, rangeDecimals)}
       </span>
-      <span className='text-sm font-medium' style={{ color }}>
+      <span className='text-sm font-medium tabular-nums' style={{ color }}>
         {deltaLabel}
       </span>
-      <span className='text-xs text-black/50'>
+      <span className='text-xs text-muted-foreground tabular-nums'>
         Range{' '}
         {new Intl.NumberFormat(undefined, {
           style: 'currency',
@@ -268,10 +275,10 @@ function TimespanBar({
           key={value}
           type='button'
           className={cn(
-            'rounded border px-3 py-1.5 text-xs font-medium',
+            'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
             timespan === value
-              ? 'border-black bg-black text-white'
-              : 'border-black/20 text-black/80',
+              ? 'border-primary bg-primary text-primary-foreground'
+              : 'border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground',
           )}
           onClick={() => onTimespanChange(value)}
         >
